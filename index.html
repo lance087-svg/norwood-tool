@@ -755,6 +755,7 @@ tr:hover td{background:#fdf9f3}
       <p style="color:#6b5a3a;font-size:13px" id="lumber-summary"></p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="openStockCounter()" style="background:#c8952a;color:#fff;padding:8px 18px;border-radius:5px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit">📷 Count Stock</button>
       <button class="btn" onclick="printCountSheet(&#39;PT&#39;)" style="background:#2d5a1e;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">🖨️ Print PT Count Sheet</button>
       <button class="btn" onclick="printCountSheet(&#39;ALL&#39;)" style="background:#1a2438;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">🖨️ Print All Lumber Count Sheet</button>
       <button class="btn" onclick="exportCountCSV(&#39;PT&#39;)" style="background:#5c3a8a;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">⬇️ Download PT Count CSV</button>
@@ -1049,6 +1050,74 @@ Subject:
       </thead>
       <tbody id="salvage-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- STOCK COUNTER MODAL -->
+<div id="stock-counter-modal" class="modal-bg hidden" onclick="if(event.target===this)closeStockCounter()">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:17px;font-weight:700;color:#1a1008">📷 Count Stock</div>
+      <button onclick="closeStockCounter()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b5a3a">✕</button>
+    </div>
+
+    <!-- STEP 1: Pick Product -->
+    <div style="background:#fdf9f3;border:1.5px solid #e8dcc0;border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#c8952a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Step 1 — Pick the Product</div>
+      <input type="text" id="sc-search" placeholder="Type to search... e.g. PT 2x4 16, or 6panel 3-0" oninput="scSearchProducts()" autocomplete="off" style="width:100%;padding:10px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:14px;font-family:inherit;outline:none;margin-bottom:8px">
+      <div id="sc-search-results" style="max-height:180px;overflow-y:auto;border:1px solid #e0d5c0;border-radius:6px;background:#fff;display:none"></div>
+      <div id="sc-selected-product" style="display:none;background:#eaf3de;border:1.5px solid #c0dd97;border-radius:6px;padding:10px 12px;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div id="sc-sel-name" style="font-size:14px;font-weight:700;color:#2d6a30"></div>
+            <div id="sc-sel-detail" style="font-size:11px;color:#6b5a3a;margin-top:2px"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:#8B6914;text-transform:uppercase;font-weight:600">On Hand</div>
+            <div id="sc-sel-onhand" style="font-size:22px;font-weight:700;color:#2980d4"></div>
+          </div>
+        </div>
+        <button onclick="scClearProduct()" style="margin-top:6px;background:none;border:none;color:#c04040;font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Change product</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Photo & Count -->
+    <div style="background:#f5f0e8;border:1.5px solid #e0d5c0;border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#c8952a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Step 2 — Snap & Count</div>
+      <div id="sc-cam-zone" style="border:2px dashed #d5c8a8;border-radius:8px;padding:20px 12px;text-align:center;cursor:pointer;background:#fff;margin-bottom:10px" onclick="document.getElementById('sc-cam-input').click()">
+        <div id="sc-cam-preview" style="display:none;margin-bottom:8px"></div>
+        <div id="sc-cam-prompt">
+          <div style="font-size:28px;margin-bottom:4px">📸</div>
+          <div style="font-size:13px;font-weight:600;color:#1a2438">Tap to photograph the stack</div>
+          <div style="font-size:11px;color:#a89060;margin-top:3px">Shoot the end of a bundle, or a group of items</div>
+        </div>
+        <input type="file" id="sc-cam-input" accept="image/*" capture="environment" style="display:none" onchange="onStockPhoto(this)">
+      </div>
+      <button id="sc-ai-btn" onclick="aiCountStock()" disabled style="width:100%;padding:10px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:13px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:8px">🤖 AI Count Pieces</button>
+      <div id="sc-ai-status" style="display:none;text-align:center;padding:6px;font-size:12px;color:#2980d4;margin-bottom:6px"></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="fg" style="flex:1">
+          <label class="lbl">Piece Count</label>
+          <input type="number" id="sc-count" min="0" value="" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;padding:10px">
+        </div>
+        <div style="font-size:11px;color:#a89060;max-width:140px;line-height:1.4">AI fills this in, or just type the count yourself — no photo needed</div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Confirm -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:6px;border:2px solid #2d6a30;background:#eaf3de;cursor:pointer;font-size:13px;font-weight:600;color:#2d6a30">
+        <input type="radio" name="sc-mode" value="replace" checked style="width:16px;height:16px"> Replace count
+      </label>
+      <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:6px;border:2px solid #2980d4;background:#eaf4fd;cursor:pointer;font-size:13px;font-weight:600;color:#2980d4">
+        <input type="radio" name="sc-mode" value="add" style="width:16px;height:16px"> Add to existing
+      </label>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button onclick="closeStockCounter()" style="flex:1;padding:10px;border-radius:5px;border:1.5px solid #d5c8a8;background:#fff;color:#6b5a3a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="saveStockCount()" style="flex:2;padding:10px;border-radius:5px;border:none;background:#2d6a30;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Update Inventory</button>
+    </div>
   </div>
 </div>
 
@@ -5943,6 +6012,171 @@ function openLightbox(url, caption) {
   lb.style.display='flex';
   document.body.style.overflow='hidden';
 }
+// ── STOCK COUNTER (Pick Product First, Then Count) ─────────────────────────
+var scPhoto = null;
+var scSelectedProduct = null; // full product object
+
+function openStockCounter() {
+  scPhoto = null; scSelectedProduct = null;
+  document.getElementById('sc-search').value = '';
+  document.getElementById('sc-search-results').style.display = 'none';
+  document.getElementById('sc-search-results').innerHTML = '';
+  document.getElementById('sc-selected-product').style.display = 'none';
+  document.getElementById('sc-cam-preview').style.display = 'none';
+  document.getElementById('sc-cam-preview').innerHTML = '';
+  document.getElementById('sc-cam-prompt').style.display = 'block';
+  document.getElementById('sc-cam-input').value = '';
+  var btn = document.getElementById('sc-ai-btn');
+  btn.disabled = true; btn.style.background = '#ccc'; btn.style.cursor = 'not-allowed';
+  document.getElementById('sc-ai-status').style.display = 'none';
+  document.getElementById('sc-count').value = '';
+  document.getElementById('stock-counter-modal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('sc-search').focus(); }, 200);
+}
+function closeStockCounter() { document.getElementById('stock-counter-modal').classList.add('hidden'); }
+
+function scSearchProducts() {
+  var q = (document.getElementById('sc-search').value || '').toLowerCase().trim();
+  var resultsEl = document.getElementById('sc-search-results');
+  if (q.length < 2) { resultsEl.style.display = 'none'; return; }
+  var products = getProducts();
+  var words = q.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  var scored = products.map(function(p) {
+    var name = (p.name || p.item || '').toLowerCase();
+    var cat = (p.category || '').toLowerCase();
+    var score = 0;
+    words.forEach(function(w) { if (name.includes(w)) score += 2; if (cat.includes(w)) score += 1; });
+    if (name.includes(q)) score += 5;
+    return { p: p, score: score };
+  }).filter(function(x) { return x.score > 0; }).sort(function(a, b) { return b.score - a.score; }).slice(0, 15);
+
+  if (!scored.length) {
+    resultsEl.innerHTML = '<div style="padding:12px;color:#a89060;font-size:12px;text-align:center">No matching products found</div>';
+    resultsEl.style.display = 'block';
+    return;
+  }
+  resultsEl.innerHTML = scored.map(function(x) {
+    var p = x.p;
+    var counts = JSON.parse(localStorage.getItem('ns_lumber_counts') || '{}');
+    var onHand = p.isLumber ? (counts[p.sku] || 0) : (p.onHand || 0);
+    var edits = JSON.parse(localStorage.getItem('ns_edits') || '{}');
+    if (edits[p.id] && edits[p.id].onHand !== undefined) onHand = edits[p.id].onHand;
+    return '<div onclick="scSelectProduct(' + p.id + ')" style="padding:8px 12px;border-bottom:1px solid #f0e8d8;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px" onmouseover="this.style.background=\'#fdf9f3\'" onmouseout="this.style.background=\'#fff\'">' +
+      '<div><div style="font-weight:600;color:#1a2438">' + (p.name || p.item) + '</div>' +
+      '<div style="font-size:10px;color:#a89060">' + (p.category || '') + ' · SKU: ' + (p.sku || '') + '</div></div>' +
+      '<div style="font-size:14px;font-weight:700;color:#2980d4">' + onHand + '</div></div>';
+  }).join('');
+  resultsEl.style.display = 'block';
+}
+
+function scSelectProduct(id) {
+  var products = getProducts();
+  var p = products.find(function(x) { return x.id === id; });
+  if (!p) return;
+  scSelectedProduct = p;
+  var counts = JSON.parse(localStorage.getItem('ns_lumber_counts') || '{}');
+  var onHand = p.isLumber ? (counts[p.sku] || 0) : (p.onHand || 0);
+  var edits = JSON.parse(localStorage.getItem('ns_edits') || '{}');
+  if (edits[p.id] && edits[p.id].onHand !== undefined) onHand = edits[p.id].onHand;
+
+  document.getElementById('sc-sel-name').textContent = p.name || p.item;
+  document.getElementById('sc-sel-detail').textContent = (p.category || '') + ' · SKU: ' + (p.sku || '') + (p.isLumber ? ' · Lumber' : '');
+  document.getElementById('sc-sel-onhand').textContent = onHand;
+  document.getElementById('sc-selected-product').style.display = 'block';
+  document.getElementById('sc-search').style.display = 'none';
+  document.getElementById('sc-search-results').style.display = 'none';
+}
+
+function scClearProduct() {
+  scSelectedProduct = null;
+  document.getElementById('sc-selected-product').style.display = 'none';
+  document.getElementById('sc-search').style.display = 'block';
+  document.getElementById('sc-search').value = '';
+  document.getElementById('sc-search').focus();
+}
+
+function onStockPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    scPhoto = e.target.result;
+    document.getElementById('sc-cam-preview').innerHTML = '<img src="' + scPhoto + '" style="max-width:100%;max-height:180px;border-radius:6px;border:1.5px solid #d5c8a8">';
+    document.getElementById('sc-cam-preview').style.display = 'block';
+    document.getElementById('sc-cam-prompt').style.display = 'none';
+    var apiKey = localStorage.getItem('ns_salvage_apikey');
+    var btn = document.getElementById('sc-ai-btn');
+    btn.disabled = false; btn.style.cursor = 'pointer';
+    btn.style.background = apiKey ? '#c8952a' : '#c8952a';
+    btn.textContent = apiKey ? '🤖 AI Count Pieces' : '🔑 Setup AI Key First';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function aiCountStock() {
+  var apiKey = localStorage.getItem('ns_salvage_apikey');
+  if (!apiKey) { document.getElementById('salvage-apikey-modal').classList.remove('hidden'); return; }
+  if (!scPhoto) { alert('Take a photo first'); return; }
+  var statusEl = document.getElementById('sc-ai-status');
+  var btn = document.getElementById('sc-ai-btn');
+  btn.disabled = true; btn.style.background = '#ccc'; btn.textContent = '⏳ Counting...';
+  statusEl.style.display = 'block'; statusEl.style.color = '#2980d4';
+  var prodHint = scSelectedProduct ? ('The product is: ' + (scSelectedProduct.name || scSelectedProduct.item) + '. ') : '';
+  statusEl.textContent = 'AI is counting pieces...';
+  var base64Data = scPhoto.split(',')[1];
+  var mediaType = scPhoto.split(';')[0].split(':')[1];
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+      { type: 'text', text: prodHint + 'Count the individual pieces/units visible in this photo. For lumber, count the cross-sections visible at the end of the stack. For doors or other items, count individual units. Be as accurate as possible. Respond ONLY with a JSON object, no markdown, no backticks. Fields: count (number), confidence (string: high/medium/low), notes (string, brief observation about the count).' }
+    ] }] })
+  }).then(function(r) { return r.json(); })
+  .then(function(data) {
+    var text = (data.content && data.content[0] && data.content[0].text) || '';
+    try {
+      var clean = text.replace(/```json|```/g, '').trim();
+      var result = JSON.parse(clean);
+      document.getElementById('sc-count').value = result.count || 0;
+      var confColor = result.confidence === 'high' ? '#2d6a30' : result.confidence === 'medium' ? '#8B6914' : '#c04040';
+      statusEl.innerHTML = '✅ Counted <strong>' + (result.count || 0) + ' pieces</strong> · <span style="color:' + confColor + '">Confidence: ' + (result.confidence || '?') + '</span>' + (result.notes ? ' · ' + result.notes : '');
+      statusEl.style.color = '#2d6a30';
+    } catch(e) { statusEl.textContent = '⚠️ Could not parse. Enter the count manually.'; statusEl.style.color = '#c04040'; }
+    btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
+  }).catch(function(err) {
+    statusEl.textContent = '❌ Error: ' + err.message; statusEl.style.color = '#c04040';
+    btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
+  });
+}
+
+function saveStockCount() {
+  if (!scSelectedProduct) { alert('Pick a product first (Step 1)'); return; }
+  var newCount = parseInt(document.getElementById('sc-count').value);
+  if (isNaN(newCount) || newCount < 0) { alert('Enter a valid count'); return; }
+  var mode = document.querySelector('input[name="sc-mode"]:checked').value;
+  var prod = scSelectedProduct;
+  var finalCount;
+  if (prod.isLumber) {
+    var counts = JSON.parse(localStorage.getItem('ns_lumber_counts') || '{}');
+    var old = counts[prod.sku] || 0;
+    finalCount = mode === 'replace' ? newCount : old + newCount;
+    counts[prod.sku] = finalCount;
+    localStorage.setItem('ns_lumber_counts', JSON.stringify(counts));
+  } else {
+    var edits = JSON.parse(localStorage.getItem('ns_edits') || '{}');
+    if (!edits[prod.id]) edits[prod.id] = {};
+    var oldOH = edits[prod.id].onHand !== undefined ? edits[prod.id].onHand : (prod.onHand || 0);
+    finalCount = mode === 'replace' ? newCount : oldOH + newCount;
+    edits[prod.id].onHand = finalCount;
+    localStorage.setItem('ns_edits', JSON.stringify(edits));
+  }
+  closeStockCounter();
+  if (typeof renderLumber === 'function') renderLumber();
+  if (typeof renderAdmin === 'function') renderAdmin();
+  if (typeof renderCatalog === 'function') renderCatalog();
+  alert('✅ ' + (prod.name || prod.item) + ' → ' + finalCount + ' on hand' + (mode === 'add' ? ' (added ' + newCount + ')' : ' (replaced)'));
+}
+
 // ── SALVAGE INVENTORY (with Camera/AI Scanner) ─────────────────────────────
 var salvageCatFilter = 'All';
 var currentSalvagePhoto = null;
