@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0073)file:///C:/Users/Lance/Downloads/NorwoodSupply_PricingTool_Updated_9.html -->
+<!-- saved from url=(0073)file:///C:/Users/Lance/Downloads/NorwoodSupply_PricingTool_Updated_8.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -443,7 +443,7 @@ tr:hover td{background:#fdf9f3}
     </div>
   </div>
   <nav class="nav" style="overflow-x:auto;padding-bottom:0;justify-content:flex-start">
-    <button class="tab" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
+    <button class="tab active" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
     <button class="tab" id="tab-catalog" onclick="showPage(&#39;catalog&#39;,this)">🚪 Catalog</button>
     <button class="tab" id="tab-admin" onclick="showPage(&#39;admin&#39;,this)">⚙️ Manage</button>
     <button class="tab" id="tab-history" onclick="showPage(&#39;history&#39;,this)">🗂️ Saved Quotes</button>
@@ -451,7 +451,7 @@ tr:hover td{background:#fdf9f3}
     <button class="tab" id="tab-orders" onclick="showPage(&#39;orders&#39;,this)">📦 Order Tracker</button>
     <button class="tab" id="tab-inquiries" onclick="showPage(&#39;inquiries&#39;,this)">📬 Vendor Inquiries</button>
     <button class="tab" id="tab-polog" onclick="showPage(&#39;polog&#39;,this)">📋 PO Log</button>
-    <button class="tab active" id="tab-salvage" onclick="showPage(&#39;salvage&#39;,this)">♻️ Salvage</button>
+    <button class="tab" id="tab-salvage" onclick="showPage(&#39;salvage&#39;,this)">♻️ Salvage</button>
     <button class="tab" id="tab-reports" onclick="showPage(&#39;reports&#39;,this)">📊 Reports</button>
     <button class="tab tab-new" onclick="newQuote()">🔄 New Quote</button>
     <button onclick="exportAllData()" style="margin-left:8px;padding:5px 11px;border-radius:5px 5px 0 0;border:1px solid #4a5a70;border-bottom:none;background:rgba(255,255,255,0.07);color:#9baab8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" title="Export all data to backup file">⬇️ Export</button>
@@ -463,7 +463,7 @@ tr:hover td{background:#fdf9f3}
 <div class="main">
 
 <!-- QUOTE PAGE -->
-<div id="page-quote" class="page">
+<div id="page-quote" class="page active">
   <div id="quote-view" class="">
     <div class="qgrid">
       <div>
@@ -479,7 +479,7 @@ tr:hover td{background:#fdf9f3}
             <div class="row">
               <div class="fg">
                 <label class="lbl">Category</label>
-                <select id="sel-cat" onchange="onCat()"><option value="">— Select —</option><option value="Composite Decking">Composite Decking</option><option value="Exterior">Exterior</option><option value="Exterior Doors">Exterior Doors</option><option value="Hardware">Hardware</option><option value="Interior">Interior</option><option value="Interior Doors">Interior Doors</option><option value="Lumber">Lumber</option><option value="Millwork">Millwork</option><option value="Siding">Siding</option><option value="TLC Exterior Doors">TLC Exterior Doors</option><option value="Windows">Windows</option></select>
+                <select id="sel-cat" onchange="onCat()"><option value="">— Select —</option><option value="Composite Decking">Composite Decking</option><option value="Exterior">Exterior</option><option value="Exterior Doors">Exterior Doors</option><option value="Hardware">Hardware</option><option value="Interior Doors">Interior Doors</option><option value="Lumber">Lumber</option><option value="Millwork">Millwork</option><option value="Siding">Siding</option><option value="TLC Exterior Doors">TLC Exterior Doors</option><option value="Windows">Windows</option></select>
               </div>
               <div class="fg">
                 <label class="lbl">Group</label>
@@ -999,11 +999,11 @@ Subject:
 </div>
 
 <!-- SALVAGE INVENTORY PAGE -->
-<div id="page-salvage" class="page active">
+<div id="page-salvage" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
     <div>
       <h2 style="font-size:20px;font-weight:700;margin-bottom:3px">♻️ Salvage Inventory</h2>
-      <p style="color:#6b5a3a;font-size:13px" id="salvage-summary">0 items · 0 active</p>
+      <p style="color:#6b5a3a;font-size:13px" id="salvage-summary">0 items</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button onclick="openSalvageScanner()" style="background:#2980d4;color:#fff;padding:8px 18px;border-radius:5px;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:inherit">📷 Scan Item</button>
@@ -1013,13 +1013,13 @@ Subject:
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="salvage-pills">
-    <button class="pill on" onclick="setSalvageFilter(&#39;All&#39;,this)">All</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Doors&#39;,this)">Doors</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Lumber&#39;,this)">Lumber</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Millwork&#39;,this)">Millwork</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Hardware&#39;,this)">Hardware</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Plywood/Sheet&#39;,this)">Plywood/Sheet</button>
-    <button class="pill off" onclick="setSalvageFilter(&#39;Misc&#39;,this)">Misc</button>
+    <button class="pill on" onclick="setSalvageFilter('All',this)">All</button>
+    <button class="pill off" onclick="setSalvageFilter('Doors',this)">Doors</button>
+    <button class="pill off" onclick="setSalvageFilter('Lumber',this)">Lumber</button>
+    <button class="pill off" onclick="setSalvageFilter('Millwork',this)">Millwork</button>
+    <button class="pill off" onclick="setSalvageFilter('Hardware',this)">Hardware</button>
+    <button class="pill off" onclick="setSalvageFilter('Plywood/Sheet',this)">Plywood/Sheet</button>
+    <button class="pill off" onclick="setSalvageFilter('Misc',this)">Misc</button>
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:14px">
@@ -1031,7 +1031,7 @@ Subject:
     <input id="salvage-search" placeholder="Search salvage items..." oninput="renderSalvage()" style="flex:1;padding:7px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;background:#fff">
   </div>
 
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="salvage-kpis"><div class="kpi-card"><div class="kpi-label">Active Items</div><div class="kpi-value">0</div></div><div class="kpi-card"><div class="kpi-label">Total Cost</div><div class="kpi-value">$0</div></div><div class="kpi-card green"><div class="kpi-label">Total Value</div><div class="kpi-value">$0</div></div><div class="kpi-card"><div class="kpi-label">Sold Items</div><div class="kpi-value">0</div></div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="salvage-kpis"></div>
 
   <div class="panel">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -1048,7 +1048,7 @@ Subject:
           <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:80px">Actions</th>
         </tr>
       </thead>
-      <tbody id="salvage-tbody"><tr><td colspan="9" style="text-align:center;padding:30px;color:#a89060;font-size:13px">No salvage items found. Tap "📷 Scan Item" or "+ Add Manually" to get started.</td></tr></tbody>
+      <tbody id="salvage-tbody"></tbody>
     </table>
   </div>
 </div>
@@ -1083,8 +1083,8 @@ Subject:
 
     <!-- STEP 2: Photo & Count -->
     <div style="background:#f5f0e8;border:1.5px solid #e0d5c0;border-radius:8px;padding:14px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:#c8952a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Step 2 — Snap &amp; Count</div>
-      <div id="sc-cam-zone" style="border:2px dashed #d5c8a8;border-radius:8px;padding:20px 12px;text-align:center;cursor:pointer;background:#fff;margin-bottom:10px" onclick="document.getElementById(&#39;sc-cam-input&#39;).click()">
+      <div style="font-size:12px;font-weight:700;color:#c8952a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Step 2 — Snap & Count</div>
+      <div id="sc-cam-zone" style="border:2px dashed #d5c8a8;border-radius:8px;padding:20px 12px;text-align:center;cursor:pointer;background:#fff;margin-bottom:10px" onclick="document.getElementById('sc-cam-input').click()">
         <div id="sc-cam-preview" style="display:none;margin-bottom:8px"></div>
         <div id="sc-cam-prompt">
           <div style="font-size:28px;margin-bottom:4px">📸</div>
@@ -1093,7 +1093,7 @@ Subject:
         </div>
         <input type="file" id="sc-cam-input" accept="image/*" capture="environment" style="display:none" onchange="onStockPhoto(this)">
       </div>
-      <button id="sc-ai-btn" onclick="aiCountStock()" disabled="" style="width:100%;padding:10px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:13px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:8px">🤖 AI Count Pieces</button>
+      <button id="sc-ai-btn" onclick="aiCountStock()" disabled style="width:100%;padding:10px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:13px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:8px">🤖 AI Count Pieces</button>
       <div id="sc-ai-status" style="display:none;text-align:center;padding:6px;font-size:12px;color:#2980d4;margin-bottom:6px"></div>
       <div style="display:flex;gap:10px;align-items:center">
         <div class="fg" style="flex:1">
@@ -1107,7 +1107,7 @@ Subject:
     <!-- STEP 3: Confirm -->
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:6px;border:2px solid #2d6a30;background:#eaf3de;cursor:pointer;font-size:13px;font-weight:600;color:#2d6a30">
-        <input type="radio" name="sc-mode" value="replace" checked="" style="width:16px;height:16px"> Replace count
+        <input type="radio" name="sc-mode" value="replace" checked style="width:16px;height:16px"> Replace count
       </label>
       <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:6px;border:2px solid #2980d4;background:#eaf4fd;cursor:pointer;font-size:13px;font-weight:600;color:#2980d4">
         <input type="radio" name="sc-mode" value="add" style="width:16px;height:16px"> Add to existing
@@ -1128,7 +1128,7 @@ Subject:
       <div style="font-size:17px;font-weight:700;color:#1a1008">📷 Scan Salvage Item</div>
       <button onclick="closeSalvageScanner()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b5a3a">✕</button>
     </div>
-    <div id="salvage-cam-zone" style="border:2.5px dashed #d5c8a8;border-radius:10px;padding:30px 16px;text-align:center;margin-bottom:14px;cursor:pointer;background:#faf8f4" onclick="document.getElementById(&#39;salvage-cam-input&#39;).click()">
+    <div id="salvage-cam-zone" style="border:2.5px dashed #d5c8a8;border-radius:10px;padding:30px 16px;text-align:center;margin-bottom:14px;cursor:pointer;background:#faf8f4" onclick="document.getElementById('salvage-cam-input').click()">
       <div id="salvage-cam-preview" style="display:none;margin-bottom:10px"></div>
       <div id="salvage-cam-prompt">
         <div style="font-size:36px;margin-bottom:6px">📸</div>
@@ -1137,7 +1137,7 @@ Subject:
       </div>
       <input type="file" id="salvage-cam-input" accept="image/*" capture="environment" style="display:none" onchange="onSalvagePhoto(this)">
     </div>
-    <button id="salvage-ai-btn" onclick="aiIdentifySalvage()" disabled="" style="width:100%;padding:12px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:14px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:14px">🤖 Identify &amp; Price This Item</button>
+    <button id="salvage-ai-btn" onclick="aiIdentifySalvage()" disabled style="width:100%;padding:12px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:14px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:14px">🤖 Identify & Price This Item</button>
     <div id="salvage-ai-status" style="display:none;text-align:center;padding:8px;font-size:12px;color:#2980d4;margin-bottom:10px"></div>
     <div id="salvage-result-fields">
       <div class="fg" style="margin-bottom:10px">
@@ -1170,13 +1170,13 @@ Subject:
   </div>
 </div>
 
-<div id="salvage-apikey-modal" class="modal-bg hidden" onclick="if(event.target===this)document.getElementById(&#39;salvage-apikey-modal&#39;).classList.add(&#39;hidden&#39;)">
+<div id="salvage-apikey-modal" class="modal-bg hidden" onclick="if(event.target===this)document.getElementById('salvage-apikey-modal').classList.add('hidden')">
   <div class="modal" style="max-width:440px">
     <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:6px">🔑 AI Setup</div>
     <div style="font-size:12px;color:#6b5a3a;margin-bottom:14px;line-height:1.6">To use AI item identification, enter your Claude API key. Stored only in your browser.</div>
-    <div class="fg" style="margin-bottom:14px"><label class="lbl">Anthropic API Key</label><input type="password" id="sv-apikey-input" placeholder="sk-ant-..." style="font-family:monospace"></div>
+    <div class="fg" style="margin-bottom:14px"><label class="lbl">Anthropic API Key</label><input type="text" id="sv-apikey-input" placeholder="sk-ant-..." style="font-family:monospace" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="document.getElementById(&#39;salvage-apikey-modal&#39;).classList.add(&#39;hidden&#39;)" class="btn btn-gh">Cancel</button>
+      <button onclick="document.getElementById('salvage-apikey-modal').classList.add('hidden')" class="btn btn-gh">Cancel</button>
       <button onclick="saveSalvageAPIKey()" style="padding:8px 20px;border-radius:5px;border:none;background:#2980d4;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Save Key</button>
     </div>
   </div>
