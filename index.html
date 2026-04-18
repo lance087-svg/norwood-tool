@@ -2944,9 +2944,9 @@ function onCat() {
   if(!cat) return;
   if(cat==='Salvage') {
     var salvItems = getSalvageItems().filter(function(s){return !s.sold;});
-    var grps = [...new Set(salvItems.map(s=>s.category||'Misc'))].filter(Boolean).sort();
-    if(grps.length===0) grps=['(No active salvage items)'];
-    grps.forEach(g => { const o = document.createElement('option'); o.value=g; o.textContent=g; grp.appendChild(o); });
+    var salvGrps = [...new Set(salvItems.map(s=>s.category||'Misc'))].filter(Boolean).sort();
+    if(salvGrps.length===0) salvGrps=['(No active salvage items)'];
+    salvGrps.forEach(g => { const o = document.createElement('option'); o.value=g; o.textContent=g; grp.appendChild(o); });
     return;
   }
   const grps = [...new Set(products.filter(p => p.category===cat).map(p => p.group))].filter(Boolean).sort();
