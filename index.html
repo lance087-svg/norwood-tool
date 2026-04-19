@@ -6426,15 +6426,34 @@ function aiCountStock() {
     ] }] })
   }).then(function(r) { return r.json(); })
   .then(function(data) {
+    if (data.error) { statusEl.textContent = '❌ API Error: ' + (data.error.message || data.error.type || 'Unknown'); statusEl.style.color = '#c04040'; btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces'; return; }
     var text = (data.content && data.content[0] && data.content[0].text) || '';
+    var result = null;
     try {
       var clean = text.replace(/```json|```/g, '').trim();
-      var result = JSON.parse(clean);
-      document.getElementById('sc-count').value = result.count || 0;
+      try { result = JSON.parse(clean); }
+      catch(e1) {
+        var match = clean.match(/\{[\s\S]*\}/);
+        if (match) { try { result = JSON.parse(match[0]); } catch(e2) {} }
+      }
+    } catch(e) {}
+    if (result) {
+      var count = parseInt(result.count) || 0;
+      document.getElementById('sc-count').value = count;
       var confColor = result.confidence === 'high' ? '#2d6a30' : result.confidence === 'medium' ? '#8B6914' : '#c04040';
-      statusEl.innerHTML = '✅ Counted <strong>' + (result.count || 0) + ' pieces</strong> · <span style="color:' + confColor + '">Confidence: ' + (result.confidence || '?') + '</span>' + (result.notes ? ' · ' + result.notes : '');
+      statusEl.innerHTML = '✅ Counted <strong>' + count + ' pieces</strong> · <span style="color:' + confColor + '">Confidence: ' + (result.confidence || '?') + '</span>' + (result.notes ? ' · ' + result.notes : '');
       statusEl.style.color = '#2d6a30';
-    } catch(e) { statusEl.textContent = '⚠️ Could not parse. Enter the count manually.'; statusEl.style.color = '#c04040'; }
+    } else {
+      var numMatch = text.match(/\b(\d+)\s*(pieces|units|items|pcs|boards)?\b/i);
+      if (numMatch) {
+        document.getElementById('sc-count').value = parseInt(numMatch[1]);
+        statusEl.innerHTML = '✅ Estimated <strong>' + numMatch[1] + ' pieces</strong> (review AI notes below)<div style="font-size:11px;margin-top:4px;color:#666">' + text.substring(0, 200) + '</div>';
+        statusEl.style.color = '#8B6914';
+      } else {
+        statusEl.innerHTML = '⚠️ Could not parse count. AI said:<div style="font-size:11px;margin-top:4px;color:#666;max-height:80px;overflow:auto">' + (text || 'empty response').substring(0, 300) + '</div>';
+        statusEl.style.color = '#c04040';
+      }
+    }
     btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
   }).catch(function(err) {
     statusEl.textContent = '❌ Error: ' + err.message; statusEl.style.color = '#c04040';
@@ -6620,10 +6639,18 @@ function aiIdentifySalvage() {
     body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:'You are identifying a building material item for a building supply store (Norwood Supply in Jacksonville FL). Respond ONLY with a JSON object, no markdown, no backticks. Fields: description (string, brief product description), category (one of: Doors, Lumber, Millwork, Hardware, Plywood/Sheet, Misc), condition (one of: New, Good, Fair, Rough), estimatedRetail (number, estimated new retail value in dollars), suggestedPrice (number, suggested salvage sell price in dollars), notes (string, any relevant details about the item).'}]}]})
   }).then(function(r){return r.json();})
   .then(function(data){
+    if (data.error) { statusEl.textContent = '❌ API Error: ' + (data.error.message || data.error.type || 'Unknown'); statusEl.style.color='#c04040'; btn.disabled=false; btn.style.background='#2980d4'; btn.style.cursor='pointer'; btn.textContent='🤖 Identify & Price This Item'; return; }
     var text=(data.content&&data.content[0]&&data.content[0].text)||'';
+    var result=null;
     try{
       var clean=text.replace(/```json|```/g,'').trim();
-      var result=JSON.parse(clean);
+      try{ result=JSON.parse(clean); }
+      catch(e1){
+        var match=clean.match(/\{[\s\S]*\}/);
+        if(match){ try{ result=JSON.parse(match[0]); }catch(e2){} }
+      }
+    }catch(e){}
+    if(result){
       document.getElementById('sv-desc').value=result.description||'';
       document.getElementById('sv-cat').value=result.category||'Misc';
       document.getElementById('sv-cond').value=result.condition||'Good';
@@ -6632,7 +6659,10 @@ function aiIdentifySalvage() {
       document.getElementById('sv-notes').value=result.notes||'';
       updateSvGM();
       statusEl.textContent='✅ AI identified! Review and edit below.'; statusEl.style.color='#2d6a30';
-    }catch(e){ statusEl.textContent='⚠️ Could not parse AI response. Enter details manually.'; statusEl.style.color='#c04040'; }
+    } else {
+      statusEl.innerHTML='⚠️ Could not parse AI response. AI said:<div style="font-size:11px;margin-top:4px;color:#666;max-height:80px;overflow:auto">' + (text || 'empty response').substring(0, 300) + '</div>Enter details manually below.';
+      statusEl.style.color='#c04040';
+    }
     btn.disabled=false; btn.style.background='#2980d4'; btn.style.cursor='pointer'; btn.textContent='🤖 Identify & Price This Item';
   }).catch(function(err){
     statusEl.textContent='❌ Error: '+err.message; statusEl.style.color='#c04040';
