@@ -438,6 +438,7 @@ tr:hover td{background:#fdf9f3}
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <style>
 .nsync-ov{position:fixed;inset:0;background:rgba(26,36,56,.96);color:#fff;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:600 15px system-ui,sans-serif}
 .nsync-sp{width:42px;height:42px;border:4px solid #2980d4;border-top-color:transparent;border-radius:50%;animation:nsync-k 1s linear infinite}
@@ -467,6 +468,11 @@ tr:hover td{background:#fdf9f3}
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
   window._nsDb = db;
+  // Firebase Storage (for salvage photos — keeps Firestore docs under 1 MB)
+  try {
+    var storage = firebase.storage();
+    window._nsStorage = storage;
+  } catch(e){ console.error('[nsync] storage init failed', e); }
 
   // ── Timestamp tracking (per-device, not synced) ──────────────────────
   function getLocalTs(k){ return parseInt(localStorage.getItem('_nsts_'+k) || '0', 10); }
@@ -6677,14 +6683,43 @@ function saveSalvageItemNew() {
   item.price=parseFloat(document.getElementById('sv-price').value)||0;
   item.location=document.getElementById('sv-location').value.trim();
   item.notes=document.getElementById('sv-notes').value.trim();
-  if(currentSalvagePhoto&&!editId){
+
+  function commit(){ saveSalvageItems(items); renderSalvage(); closeSalvageScanner(); }
+
+  if(currentSalvagePhoto && !editId){
+    var statusEl=document.getElementById('salvage-ai-status');
+    if(statusEl){ statusEl.style.display='block'; statusEl.style.color='#2980d4'; statusEl.textContent='☁ Uploading photo to cloud storage...'; }
+
     var canvas=document.createElement('canvas'); var img=new Image();
-    img.onload=function(){ canvas.width=640; canvas.height=640; var ctx=canvas.getContext('2d');
+    img.onload=function(){
+      canvas.width=640; canvas.height=640; var ctx=canvas.getContext('2d');
       var s=Math.min(img.width,img.height); ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,640,640);
-      item.thumbnail=canvas.toDataURL('image/jpeg',0.75); saveSalvageItems(items); };
+      canvas.toBlob(function(blob){
+        var storage=window._nsStorage;
+        if(!blob || !storage){
+          item.thumbnail=canvas.toDataURL('image/jpeg',0.75);
+          commit();
+          return;
+        }
+        var ref=storage.ref('salvage-photos/'+item.id+'.jpg');
+        ref.put(blob,{contentType:'image/jpeg'})
+          .then(function(snap){ return snap.ref.getDownloadURL(); })
+          .then(function(url){
+            item.thumbnail=url;
+            commit();
+          })
+          .catch(function(err){
+            console.error('[salvage] photo upload failed',err);
+            item.thumbnail=canvas.toDataURL('image/jpeg',0.75);
+            alert('Cloud photo upload failed: '+(err.message||err)+'\n\nItem saved locally.');
+            commit();
+          });
+      },'image/jpeg',0.75);
+    };
     img.src=currentSalvagePhoto;
+  } else {
+    commit();
   }
-  saveSalvageItems(items); renderSalvage(); closeSalvageScanner();
 }
 
 function editSalvageItem(id) {
@@ -6737,6 +6772,59 @@ function exportSalvageCSV() {
 }
 
 setTimeout(function(){ if(document.getElementById('salvage-tbody')) renderSalvage(); }, 100);
+
+  // ── ONE-TIME MIGRATION: existing base64 salvage photos → Firebase Storage ──
+(function setupSalvageMigration(){
+  var FLAG = 'ns_salvage_storage_migrated_v1';
+  var attempts = 0;
+  function tryMigrate(){
+    if(localStorage.getItem(FLAG) === 'done') return;
+    attempts++;
+    if(!window._nsStorage){
+      if(attempts < 20) setTimeout(tryMigrate, 1500);
+      return;
+    }
+    var items;
+    try { items = JSON.parse(localStorage.getItem('ns_salvage') || '[]'); }
+    catch(e){ console.error('[salvage-migrate] parse error', e); return; }
+    var toMigrate = items.filter(function(it){
+      return it.thumbnail && typeof it.thumbnail==='string' && it.thumbnail.indexOf('data:image')===0;
+    });
+    if(!toMigrate.length){ localStorage.setItem(FLAG, 'done'); return; }
+    console.log('[salvage-migrate] starting migration of '+toMigrate.length+' photos');
+    var notice = document.createElement('div');
+    notice.style.cssText='position:fixed;top:8px;right:8px;background:#2980d4;color:#fff;padding:9px 14px;border-radius:5px;font:600 12px system-ui,sans-serif;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:90vw';
+    notice.textContent='☁ Migrating salvage photos... 0/'+toMigrate.length;
+    if(document.body) document.body.appendChild(notice);
+    var done = 0, failed = 0;
+    function processNext(i){
+      if(i >= toMigrate.length){
+        localStorage.setItem('ns_salvage', JSON.stringify(items));
+        localStorage.setItem(FLAG, 'done');
+        notice.style.background = failed ? '#c8952a' : '#15803d';
+        notice.textContent = failed ? ('⚠ Migrated '+done+' photos, '+failed+' failed') : ('✓ Migrated '+done+' salvage photos to cloud');
+        setTimeout(function(){ notice.remove(); }, 5000);
+        if(typeof renderSalvage === 'function') renderSalvage();
+        return;
+      }
+      var it = toMigrate[i];
+      fetch(it.thumbnail)
+        .then(function(r){ return r.blob(); })
+        .then(function(blob){
+          var ref = window._nsStorage.ref('salvage-photos/'+it.id+'.jpg');
+          return ref.put(blob,{contentType:'image/jpeg'}).then(function(snap){ return snap.ref.getDownloadURL(); });
+        })
+        .then(function(url){ it.thumbnail = url; done++; notice.textContent='☁ Migrating salvage photos... '+(done+failed)+'/'+toMigrate.length; processNext(i+1); })
+        .catch(function(err){ console.error('[salvage-migrate] failed for item '+it.id, err); failed++; notice.textContent='☁ Migrating salvage photos... '+(done+failed)+'/'+toMigrate.length; processNext(i+1); });
+    }
+    processNext(0);
+  }
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(tryMigrate, 4000);
+  } else {
+    window.addEventListener('load', function(){ setTimeout(tryMigrate, 4000); });
+  }
+})();
 
 
 function closeLightbox() {
