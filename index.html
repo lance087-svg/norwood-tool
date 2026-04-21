@@ -6318,6 +6318,7 @@ var scSelectedProduct = null; // full product object
 function openStockCounter() {
   scPhoto = null; scSelectedProduct = null;
   document.getElementById('sc-search').value = '';
+  document.getElementById('sc-search').style.display = 'block';
   document.getElementById('sc-search-results').style.display = 'none';
   document.getElementById('sc-search-results').innerHTML = '';
   document.getElementById('sc-selected-product').style.display = 'none';
