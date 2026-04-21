@@ -6396,15 +6396,37 @@ function onStockPhoto(input) {
   if (!input.files || !input.files[0]) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    scPhoto = e.target.result;
-    document.getElementById('sc-cam-preview').innerHTML = '<img src="' + scPhoto + '" style="max-width:100%;max-height:180px;border-radius:6px;border:1.5px solid #d5c8a8">';
-    document.getElementById('sc-cam-preview').style.display = 'block';
-    document.getElementById('sc-cam-prompt').style.display = 'none';
-    var apiKey = localStorage.getItem('ns_salvage_apikey');
-    var btn = document.getElementById('sc-ai-btn');
-    btn.disabled = false; btn.style.cursor = 'pointer';
-    btn.style.background = apiKey ? '#c8952a' : '#c8952a';
-    btn.textContent = apiKey ? '🤖 AI Count Pieces' : '🔑 Setup AI Key First';
+    // Load into an Image, resize to max 1600px on longest side, export as JPEG
+    var img = new Image();
+    img.onload = function() {
+      var MAX_DIM = 1600;
+      var w = img.width, h = img.height;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        if (w >= h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+        else        { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // JPEG at 0.85 quality — well under 5MB even for big source photos
+      scPhoto = canvas.toDataURL('image/jpeg', 0.85);
+
+      // Show compressed size for debugging (visible in console if needed)
+      var approxKB = Math.round((scPhoto.length * 0.75) / 1024);
+      console.log('Stock photo compressed to ~' + approxKB + ' KB (' + w + 'x' + h + ')');
+
+      document.getElementById('sc-cam-preview').innerHTML = '<img src="' + scPhoto + '" style="max-width:100%;max-height:180px;border-radius:6px;border:1.5px solid #d5c8a8">';
+      document.getElementById('sc-cam-preview').style.display = 'block';
+      document.getElementById('sc-cam-prompt').style.display = 'none';
+      var apiKey = localStorage.getItem('ns_salvage_apikey');
+      var btn = document.getElementById('sc-ai-btn');
+      btn.disabled = false; btn.style.cursor = 'pointer';
+      btn.style.background = '#c8952a';
+      btn.textContent = apiKey ? '🤖 AI Count Pieces' : '🔑 Setup AI Key First';
+    };
+    img.onerror = function() { alert('Could not read that photo. Try another one.'); };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(input.files[0]);
 }
@@ -6610,15 +6632,32 @@ function onSalvagePhoto(input) {
   if(!input.files||!input.files[0]) return;
   var reader=new FileReader();
   reader.onload=function(e){
-    currentSalvagePhoto=e.target.result;
-    document.getElementById('salvage-cam-preview').innerHTML='<img src="'+currentSalvagePhoto+'" style="max-width:100%;max-height:200px;border-radius:8px;border:1.5px solid #d5c8a8">';
-    document.getElementById('salvage-cam-preview').style.display='block';
-    document.getElementById('salvage-cam-prompt').style.display='none';
-    var apiKey=localStorage.getItem('ns_salvage_apikey');
-    var aiBtn=document.getElementById('salvage-ai-btn');
-    aiBtn.disabled=false; aiBtn.style.cursor='pointer';
-    if(apiKey){ aiBtn.style.background='#2980d4'; aiBtn.textContent='🤖 Identify & Price This Item'; }
-    else { aiBtn.style.background='#c8952a'; aiBtn.textContent='🔑 Setup AI Key to Identify'; }
+    var img = new Image();
+    img.onload = function() {
+      var MAX_DIM = 1600;
+      var w = img.width, h = img.height;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        if (w >= h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+        else        { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      currentSalvagePhoto = canvas.toDataURL('image/jpeg', 0.85);
+      var approxKB = Math.round((currentSalvagePhoto.length * 0.75) / 1024);
+      console.log('Salvage photo compressed to ~' + approxKB + ' KB (' + w + 'x' + h + ')');
+
+      document.getElementById('salvage-cam-preview').innerHTML='<img src="'+currentSalvagePhoto+'" style="max-width:100%;max-height:200px;border-radius:8px;border:1.5px solid #d5c8a8">';
+      document.getElementById('salvage-cam-preview').style.display='block';
+      document.getElementById('salvage-cam-prompt').style.display='none';
+      var apiKey=localStorage.getItem('ns_salvage_apikey');
+      var aiBtn=document.getElementById('salvage-ai-btn');
+      aiBtn.disabled=false; aiBtn.style.cursor='pointer';
+      if(apiKey){ aiBtn.style.background='#2980d4'; aiBtn.textContent='🤖 Identify & Price This Item'; }
+      else { aiBtn.style.background='#c8952a'; aiBtn.textContent='🔑 Setup AI Key to Identify'; }
+    };
+    img.onerror = function() { alert('Could not read that photo. Try another one.'); };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(input.files[0]);
 }
