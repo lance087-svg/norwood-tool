@@ -6338,7 +6338,7 @@ function scSearchProducts() {
   var q = (document.getElementById('sc-search').value || '').toLowerCase().trim();
   var resultsEl = document.getElementById('sc-search-results');
   if (q.length < 2) { resultsEl.style.display = 'none'; return; }
-  var products = getProducts();
+  var products = (typeof window.products !== 'undefined' ? window.products : []) || [];
   var words = q.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
   var scored = products.map(function(p) {
     var name = (p.name || p.item || '').toLowerCase();
@@ -6369,7 +6369,7 @@ function scSearchProducts() {
 }
 
 function scSelectProduct(id) {
-  var products = getProducts();
+  var products = (typeof window.products !== 'undefined' ? window.products : []) || [];
   var p = products.find(function(x) { return x.id === id; });
   if (!p) return;
   scSelectedProduct = p;
