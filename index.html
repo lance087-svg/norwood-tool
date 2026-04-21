@@ -6430,18 +6430,34 @@ function aiCountStock() {
     ] }] })
   }).then(function(r) { return r.json(); })
   .then(function(data) {
+    // Surface API errors directly (invalid key, rate limit, bad model, etc.)
+    if (data.error) {
+      statusEl.textContent = '❌ API error: ' + (data.error.message || data.error.type || 'Unknown');
+      statusEl.style.color = '#c04040';
+      btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
+      console.log('Anthropic API error response:', data);
+      return;
+    }
     var text = (data.content && data.content[0] && data.content[0].text) || '';
     try {
-      var clean = text.replace(/```json|```/g, '').trim();
-      var result = JSON.parse(clean);
+      // Robust extraction: find the first {...} JSON object anywhere in the response
+      var jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON object found in response');
+      var result = JSON.parse(jsonMatch[0]);
       document.getElementById('sc-count').value = result.count || 0;
       var confColor = result.confidence === 'high' ? '#2d6a30' : result.confidence === 'medium' ? '#8B6914' : '#c04040';
       statusEl.innerHTML = '✅ Counted <strong>' + (result.count || 0) + ' pieces</strong> · <span style="color:' + confColor + '">Confidence: ' + (result.confidence || '?') + '</span>' + (result.notes ? ' · ' + result.notes : '');
       statusEl.style.color = '#2d6a30';
-    } catch(e) { statusEl.textContent = '⚠️ Could not parse. Enter the count manually.'; statusEl.style.color = '#c04040'; }
+    } catch(e) {
+      // Show what Claude actually said so we can diagnose
+      var preview = text ? text.substring(0, 120).replace(/\s+/g, ' ') : '(empty response)';
+      statusEl.innerHTML = '⚠️ Could not parse. Enter count manually. <br><span style="font-size:10px;color:#888">Response: ' + preview + '</span>';
+      statusEl.style.color = '#c04040';
+      console.log('AI count parse failure. Full response:', data);
+    }
     btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
   }).catch(function(err) {
-    statusEl.textContent = '❌ Error: ' + err.message; statusEl.style.color = '#c04040';
+    statusEl.textContent = '❌ Network error: ' + err.message; statusEl.style.color = '#c04040';
     btn.disabled = false; btn.style.background = '#c8952a'; btn.style.cursor = 'pointer'; btn.textContent = '🤖 AI Count Pieces';
   });
 }
