@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+<!-- =========================================================
+     SEO + SOCIAL SHARING
+     ========================================================= -->
+<title>Salvage Deals — Doors & Millwork | Norwood Supply Jacksonville</title>
+<meta name="description" content="Discounted salvage doors, millwork, and building materials at Norwood Supply in Jacksonville, FL. Updated daily. First come, first served. Call (904) 768-6818." />
+<meta name="keywords" content="salvage doors jacksonville, discount doors, cheap exterior doors, interior doors, millwork, building materials jacksonville, norwood supply" />
+<link rel="canonical" href="https://lance087-svg.github.io/norwood-tool/salvage.html" />
+
+<!-- Open Graph / Facebook share preview -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Salvage Deals — Norwood Supply Jacksonville" />
+<meta property="og:description" content="Discounted doors, millwork, and building materials. Updated daily. Call (904) 768-6818." />
+<meta property="og:url" content="https://lance087-svg.github.io/norwood-tool/salvage.html" />
+<meta property="og:site_name" content="Norwood Supply" />
+
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Salvage Deals — Norwood Supply" />
+<meta name="twitter:description" content="Discounted doors, millwork & building materials in Jacksonville, FL." />
+
+<!-- Schema.org LocalBusiness -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HardwareStore",
+  "name": "Norwood Supply",
+  "description": "Building materials specializing in doors and millwork. Family-owned since 1971.",
+  "url": "https://norwoodsupply.com",
+  "telephone": "+19047686818",
+  "email": "lance087@gmail.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "6200 Norwood Ave",
+    "addressLocality": "Jacksonville",
+    "addressRegion": "FL",
+    "postalCode": "32208",
+    "addressCountry": "US"
+  },
+  "openingHours": ["Mo-Fr 07:30-17:00", "Sa 08:30-12:00"]
+}
+</script>
+
+<!-- Fonts: Oswald (industrial display) + IBM Plex Sans/Mono (technical body) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================
+   DESIGN TOKENS
+   ========================================================= */
+:root {
+  --bg: #F5EFE5;              /* warm kraft/cream */
+  --surface: #FFFFFF;
+  --ink: #1A1A1A;
+  --ink-soft: #4A4A4A;
+  --ink-muted: #8A8070;
+  --rule: #E5DDD0;
+  --rule-strong: #C9BFAE;
+  --orange: #1E70B8;          /* Norwood brand blue (plaque) */
+  --orange-dark: #15568E;     /* hover / pressed */
+  --orange-ink: #0A3560;      /* deep blue for dark-on-light */
+  --red: #B91C1C;
+  --sold: #3F3F3F;
+
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.08);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.14);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+
+  /* subtle paper grain */
+  background-image:
+    radial-gradient(rgba(90,70,40,.025) 1px, transparent 1px),
+    radial-gradient(rgba(90,70,40,.02) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 2px;
+}
+
+img { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: pointer; }
+
+/* =========================================================
+   STICKY HEADER  (always shows CALL on mobile)
+   ========================================================= */
+.header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--ink);
+  color: #fff;
+  border-bottom: 3px solid var(--orange);
+}
+.header-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.brand {
+  display: flex; align-items: baseline; gap: 10px;
+  text-decoration: none; color: #fff; min-width: 0;
+}
+.brand-mark {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 22px;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: #fff; line-height: 1; flex-shrink: 0;
+}
+.brand-mark .accent { color: var(--orange); }
+.brand-sub {
+  font-family: var(--font-mono);
+  font-size: 11px; color: #C9BFAE;
+  letter-spacing: .1em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.header-cta {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--orange); color: #fff;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 15px; letter-spacing: .05em; text-transform: uppercase;
+  padding: 10px 16px;
+  border: none; border-radius: 2px;
+  text-decoration: none;
+  transition: background .15s ease, transform .1s ease;
+  white-space: nowrap;
+}
+.header-cta:hover { background: var(--orange-dark); }
+.header-cta:active { transform: translateY(1px); }
+.header-cta svg { width: 16px; height: 16px; }
+
+/* =========================================================
+   HERO
+   ========================================================= */
+.hero {
+  background: var(--ink);
+  color: #fff;
+  padding: 36px 16px 48px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  /* stencil stripe texture */
+  content: '';
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0, transparent 28px,
+    rgba(30,112,184,.10) 28px, rgba(30,112,184,.10) 34px
+  );
+  pointer-events: none;
+}
+.hero-inner {
+  max-width: 1280px; margin: 0 auto;
+  position: relative;
+}
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange);
+  padding: 4px 8px;
+  border: 1px solid var(--orange);
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(48px, 11vw, 120px);
+  line-height: .92;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.hero h1 .line2 { color: var(--orange); display: block; }
+.hero-lede {
+  max-width: 640px;
+  font-size: 16px;
+  color: #D9D1BF;
+  margin: 16px 0 24px;
+}
+
+/* Rules bar */
+.rules {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  background: var(--orange);
+  border: 1px solid var(--orange);
+  margin-top: 24px;
+  max-width: 720px;
+}
+@media (min-width: 640px) {
+  .rules { grid-template-columns: 1fr 1fr 1fr; }
+}
+.rule {
+  background: var(--ink);
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.rule-num {
+  font-family: var(--font-display);
+  font-size: 24px; font-weight: 700; color: var(--orange);
+  line-height: 1; flex-shrink: 0;
+}
+.rule-text {
+  font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+  color: #fff; line-height: 1.35;
+}
+
+/* =========================================================
+   STATS STRIP
+   ========================================================= */
+.stats {
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+.stats-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 14px 16px;
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 16px 24px;
+}
+.stat {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.stat strong {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 20px;
+  color: var(--ink); letter-spacing: .02em;
+}
+.stat-pulse {
+  display: inline-block; width: 8px; height: 8px;
+  background: #16A34A; border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(22,163,74,.6);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(22,163,74,.5); }
+  70% { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+  100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+}
+
+/* =========================================================
+   FILTER BAR
+   ========================================================= */
+.filters {
+  max-width: 1280px; margin: 0 auto;
+  padding: 20px 16px 8px;
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  border-radius: 2px;
+  transition: all .15s ease;
+}
+.chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip.active {
+  background: var(--ink); color: #fff; border-color: var(--ink);
+}
+.chip .count {
+  opacity: .7; margin-left: 6px; font-weight: 400;
+}
+
+/* =========================================================
+   ITEM GRID
+   ========================================================= */
+.grid-wrap {
+  max-width: 1280px; margin: 0 auto;
+  padding: 16px 16px 64px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 560px) {
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+}
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+}
+@media (min-width: 1200px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ITEM CARD */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  display: flex; flex-direction: column;
+  position: relative;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  animation: fadeUp .4s ease both;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--rule-strong);
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-img {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #EFE8DA;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.card-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .4s ease;
+}
+.card:hover .card-img img { transform: scale(1.03); }
+
+.card-img-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-muted);
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+
+/* Item # stamp */
+.card-stamp {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(26,26,26,.88);
+  color: #fff;
+  font-family: var(--font-mono); font-weight: 500;
+  font-size: 11px; letter-spacing: .08em;
+  padding: 5px 9px;
+  backdrop-filter: blur(4px);
+}
+
+/* Category badge */
+.card-cat {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--orange);
+  color: #fff;
+  font-family: var(--font-mono); font-weight: 600;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 5px 9px;
+}
+
+/* Photo count pill */
+.card-photos {
+  position: absolute; bottom: 10px; right: 10px;
+  background: rgba(26,26,26,.82);
+  color: #fff;
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 4px 8px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+
+.card-body {
+  padding: 16px 16px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px; line-height: 1.1;
+  letter-spacing: .01em;
+  color: var(--ink);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Spec table */
+.spec {
+  font-family: var(--font-mono);
+  font-size: 12px; line-height: 1.5;
+  color: var(--ink-soft);
+  border-top: 1px dashed var(--rule);
+  padding-top: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+}
+.spec dt {
+  color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  font-size: 10.5px;
+  padding-top: 2px;
+}
+.spec dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 500;
+  word-wrap: break-word;
+}
+
+.card-notes {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.card-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px;
+}
+.card-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  color: var(--orange-ink);
+  line-height: 1;
+  letter-spacing: -.01em;
+}
+.card-price .cents {
+  font-size: 16px; vertical-align: top;
+  margin-left: 1px; opacity: .8;
+}
+.card-price small {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 400; font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-top: 3px;
+}
+.card-call {
+  background: var(--ink); color: #fff;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 11px 14px;
+  border: none; border-radius: 2px;
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .15s ease;
+  white-space: nowrap;
+}
+.card-call:hover { background: var(--orange); }
+.card-call svg { width: 13px; height: 13px; }
+
+/* =========================================================
+   STATES
+   ========================================================= */
+.state {
+  max-width: 640px; margin: 80px auto;
+  padding: 40px 24px; text-align: center;
+  border: 2px dashed var(--rule-strong);
+  background: var(--surface);
+}
+.state-title {
+  font-family: var(--font-display);
+  font-size: 28px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .02em;
+  margin: 0 0 10px;
+}
+.state-sub {
+  font-size: 14px; color: var(--ink-soft);
+  font-family: var(--font-mono); letter-spacing: .04em;
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  min-height: 400px;
+  position: relative; overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(30,112,184,.09) 50%,
+    transparent 100%);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* =========================================================
+   LIGHTBOX
+   ========================================================= */
+.lightbox {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,15,15,.94);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.lightbox.open { display: flex; }
+.lightbox img {
+  max-width: 100%; max-height: 90vh;
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.lightbox-close {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,.12); color: #fff;
+  border: 1px solid rgba(255,255,255,.3);
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lightbox-close:hover { background: var(--orange); border-color: var(--orange); }
+.lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,.12); color: #fff;
+  border: 1px solid rgba(255,255,255,.3);
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lightbox-nav.prev { left: 16px; }
+.lightbox-nav.next { right: 16px; }
+.lightbox-nav:hover { background: var(--orange); border-color: var(--orange); }
+.lightbox-caption {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-family: var(--font-mono);
+  font-size: 13px; letter-spacing: .04em;
+  background: rgba(0,0,0,.6); padding: 8px 14px;
+  max-width: 90%; text-align: center;
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+.footer {
+  background: var(--ink); color: #D9D1BF;
+  padding: 48px 16px 32px;
+  border-top: 4px solid var(--orange);
+}
+.footer-inner {
+  max-width: 1280px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr; gap: 32px;
+}
+@media (min-width: 760px) {
+  .footer-inner { grid-template-columns: 2fr 1fr 1fr; }
+}
+.footer h3 {
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--orange);
+  margin: 0 0 12px;
+}
+.footer p, .footer a { font-size: 14px; line-height: 1.7; }
+.footer a { color: #fff; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,.25); }
+.footer a:hover { color: var(--orange); border-color: var(--orange); }
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 28px; font-weight: 700;
+  color: #fff; letter-spacing: .06em; text-transform: uppercase;
+  margin-bottom: 10px; line-height: 1;
+}
+.footer-brand .accent { color: var(--orange); }
+.footer-tag {
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.footer-bottom {
+  max-width: 1280px; margin: 32px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px;
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .08em; color: var(--ink-muted);
+  text-transform: uppercase;
+}
+
+/* =========================================================
+   FLOATING MOBILE CALL BUTTON
+   ========================================================= */
+.float-call {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  z-index: 40;
+  background: var(--orange); color: #fff;
+  padding: 14px 20px;
+  border-radius: 50px;
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 24px rgba(30,112,184,.45);
+  animation: bounce-in .6s ease .8s both;
+}
+.float-call:hover { background: var(--orange-dark); }
+.float-call svg { width: 16px; height: 16px; }
+@keyframes bounce-in {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (min-width: 760px) {
+  .float-call { display: none; } /* header CTA is enough on desktop */
+}
+
+/* Utility */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="header">
+  <div class="header-inner">
+    <a href="https://norwoodsupply.com" class="brand">
+      <span class="brand-mark">Norwood<span class="accent">.</span></span>
+      <span class="brand-sub">Est. 1971 · Jacksonville</span>
+    </a>
+    <a href="tel:+19047686818" class="header-cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      904 · 768 · 6818
+    </a>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Updated Daily · Jacksonville, FL</span>
+    <h1>Salvage<br><span class="line2">Deals.</span></h1>
+    <p class="hero-lede">
+      Discounted doors, millwork &amp; building materials. Overstocks, scratch-and-dent, closeouts and one-offs.
+      Prices on the board. No haggling. When it's gone, it's gone.
+    </p>
+
+    <div class="rules">
+      <div class="rule">
+        <span class="rule-num">01</span>
+        <span class="rule-text">First Come<br>First Served</span>
+      </div>
+      <div class="rule">
+        <span class="rule-num">02</span>
+        <span class="rule-text">No Holds<br>No Reserves</span>
+      </div>
+      <div class="rule">
+        <span class="rule-num">03</span>
+        <span class="rule-text">Call to Confirm<br>&amp; Pay</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STATS ============ -->
+<section class="stats">
+  <div class="stats-inner">
+    <div class="stat">
+      <span class="stat-pulse"></span>
+      <strong id="stat-count">—</strong> <span>Items Available</span>
+    </div>
+    <div class="stat">
+      <strong id="stat-updated">—</strong> <span>Last Updated</span>
+    </div>
+    <div class="stat" style="margin-left:auto">
+      <span>Mon–Fri 7:30–5 · Sat 8:30–12</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FILTERS ============ -->
+<div class="filters" id="filters" hidden></div>
+
+<!-- ============ GRID ============ -->
+<main class="grid-wrap">
+  <div class="grid" id="grid">
+    <!-- skeleton loaders shown during initial load -->
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+  </div>
+
+  <div class="state" id="empty" hidden>
+    <h2 class="state-title">Nothing Here Right Now</h2>
+    <p class="state-sub">Fresh salvage arrives weekly. Check back soon — or call and tell us what you're looking for.</p>
+  </div>
+
+  <div class="state" id="error" hidden>
+    <h2 class="state-title">Couldn't Load Inventory</h2>
+    <p class="state-sub">Give us a call at (904) 768-6818 and we'll tell you what's on the floor today.</p>
+  </div>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">Norwood<span class="accent">.</span> Supply</div>
+      <div class="footer-tag">Family-Owned Since 1971</div>
+      <p style="margin-top:14px; max-width:440px;">
+        Jacksonville's independent source for discounted building materials — specializing in doors and millwork. Serving homeowners, contractors, landlords and businesses across North Florida and Southeast Georgia.
+      </p>
+    </div>
+    <div>
+      <h3>Contact</h3>
+      <p>
+        6200 Norwood Ave<br>
+        Jacksonville, FL 32208<br><br>
+        <a href="tel:+19047686818">(904) 768-6818</a><br>
+        <a href="mailto:lance087@gmail.com">lance087@gmail.com</a><br>
+        <a href="https://norwoodsupply.com">norwoodsupply.com</a>
+      </p>
+    </div>
+    <div>
+      <h3>Hours</h3>
+      <p>
+        Mon–Fri · 7:30 AM – 5:00 PM<br>
+        Saturday · 8:30 AM – 12:00 PM<br>
+        Sunday · Closed
+      </p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© Norwood Supply · Jacksonville, FL</span>
+    <span>Prices subject to change · Cash, card, or approved terms</span>
+  </div>
+</footer>
+
+<!-- ============ FLOATING MOBILE CALL ============ -->
+<a href="tel:+19047686818" class="float-call" aria-label="Call Norwood Supply">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+  Call to Buy
+</a>
+
+<!-- ============ LIGHTBOX ============ -->
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Photo viewer">
+  <button class="lightbox-close" id="lb-close" aria-label="Close">×</button>
+  <button class="lightbox-nav prev" id="lb-prev" aria-label="Previous">‹</button>
+  <img id="lb-img" alt="" />
+  <button class="lightbox-nav next" id="lb-next" aria-label="Next">›</button>
+  <div class="lightbox-caption" id="lb-caption"></div>
+</div>
+
+<!-- ============================================================
+     FIREBASE + DATA LAYER
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+/* ==================================================================
+   ⬇⬇⬇   PASTE YOUR FIREBASE CONFIG HERE   ⬇⬇⬇
+   (Same config object you use in the main Norwood pricing tool.)
+   ================================================================== */
+const firebaseConfig = {
+  apiKey:            "PASTE_YOUR_API_KEY",
+  authDomain:        "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId:         "PASTE_YOUR_PROJECT_ID",
+  storageBucket:     "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId:             "PASTE_YOUR_APP_ID"
+};
+
+/* ==================================================================
+   COLLECTION + FIELD NAMES
+   Adjust these to match the salvage schema inside your tool.
+   ================================================================== */
+const SALVAGE_COLLECTION = 'salvage';   // Firestore collection name
+
+const FIELD = {
+  name:        'name',         // item description / title
+  category:    'category',     // e.g. "Exterior Door", "Interior Door", "Millwork"
+  size:        'size',         // e.g. "3/0 x 6/8"
+  netSize:     'netSize',      // optional — net unit dimensions
+  roughOpen:   'roughOpening', // optional — R.O. dimensions
+  swing:       'swing',        // optional — e.g. "LH Inswing"
+  condition:   'condition',    // optional — "New", "Scratch", "Overstock"
+  notes:       'notes',        // optional — freeform text
+  price:       'price',        // number — retail price
+  photos:      'photos',       // array of URLs OR data URLs  (falls back to single 'photo')
+  photoFallback:'photo',       // used if 'photos' array is missing
+  itemNumber:  'itemNumber',   // optional — internal # shown on card
+  available:   'available',    // boolean — true means show it. Also accepts status === 'available'
+  status:      'status',       // optional alt — if 'available' field doesn't exist
+  updatedAt:   'updatedAt'     // optional — timestamp for "last updated"
+};
+
+/* ================================================================== */
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+
+function fmtPrice(n) {
+  if (n == null || isNaN(n)) return '—';
+  const num = Number(n);
+  const whole = Math.floor(num);
+  const cents = Math.round((num - whole) * 100);
+  return `<span>$${whole.toLocaleString()}</span>` +
+    (cents > 0 ? `<span class="cents">${cents.toString().padStart(2,'0')}</span>` : '');
+}
+
+function fmtDate(ts) {
+  if (!ts) return 'Today';
+  let d;
+  if (ts.toDate) d = ts.toDate();
+  else if (ts.seconds) d = new Date(ts.seconds * 1000);
+  else d = new Date(ts);
+  if (isNaN(d)) return 'Today';
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  if (sameDay) return 'Today';
+  const yest = new Date(today); yest.setDate(today.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function isAvailable(item) {
+  if (item[FIELD.available] === true)  return true;
+  if (item[FIELD.available] === false) return false;
+  const s = (item[FIELD.status] || '').toString().toLowerCase();
+  if (s === 'sold' || s === 'pending' || s === 'hold') return false;
+  // default: show it if neither field is explicitly falsy
+  return true;
+}
+
+function getPhotos(item) {
+  let arr = item[FIELD.photos];
+  if (Array.isArray(arr) && arr.length) return arr.filter(Boolean);
+  const fallback = item[FIELD.photoFallback];
+  if (fallback) return [fallback];
+  return [];
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ---------- State ---------- */
+let ALL_ITEMS = [];
+let ACTIVE_CAT = 'ALL';
+
+/* ---------- Render ---------- */
+function render() {
+  const grid = $('grid');
+  const empty = $('empty');
+
+  const items = ACTIVE_CAT === 'ALL'
+    ? ALL_ITEMS
+    : ALL_ITEMS.filter(i => (i[FIELD.category] || 'Other').toUpperCase() === ACTIVE_CAT);
+
+  if (!items.length) {
+    grid.innerHTML = '';
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+
+  grid.innerHTML = items.map((item, idx) => {
+    const photos = getPhotos(item);
+    const cover = photos[0] || '';
+    const name = esc(item[FIELD.name] || 'Untitled Item');
+    const cat  = esc(item[FIELD.category] || '');
+    const itemNo = item[FIELD.itemNumber];
+
+    const specs = [];
+    if (item[FIELD.size])       specs.push(['Size',      item[FIELD.size]]);
+    if (item[FIELD.roughOpen])  specs.push(['R.O.',      item[FIELD.roughOpen]]);
+    if (item[FIELD.netSize])    specs.push(['Net',       item[FIELD.netSize]]);
+    if (item[FIELD.swing])      specs.push(['Swing',     item[FIELD.swing]]);
+    if (item[FIELD.condition])  specs.push(['Condition', item[FIELD.condition]]);
+
+    return `
+      <article class="card" style="animation-delay:${Math.min(idx * 40, 400)}ms">
+        <div class="card-img" data-idx="${idx}" role="button" tabindex="0" aria-label="Enlarge photo">
+          ${cover
+            ? `<img src="${esc(cover)}" alt="${name}" loading="lazy" />`
+            : `<div class="card-img-placeholder">No Photo</div>`}
+          ${itemNo ? `<span class="card-stamp">#${esc(itemNo)}</span>` : ''}
+          ${cat    ? `<span class="card-cat">${cat}</span>` : ''}
+          ${photos.length > 1 ? `<span class="card-photos">◎ ${photos.length}</span>` : ''}
+        </div>
+
+        <div class="card-body">
+          <h2 class="card-title">${name}</h2>
+
+          ${specs.length ? `
+            <dl class="spec">
+              ${specs.map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
+            </dl>
+          ` : ''}
+
+          ${item[FIELD.notes] ? `<p class="card-notes">${esc(item[FIELD.notes])}</p>` : ''}
+
+          <div class="card-foot">
+            <div class="card-price">
+              ${fmtPrice(item[FIELD.price])}
+              <small>Retail · Tax extra</small>
+            </div>
+            <a href="tel:+19047686818" class="card-call" aria-label="Call to buy ${name}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              Call
+            </a>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  // wire up lightbox triggers
+  grid.querySelectorAll('.card-img').forEach(el => {
+    el.addEventListener('click', () => openLightbox(items[+el.dataset.idx]));
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openLightbox(items[+el.dataset.idx]);
+      }
+    });
+  });
+}
+
+/* ---------- Filter chips ---------- */
+function buildFilters() {
+  const bar = $('filters');
+  const counts = {};
+  ALL_ITEMS.forEach(i => {
+    const c = (i[FIELD.category] || 'Other').toUpperCase();
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const cats = Object.keys(counts).sort();
+  if (!cats.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+
+  const chips = [
+    `<button class="chip ${ACTIVE_CAT==='ALL'?'active':''}" data-cat="ALL">All <span class="count">${ALL_ITEMS.length}</span></button>`,
+    ...cats.map(c =>
+      `<button class="chip ${ACTIVE_CAT===c?'active':''}" data-cat="${esc(c)}">${esc(c)} <span class="count">${counts[c]}</span></button>`
+    )
+  ];
+  bar.innerHTML = chips.join('');
+  bar.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ACTIVE_CAT = btn.dataset.cat;
+      buildFilters();
+      render();
+      window.scrollTo({ top: bar.offsetTop - 80, behavior: 'smooth' });
+    });
+  });
+}
+
+/* ---------- Stats ---------- */
+function updateStats() {
+  $('stat-count').textContent = ALL_ITEMS.length;
+  // latest updatedAt
+  let latest = null;
+  ALL_ITEMS.forEach(i => {
+    const ts = i[FIELD.updatedAt];
+    if (!ts) return;
+    const d = ts.toDate ? ts.toDate() : new Date(ts.seconds ? ts.seconds*1000 : ts);
+    if (!latest || d > latest) latest = d;
+  });
+  $('stat-updated').textContent = fmtDate(latest);
+}
+
+/* ---------- Lightbox ---------- */
+let LB_PHOTOS = [], LB_IDX = 0, LB_LABEL = '';
+function openLightbox(item) {
+  const photos = getPhotos(item);
+  if (!photos.length) return;
+  LB_PHOTOS = photos; LB_IDX = 0;
+  LB_LABEL = item[FIELD.name] || '';
+  showLightboxPhoto();
+  $('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function showLightboxPhoto() {
+  $('lb-img').src = LB_PHOTOS[LB_IDX];
+  $('lb-caption').textContent =
+    LB_PHOTOS.length > 1
+      ? `${LB_LABEL} · ${LB_IDX+1}/${LB_PHOTOS.length}`
+      : LB_LABEL;
+  $('lb-prev').style.display = LB_PHOTOS.length > 1 ? '' : 'none';
+  $('lb-next').style.display = LB_PHOTOS.length > 1 ? '' : 'none';
+}
+function closeLightbox() {
+  $('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+$('lb-close').addEventListener('click', closeLightbox);
+$('lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') closeLightbox(); });
+$('lb-prev').addEventListener('click', () => { LB_IDX = (LB_IDX - 1 + LB_PHOTOS.length) % LB_PHOTOS.length; showLightboxPhoto(); });
+$('lb-next').addEventListener('click', () => { LB_IDX = (LB_IDX + 1) % LB_PHOTOS.length; showLightboxPhoto(); });
+document.addEventListener('keydown', e => {
+  if (!$('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape')    closeLightbox();
+  if (e.key === 'ArrowLeft') $('lb-prev').click();
+  if (e.key === 'ArrowRight')$('lb-next').click();
+});
+
+/* ---------- Live Firestore sync ---------- */
+function subscribe() {
+  try {
+    db.collection(SALVAGE_COLLECTION).onSnapshot(snap => {
+      const items = [];
+      snap.forEach(doc => {
+        const data = doc.data();
+        if (isAvailable(data)) items.push({ id: doc.id, ...data });
+      });
+      // sort newest-first if we can
+      items.sort((a, b) => {
+        const ta = a[FIELD.updatedAt], tb = b[FIELD.updatedAt];
+        const da = ta?.toDate ? ta.toDate().getTime() : (ta?.seconds ? ta.seconds*1000 : 0);
+        const dbt = tb?.toDate ? tb.toDate().getTime() : (tb?.seconds ? tb.seconds*1000 : 0);
+        return dbt - da;
+      });
+      ALL_ITEMS = items;
+      updateStats();
+      buildFilters();
+      render();
+    }, err => {
+      console.error('Firestore error:', err);
+      $('grid').innerHTML = '';
+      $('error').hidden = false;
+    });
+  } catch (e) {
+    console.error('Init error:', e);
+    $('grid').innerHTML = '';
+    $('error').hidden = false;
+  }
+}
+
+subscribe();
+</script>
+
+</body>
+</html>
