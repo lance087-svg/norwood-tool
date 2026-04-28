@@ -1005,64 +1005,23 @@ Subject:
       <h2 style="font-size:20px;font-weight:700;margin-bottom:3px">♻️ Salvage Inventory</h2>
       <p style="color:#6b5a3a;font-size:13px" id="salvage-count">0 items · 0 active</p>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-p" onclick="openSalvageAdd()">+ Add Salvage Item</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-p" onclick="openSalvageScanner()" style="background:#2d6a30">📷 Scan Item</button>
+      <button class="btn btn-gh" onclick="openSalvageManual()">+ Add Manually</button>
       <button class="btn btn-gh" onclick="exportSalvageCSV()">⬇️ Export CSV</button>
     </div>
   </div>
 
-  <!-- Add/Edit Salvage Modal -->
-  <div id="salvage-add-panel" class="panel hidden" style="margin-bottom:16px;border:2px solid #2980d4">
-    <div class="ph" style="background:#2980d4">
-      <span id="salvage-form-title">Add Salvage Item</span>
-      <button onclick="closeSalvageAdd()" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer">✕</button>
-    </div>
-    <div class="pb">
-      <div class="row">
-        <div class="fg" style="flex:2">
-          <label class="lbl">Description *</label>
-          <input type="text" id="salv-desc" placeholder="e.g. 3-0 x 6-8 Fiberglass slab, slight dent">
-        </div>
-        <div class="fg">
-          <label class="lbl">Qty</label>
-          <input type="number" id="salv-qty" value="1" min="1" style="width:70px">
-        </div>
-      </div>
-      <div class="row">
-        <div class="fg">
-          <label class="lbl">Cost $</label>
-          <input type="number" id="salv-cost" step="0.01" min="0" placeholder="0.00">
-        </div>
-        <div class="fg">
-          <label class="lbl">Sell Price $</label>
-          <input type="number" id="salv-price" step="0.01" min="0" placeholder="0.00">
-        </div>
-        <div class="fg">
-          <label class="lbl">Sub-Category</label>
-          <select id="salv-subcat">
-            <option value="Exterior Doors">Exterior Doors</option>
-            <option value="Miscellaneous">Miscellaneous</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div class="fg" style="flex:2">
-          <label class="lbl">Photo Filename / Notes</label>
-          <input type="text" id="salv-photo" placeholder="e.g. salvage_door_042.jpg or notes about condition">
-        </div>
-        <div class="fg">
-          <label class="lbl">Location</label>
-          <input type="text" id="salv-location" placeholder="e.g. Bay 3, Rack B">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button class="btn btn-gh" onclick="closeSalvageAdd()">Cancel</button>
-        <button class="btn btn-p" onclick="saveSalvageItem()" id="salv-save-btn">Add Item</button>
-      </div>
-    </div>
+  <!-- Category Pills + Filter + Search -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center" id="salvage-pills">
+    <button class="pill on" onclick="filterSalvageCat('All', this)">All</button>
+    <button class="pill off" onclick="filterSalvageCat('Doors', this)">Doors</button>
+    <button class="pill off" onclick="filterSalvageCat('Lumber', this)">Lumber</button>
+    <button class="pill off" onclick="filterSalvageCat('Millwork', this)">Millwork</button>
+    <button class="pill off" onclick="filterSalvageCat('Hardware', this)">Hardware</button>
+    <button class="pill off" onclick="filterSalvageCat('Plywood/Sheet', this)">Plywood/Sheet</button>
+    <button class="pill off" onclick="filterSalvageCat('Misc', this)">Misc</button>
   </div>
-
-  <!-- Search & Filter -->
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     <input class="srch" id="salvage-search" placeholder="Search salvage items..." oninput="renderSalvage()" style="flex:1;margin-bottom:0">
     <select id="salvage-filter" onchange="renderSalvage()" style="padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;background:#fff">
@@ -1072,21 +1031,23 @@ Subject:
     </select>
   </div>
 
-  <!-- Salvage Table -->
+  <!-- Salvage Table with Photo column -->
   <div class="panel">
-    <table class="rtable">
-      <thead><tr>
-        <th style="width:30px">#</th>
-        <th>Description</th>
-        <th style="width:60px">Type</th>
-        <th style="width:50px;text-align:center">Qty</th>
-        <th style="width:70px;text-align:right">Cost</th>
-        <th style="width:70px;text-align:right">Price</th>
-        <th style="width:55px;text-align:right">GM%</th>
-        <th style="width:90px">Photo/Notes</th>
-        <th style="width:100px">Actions</th>
-      </tr></thead>
-      <tbody id="salvage-tbody"><tr><td colspan="9" class="empty">No salvage items yet. Click "+ Add Salvage Item" to get started.</td></tr></tbody>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:#1a2438;color:#fff">
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;width:60px">Photo</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase">Description</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:80px">Category</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:70px">Condition</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:50px">Qty</th>
+          <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;width:70px">Cost</th>
+          <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;width:70px">Price</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:50px">GM%</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:110px">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="salvage-tbody"><tr><td colspan="9" class="empty" style="padding:20px;text-align:center;color:#a89060">No salvage items yet. Click "📷 Scan Item" to get started.</td></tr></tbody>
     </table>
   </div>
 
@@ -1107,6 +1068,86 @@ Subject:
     <div style="background:#fff;border:1.5px solid #e0d5c0;border-radius:7px;padding:12px;text-align:center">
       <div style="font-size:10px;color:#6b5a3a;text-transform:uppercase;font-weight:600">Sold Items</div>
       <div style="font-size:20px;font-weight:700;color:#2d6a30" id="salv-kpi-sold">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- SALVAGE SCANNER MODAL (with AI photo identify) -->
+<div id="salvage-scanner-modal" class="modal-bg hidden">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:700;color:#1a1008" id="salvage-modal-title">📷 Scan Salvage Item</div>
+      <button onclick="closeSalvageScanner()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b5a3a">✕</button>
+    </div>
+
+    <!-- Camera Zone -->
+    <div id="salvage-cam-zone" style="border:2.5px dashed #d5c8a8;border-radius:10px;padding:22px 16px;text-align:center;margin-bottom:14px;cursor:pointer;background:#faf8f4" onclick="document.getElementById('salvage-cam-input').click()">
+      <div id="salvage-cam-preview" style="display:none;margin-bottom:10px"></div>
+      <div id="salvage-cam-prompt">
+        <div style="font-size:36px;margin-bottom:6px">📸</div>
+        <div style="font-size:14px;font-weight:600;color:#1a2438">Tap to take a photo</div>
+        <div style="font-size:11px;color:#a89060;margin-top:4px">or select from gallery</div>
+      </div>
+      <input type="file" id="salvage-cam-input" accept="image/*" capture="environment" style="display:none" onchange="onSalvagePhoto(this)">
+    </div>
+
+    <!-- AI Identify Button -->
+    <button id="salvage-ai-btn" onclick="aiIdentifySalvage()" disabled style="width:100%;padding:12px;border-radius:6px;border:none;background:#ccc;color:#fff;font-size:14px;font-weight:700;cursor:not-allowed;font-family:inherit;margin-bottom:8px">🤖 Identify & Price This Item</button>
+    <div id="salvage-ai-status" style="display:none;text-align:center;padding:8px;font-size:12px;color:#2980d4;margin-bottom:10px"></div>
+
+    <!-- Result Fields -->
+    <div class="fg" style="margin-bottom:10px">
+      <label class="lbl">Description *</label>
+      <input type="text" id="sv-desc" placeholder="What is this item?">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg">
+        <label class="lbl">Category</label>
+        <select id="sv-cat" style="width:100%">
+          <option>Doors</option><option>Lumber</option><option>Millwork</option><option>Hardware</option><option>Plywood/Sheet</option><option>Misc</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="lbl">Condition</label>
+        <select id="sv-cond" style="width:100%">
+          <option>New</option><option>Good</option><option>Fair</option><option>Rough</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><label class="lbl">Qty</label><input type="number" id="sv-qty" value="1" min="1" style="text-align:center"></div>
+      <div class="fg"><label class="lbl">Your Cost $</label><input type="number" id="sv-cost" min="0" step="0.01" placeholder="0.00" oninput="updateSvGM()"></div>
+      <div class="fg"><label class="lbl">Sell Price $</label><input type="number" id="sv-price" min="0" step="0.01" placeholder="0.00" oninput="updateSvGM()"></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+      <div id="sv-gm-display" style="font-size:12px;font-weight:700;color:#2d6a30;background:#eaf3de;padding:4px 10px;border-radius:4px">GM: —</div>
+      <div class="fg" style="flex:1;margin:0"><label class="lbl">Location</label><input type="text" id="sv-location" placeholder="e.g. Yard Bay 3"></div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label class="lbl">Notes</label>
+      <input type="text" id="sv-notes" placeholder="Damage, origin, special info...">
+    </div>
+
+    <!-- Save buttons -->
+    <div style="display:flex;gap:8px">
+      <button onclick="closeSalvageScanner()" style="flex:1;padding:10px;border-radius:5px;border:1.5px solid #d5c8a8;background:#fff;color:#6b5a3a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="saveSalvageItemNew()" style="flex:2;padding:10px;border-radius:5px;border:none;background:#2d6a30;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💾 Save Salvage Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- SALVAGE API KEY SETUP -->
+<div id="salvage-apikey-modal" class="modal-bg hidden">
+  <div class="modal" style="max-width:460px">
+    <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:6px">🔑 AI Setup</div>
+    <div style="font-size:12px;color:#6b5a3a;margin-bottom:14px;line-height:1.6">To use AI item identification, enter your Anthropic API key. Get one at <strong>console.anthropic.com/settings/keys</strong>. The key is stored only in your browser and never sent anywhere except Anthropic.</div>
+    <div class="fg" style="margin-bottom:14px">
+      <label class="lbl">API Key</label>
+      <input type="text" id="sv-apikey-input" placeholder="sk-ant-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;font-family:monospace;font-size:11px">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('salvage-apikey-modal').classList.add('hidden')" style="padding:8px 14px;border-radius:5px;border:1.5px solid #d5c8a8;background:#fff;color:#6b5a3a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="saveSalvageApiKey()" style="padding:8px 18px;border-radius:5px;border:none;background:#2980d4;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Save Key</button>
     </div>
   </div>
 </div>
@@ -2025,6 +2066,12 @@ function init() {
   });
   document.getElementById('po-standalone-modal').addEventListener('click', function(e) {
     if(e.target === this) closeStandalonePO();
+  });
+  document.getElementById('salvage-scanner-modal').addEventListener('click', function(e) {
+    if(e.target === this) closeSalvageScanner();
+  });
+  document.getElementById('salvage-apikey-modal').addEventListener('click', function(e) {
+    if(e.target === this) this.classList.add('hidden');
   });
   document.getElementById('payment-modal').addEventListener('click', function(e) {
     if(e.target === this) closePaymentModal();
@@ -6317,92 +6364,249 @@ function saveSalvageItems(items) {
   localStorage.setItem('ns_salvage', JSON.stringify(items));
 }
 
-var salvageEditId = null;
-
-function openSalvageAdd() {
-  salvageEditId = null;
-  document.getElementById('salv-desc').value = '';
-  document.getElementById('salv-qty').value = '1';
-  document.getElementById('salv-cost').value = '';
-  document.getElementById('salv-price').value = '';
-  document.getElementById('salv-subcat').value = 'Exterior Doors';
-  document.getElementById('salv-photo').value = '';
-  document.getElementById('salv-location').value = '';
-  document.getElementById('salvage-form-title').textContent = 'Add Salvage Item';
-  document.getElementById('salv-save-btn').textContent = 'Add Item';
-  document.getElementById('salvage-add-panel').classList.remove('hidden');
+// Treat both old (sold:false / status:'active') and new schema items as equivalent
+function isSalvageActive(it) {
+  if (it.status) return it.status === 'active';
+  return !it.sold;
+}
+function isSalvageSold(it) {
+  if (it.status) return it.status === 'sold';
+  return !!it.sold;
 }
 
-function closeSalvageAdd() {
-  document.getElementById('salvage-add-panel').classList.add('hidden');
-  salvageEditId = null;
+var salvageCatFilter = 'All';
+var currentSalvagePhoto = null;
+
+function filterSalvageCat(cat, btn) {
+  salvageCatFilter = cat;
+  document.querySelectorAll('#salvage-pills .pill').forEach(function(p){p.className='pill off';});
+  if (btn) btn.className = 'pill on';
+  renderSalvage();
+}
+
+// Open the AI/photo scanner (camera + AI fields)
+function openSalvageScanner() {
+  currentSalvagePhoto = null;
+  document.getElementById('salvage-modal-title').textContent = '📷 Scan Salvage Item';
+  document.getElementById('salvage-cam-preview').style.display='none';
+  document.getElementById('salvage-cam-preview').innerHTML='';
+  document.getElementById('salvage-cam-prompt').style.display='block';
+  document.getElementById('salvage-cam-input').value='';
+  var aiBtn=document.getElementById('salvage-ai-btn');
+  aiBtn.disabled=true; aiBtn.style.background='#ccc'; aiBtn.style.cursor='not-allowed';
+  aiBtn.textContent='🤖 Identify & Price This Item';
+  document.getElementById('salvage-ai-status').style.display='none';
+  document.getElementById('sv-desc').value='';
+  document.getElementById('sv-cat').value='Doors';
+  document.getElementById('sv-cond').value='Good';
+  document.getElementById('sv-qty').value=1;
+  document.getElementById('sv-cost').value='';
+  document.getElementById('sv-price').value='';
+  document.getElementById('sv-location').value='';
+  document.getElementById('sv-notes').value='';
+  document.getElementById('sv-gm-display').textContent='GM: —';
+  document.getElementById('salvage-scanner-modal').classList.remove('hidden');
+  document.getElementById('salvage-scanner-modal').dataset.editId='';
+}
+
+// Open the same modal but in "manual entry" mode (skip the camera/AI section visually irrelevant)
+function openSalvageManual() {
+  openSalvageScanner();
+  document.getElementById('salvage-modal-title').textContent = '✏️ Add Salvage Item Manually';
+}
+
+function closeSalvageScanner() {
+  document.getElementById('salvage-scanner-modal').classList.add('hidden');
+}
+
+function onSalvagePhoto(input) {
+  if(!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    currentSalvagePhoto = e.target.result;
+    document.getElementById('salvage-cam-preview').innerHTML = '<img src="'+currentSalvagePhoto+'" style="max-width:100%;max-height:200px;border-radius:8px;border:1.5px solid #d5c8a8">';
+    document.getElementById('salvage-cam-preview').style.display = 'block';
+    document.getElementById('salvage-cam-prompt').style.display = 'none';
+    var apiKey = localStorage.getItem('ns_salvage_apikey');
+    var aiBtn = document.getElementById('salvage-ai-btn');
+    aiBtn.disabled = false; aiBtn.style.cursor = 'pointer';
+    if (apiKey) {
+      aiBtn.style.background = '#2980d4';
+      aiBtn.textContent = '🤖 Identify & Price This Item';
+    } else {
+      aiBtn.style.background = '#c8952a';
+      aiBtn.textContent = '🔑 Setup AI Key to Identify';
+    }
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function saveSalvageApiKey() {
+  var key = document.getElementById('sv-apikey-input').value.trim();
+  if (!key) { alert('Please enter an API key'); return; }
+  localStorage.setItem('ns_salvage_apikey', key);
+  document.getElementById('salvage-apikey-modal').classList.add('hidden');
+  document.getElementById('sv-apikey-input').value = '';
+  showToast('API key saved!', '#2d6a30');
+  // If they had a photo loaded, refresh the AI button to active state
+  if (currentSalvagePhoto) {
+    var aiBtn = document.getElementById('salvage-ai-btn');
+    aiBtn.style.background = '#2980d4';
+    aiBtn.textContent = '🤖 Identify & Price This Item';
+  }
+}
+
+function aiIdentifySalvage() {
+  var apiKey = localStorage.getItem('ns_salvage_apikey');
+  if (!apiKey) {
+    document.getElementById('salvage-apikey-modal').classList.remove('hidden');
+    return;
+  }
+  if (!currentSalvagePhoto) { alert('Take a photo first'); return; }
+  var statusEl = document.getElementById('salvage-ai-status');
+  var btn = document.getElementById('salvage-ai-btn');
+  btn.disabled = true; btn.style.background = '#ccc'; btn.textContent = '⏳ Analyzing...';
+  statusEl.style.display = 'block'; statusEl.style.color = '#2980d4';
+  statusEl.textContent = 'Sending photo to Claude AI for identification...';
+
+  var base64Data = currentSalvagePhoto.split(',')[1];
+  var mediaType = currentSalvagePhoto.split(';')[0].split(':')[1];
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+          { type: 'text', text: 'You are identifying a building material item for a building supply store (Norwood Supply in Jacksonville FL). Respond ONLY with a JSON object, no markdown, no backticks. Fields: description (string, brief product description), category (one of: Doors, Lumber, Millwork, Hardware, Plywood/Sheet, Misc), condition (one of: New, Good, Fair, Rough), estimatedRetail (number, estimated new retail value in dollars), suggestedPrice (number, suggested salvage sell price in dollars), notes (string, any relevant details about the item).' }
+        ]
+      }]
+    })
+  }).then(function(r) { return r.json(); })
+  .then(function(data) {
+    var text = (data.content && data.content[0] && data.content[0].text) || '';
+    try {
+      var clean = text.replace(/```json|```/g, '').trim();
+      var result = JSON.parse(clean);
+      document.getElementById('sv-desc').value = result.description || '';
+      document.getElementById('sv-cat').value = result.category || 'Misc';
+      document.getElementById('sv-cond').value = result.condition || 'Good';
+      document.getElementById('sv-price').value = result.suggestedPrice || '';
+      document.getElementById('sv-cost').value = Math.round((result.suggestedPrice || 0) * 0.4) || '';
+      document.getElementById('sv-notes').value = result.notes || '';
+      updateSvGM();
+      statusEl.textContent = '✅ AI identified! Review and edit below.';
+      statusEl.style.color = '#2d6a30';
+    } catch(e) {
+      statusEl.textContent = '⚠️ Could not parse AI response. Enter details manually.';
+      statusEl.style.color = '#c04040';
+    }
+    btn.disabled = false; btn.style.background = '#2980d4'; btn.style.cursor = 'pointer';
+    btn.textContent = '🤖 Re-Analyze';
+  })
+  .catch(function(err) {
+    statusEl.textContent = '⚠️ AI request failed: ' + (err.message || err);
+    statusEl.style.color = '#c04040';
+    btn.disabled = false; btn.style.background = '#2980d4'; btn.style.cursor = 'pointer';
+    btn.textContent = '🤖 Try Again';
+  });
+}
+
+function updateSvGM() {
+  var cost = parseFloat(document.getElementById('sv-cost').value) || 0;
+  var price = parseFloat(document.getElementById('sv-price').value) || 0;
+  var gm = (price > 0 && cost > 0) ? Math.round((1 - cost / price) * 100) : 0;
+  var color = gm >= 30 ? '#2d6a30' : gm >= 20 ? '#8B6914' : '#c04040';
+  document.getElementById('sv-gm-display').innerHTML = 'GM: <span style="color:'+color+'">'+gm+'%</span>';
+}
+
+function saveSalvageItemNew() {
+  var desc = document.getElementById('sv-desc').value.trim();
+  if (!desc) { alert('Enter a description'); return; }
+  var items = getSalvageItems();
+  var editId = document.getElementById('salvage-scanner-modal').dataset.editId;
+  var item;
+  if (editId) {
+    item = items.find(function(i){ return i.id == editId; });
+    if (!item) return;
+  } else {
+    item = { id: Date.now(), dateAdded: new Date().toISOString().slice(0,10), sold: false, status: 'active' };
+    items.unshift(item);
+  }
+  item.description = desc;
+  item.category = document.getElementById('sv-cat').value;
+  item.condition = document.getElementById('sv-cond').value;
+  item.qty = parseInt(document.getElementById('sv-qty').value) || 1;
+  item.cost = parseFloat(document.getElementById('sv-cost').value) || 0;
+  item.price = parseFloat(document.getElementById('sv-price').value) || 0;
+  item.location = document.getElementById('sv-location').value.trim();
+  item.notes = document.getElementById('sv-notes').value.trim();
+
+  function commit() {
+    saveSalvageItems(items);
+    renderSalvage();
+    closeSalvageScanner();
+    showToast(editId ? 'Item updated!' : 'Item added!', '#2d6a30');
+  }
+
+  if (currentSalvagePhoto && !editId) {
+    var canvas = document.createElement('canvas');
+    var img = new Image();
+    img.onload = function() {
+      // 200x200 thumbnail keeps storage manageable while still readable on the table row
+      canvas.width = 200; canvas.height = 200;
+      var ctx = canvas.getContext('2d');
+      var s = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, 200, 200);
+      try {
+        item.thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+      } catch(e) { /* ignore */ }
+      commit();
+    };
+    img.onerror = commit;
+    img.src = currentSalvagePhoto;
+  } else {
+    commit();
+  }
 }
 
 function editSalvageItem(id) {
   var items = getSalvageItems();
   var item = items.find(function(i){ return i.id === id; });
   if (!item) return;
-  salvageEditId = id;
-  document.getElementById('salv-desc').value = item.description || '';
-  document.getElementById('salv-qty').value = item.qty || 1;
-  document.getElementById('salv-cost').value = item.cost || '';
-  document.getElementById('salv-price').value = item.price || '';
-  document.getElementById('salv-subcat').value = item.subcat || 'Exterior Doors';
-  document.getElementById('salv-photo').value = item.photo || '';
-  document.getElementById('salv-location').value = item.location || '';
-  document.getElementById('salvage-form-title').textContent = 'Edit Salvage Item';
-  document.getElementById('salv-save-btn').textContent = 'Update Item';
-  document.getElementById('salvage-add-panel').classList.remove('hidden');
-}
-
-function saveSalvageItem() {
-  var desc = document.getElementById('salv-desc').value.trim();
-  if (!desc) { showToast('Description is required.', '#c04040'); return; }
-  var qty = parseInt(document.getElementById('salv-qty').value) || 1;
-  var cost = parseFloat(document.getElementById('salv-cost').value) || 0;
-  var price = parseFloat(document.getElementById('salv-price').value) || 0;
-  var subcat = document.getElementById('salv-subcat').value;
-  var photo = document.getElementById('salv-photo').value.trim();
-  var location = document.getElementById('salv-location').value.trim();
-
-  var items = getSalvageItems();
-  if (salvageEditId) {
-    var idx = items.findIndex(function(i){ return i.id === salvageEditId; });
-    if (idx >= 0) {
-      items[idx].description = desc;
-      items[idx].qty = qty;
-      items[idx].cost = cost;
-      items[idx].price = price;
-      items[idx].subcat = subcat;
-      items[idx].photo = photo;
-      items[idx].location = location;
-      showToast('✅ Salvage item updated!', '#2d6a30');
-    }
-  } else {
-    items.push({
-      id: Date.now(),
-      description: desc,
-      qty: qty,
-      cost: cost,
-      price: price,
-      subcat: subcat,
-      photo: photo,
-      location: location,
-      status: 'active',
-      dateAdded: new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}),
-      dateSold: null
-    });
-    showToast('✅ Salvage item added!', '#2d6a30');
+  openSalvageScanner();
+  document.getElementById('salvage-modal-title').textContent = '✏️ Edit Salvage Item';
+  document.getElementById('salvage-scanner-modal').dataset.editId = id;
+  document.getElementById('sv-desc').value = item.description || '';
+  document.getElementById('sv-cat').value = item.category || 'Misc';
+  document.getElementById('sv-cond').value = item.condition || 'Good';
+  document.getElementById('sv-qty').value = item.qty || 1;
+  document.getElementById('sv-cost').value = item.cost || '';
+  document.getElementById('sv-price').value = item.price || '';
+  document.getElementById('sv-location').value = item.location || '';
+  document.getElementById('sv-notes').value = item.notes || '';
+  if (item.thumbnail) {
+    document.getElementById('salvage-cam-preview').innerHTML = '<img src="'+item.thumbnail+'" style="max-width:100%;max-height:200px;border-radius:8px;border:1.5px solid #d5c8a8">';
+    document.getElementById('salvage-cam-preview').style.display = 'block';
+    document.getElementById('salvage-cam-prompt').style.display = 'none';
   }
-  saveSalvageItems(items);
-  closeSalvageAdd();
-  renderSalvage();
+  updateSvGM();
 }
 
 function markSalvageSold(id) {
   var items = getSalvageItems();
   var item = items.find(function(i){ return i.id === id; });
   if (item) {
+    item.sold = true;
     item.status = 'sold';
     item.dateSold = new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
     saveSalvageItems(items);
@@ -6415,6 +6619,7 @@ function markSalvageActive(id) {
   var items = getSalvageItems();
   var item = items.find(function(i){ return i.id === id; });
   if (item) {
+    item.sold = false;
     item.status = 'active';
     item.dateSold = null;
     saveSalvageItems(items);
@@ -6433,67 +6638,108 @@ function deleteSalvageItem(id) {
 
 function renderSalvage() {
   var items = getSalvageItems();
-  var filter = document.getElementById('salvage-filter').value;
-  var search = (document.getElementById('salvage-search').value || '').toLowerCase();
+  var filterEl = document.getElementById('salvage-filter');
+  var filter = filterEl ? filterEl.value : 'active';
+  var search = ((document.getElementById('salvage-search') || {}).value || '').toLowerCase();
 
   var filtered = items.filter(function(item) {
-    if (filter === 'active' && item.status !== 'active') return false;
-    if (filter === 'sold' && item.status !== 'sold') return false;
-    if (search && item.description.toLowerCase().indexOf(search) === -1 &&
-        (item.subcat||'').toLowerCase().indexOf(search) === -1 &&
-        (item.photo||'').toLowerCase().indexOf(search) === -1 &&
-        (item.location||'').toLowerCase().indexOf(search) === -1) return false;
+    if (filter === 'active' && !isSalvageActive(item)) return false;
+    if (filter === 'sold' && !isSalvageSold(item)) return false;
+    if (salvageCatFilter !== 'All' && (item.category || '') !== salvageCatFilter) return false;
+    if (search) {
+      var hay = ((item.description||'') + ' ' + (item.category||'') + ' ' + (item.condition||'') + ' ' + (item.notes||'') + ' ' + (item.location||'')).toLowerCase();
+      if (hay.indexOf(search) === -1) return false;
+    }
     return true;
   });
 
   var tbody = document.getElementById('salvage-tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">' + (items.length === 0 ? 'No salvage items yet. Click "+ Add Salvage Item" to get started.' : 'No items match your filter.') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty" style="padding:20px;text-align:center;color:#a89060">' + (items.length === 0 ? 'No salvage items yet. Click "📷 Scan Item" to get started.' : 'No items match your filter.') + '</td></tr>';
   } else {
-    tbody.innerHTML = filtered.map(function(item, idx) {
-      var gm = item.price > 0 ? ((1 - item.cost / item.price) * 100).toFixed(0) : '—';
-      var statusBadge = item.status === 'sold'
-        ? '<span style="font-size:10px;color:#2d6a30;background:#eaf3de;padding:2px 7px;border-radius:10px;font-weight:600">SOLD</span>'
-        : '<span style="font-size:10px;color:#2980d4;background:#eaf4fd;padding:2px 7px;border-radius:10px;font-weight:600">ACTIVE</span>';
-      var actions = item.status === 'active'
-        ? '<button class="btn btn-p" onclick="markSalvageSold('+item.id+')" style="padding:3px 7px;font-size:10px;margin-right:3px" title="Mark sold">💰 Sold</button>' +
-          '<button class="btn btn-gh" onclick="editSalvageItem('+item.id+')" style="padding:3px 5px;font-size:10px;margin-right:3px" title="Edit">✏️</button>' +
-          '<button class="btn btn-d" onclick="deleteSalvageItem('+item.id+')" style="padding:2px 5px;font-size:10px" title="Delete">✕</button>'
-        : '<button class="btn btn-gh" onclick="markSalvageActive('+item.id+')" style="padding:3px 7px;font-size:10px;margin-right:3px" title="Restore">↩️</button>' +
-          '<button class="btn btn-d" onclick="deleteSalvageItem('+item.id+')" style="padding:2px 5px;font-size:10px" title="Delete">✕</button>';
-      return '<tr' + (item.status==='sold'?' style="opacity:.55"':'') + '>' +
-        '<td style="font-size:11px;color:#a89060">' + (idx+1) + '</td>' +
-        '<td><div style="font-weight:600;font-size:13px;color:#111827;line-height:1.3">' + item.description + '</div>' +
-          '<div style="font-size:10px;color:#8B6914;margin-top:1px">' + (item.dateAdded||'') + (item.location ? ' · ' + item.location : '') + '</div>' +
-          statusBadge +
+    tbody.innerHTML = filtered.map(function(it) {
+      var thumb = it.thumbnail
+        ? '<img src="' + it.thumbnail + '" style="width:50px;height:50px;object-fit:cover;border-radius:5px;border:1px solid #d5c8a8;cursor:pointer" onclick="openSalvageLightbox(\'' + (it.id||'') + '\')">'
+        : '<div style="width:50px;height:50px;background:#f5f0e8;border-radius:5px;border:1px solid #d5c8a8;display:flex;align-items:center;justify-content:center;font-size:18px;color:#a89060">📷</div>';
+      var cond = it.condition || '';
+      var condColor = cond === 'New' ? '#2d6a30' : cond === 'Good' ? '#2980d4' : cond === 'Fair' ? '#8B6914' : '#c04040';
+      var price = it.price || 0;
+      var cost = it.cost || 0;
+      var gm = (price > 0 && cost > 0) ? Math.round((1 - cost / price) * 100) : 0;
+      var soldBadge = isSalvageSold(it) ? '<span style="background:#eaf3de;color:#2d6a30;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-left:4px">SOLD</span>' : '';
+      var rowOpacity = isSalvageSold(it) ? ' style="opacity:.55"' : '';
+      var actionBtns = isSalvageActive(it)
+        ? '<button onclick="markSalvageSold(' + it.id + ')" style="background:#eaf3de;color:#2d6a30;border:1px solid #c0dd97;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin:1px" title="Mark sold">✓</button>'
+          + '<button onclick="editSalvageItem(' + it.id + ')" style="background:#eaf4fd;color:#2980d4;border:1px solid #b5d4f4;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin:1px" title="Edit">✏️</button>'
+          + '<button onclick="deleteSalvageItem(' + it.id + ')" style="background:#fff0f0;color:#c04040;border:1px solid #e08080;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin:1px" title="Delete">🗑️</button>'
+        : '<button onclick="markSalvageActive(' + it.id + ')" style="background:#eaf4fd;color:#2980d4;border:1px solid #b5d4f4;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin:1px" title="Restore">↩️</button>'
+          + '<button onclick="deleteSalvageItem(' + it.id + ')" style="background:#fff0f0;color:#c04040;border:1px solid #e08080;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin:1px" title="Delete">🗑️</button>';
+      return '<tr' + rowOpacity + '>' +
+        '<td style="padding:6px 8px">' + thumb + '</td>' +
+        '<td style="padding:6px 8px"><div style="font-weight:600;font-size:12px">' + (it.description || '—') + soldBadge + '</div>' +
+          (it.location ? '<div style="font-size:10px;color:#a89060">📍 ' + it.location + '</div>' : '') +
+          (it.notes ? '<div style="font-size:10px;color:#6b5a3a;margin-top:1px">' + it.notes + '</div>' : '') +
         '</td>' +
-        '<td style="font-size:11px;color:#6b5a3a">' + (item.subcat||'') + '</td>' +
-        '<td style="text-align:center;font-weight:600">' + item.qty + '</td>' +
-        '<td style="text-align:right">$' + item.cost.toFixed(2) + '</td>' +
-        '<td style="text-align:right;font-weight:600">$' + item.price.toFixed(2) + '</td>' +
-        '<td style="text-align:right;font-size:11px;color:#8B6914">' + gm + '%</td>' +
-        '<td style="font-size:10px;color:#6b5a3a;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (item.photo||'').replace(/"/g,'&quot;') + '">' + (item.photo||'—') + '</td>' +
-        '<td>' + actions + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;font-size:11px">' + (it.category || '') + '</td>' +
+        '<td style="padding:6px 8px;text-align:center"><span style="color:' + condColor + ';font-size:11px;font-weight:600">' + cond + '</span></td>' +
+        '<td style="padding:6px 8px;text-align:center;font-weight:600">' + (it.qty || 1) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;font-size:12px">$' + cost.toFixed(2) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;font-weight:700;font-size:12px;color:#2d6a30">$' + price.toFixed(2) + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;font-size:11px;font-weight:600;color:#8B6914">' + gm + '%</td>' +
+        '<td style="padding:6px 8px;text-align:center;white-space:nowrap">' + actionBtns + '</td>' +
       '</tr>';
     }).join('');
   }
 
   // KPIs
-  var active = items.filter(function(i){ return i.status==='active'; });
-  var sold = items.filter(function(i){ return i.status==='sold'; });
-  document.getElementById('salv-kpi-active').textContent = active.length;
-  document.getElementById('salv-kpi-cost').textContent = '$' + active.reduce(function(s,i){ return s + i.cost * i.qty; }, 0).toFixed(0);
-  document.getElementById('salv-kpi-value').textContent = '$' + active.reduce(function(s,i){ return s + i.price * i.qty; }, 0).toFixed(0);
-  document.getElementById('salv-kpi-sold').textContent = sold.length;
-  document.getElementById('salvage-count').textContent = items.length + ' items · ' + active.length + ' active';
+  var active = items.filter(isSalvageActive);
+  var sold = items.filter(isSalvageSold);
+  var totalCost = active.reduce(function(s,i){ return s + (i.cost||0) * (i.qty||1); }, 0);
+  var totalValue = active.reduce(function(s,i){ return s + (i.price||0) * (i.qty||1); }, 0);
+  var elA = document.getElementById('salv-kpi-active'); if (elA) elA.textContent = active.length;
+  var elC = document.getElementById('salv-kpi-cost'); if (elC) elC.textContent = '$' + Math.round(totalCost);
+  var elV = document.getElementById('salv-kpi-value'); if (elV) elV.textContent = '$' + Math.round(totalValue);
+  var elS = document.getElementById('salv-kpi-sold'); if (elS) elS.textContent = sold.length;
+  var elCount = document.getElementById('salvage-count');
+  if (elCount) elCount.textContent = items.length + ' items · ' + active.length + ' active';
+}
+
+function openSalvageLightbox(id) {
+  var items = getSalvageItems();
+  var item = items.find(function(i){ return String(i.id) === String(id); });
+  if (!item || !item.thumbnail) return;
+  var lb = document.getElementById('img-lightbox');
+  var img = document.getElementById('img-lightbox-img');
+  if (lb && img) {
+    img.src = item.thumbnail;
+    lb.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
 }
 
 function exportSalvageCSV() {
   var items = getSalvageItems();
   if (!items.length) { showToast('No salvage items to export.', '#8B6914'); return; }
-  var csv = 'Status,Description,SubCategory,Qty,Cost,Price,Photo,Location,DateAdded,DateSold\n';
+  var csv = 'Status,Description,Category,Condition,Qty,Cost,Price,GM%,Location,Notes,DateAdded,DateSold\n';
   items.forEach(function(i) {
-    csv += [i.status, '"'+i.description.replace(/"/g,'""')+'"', i.subcat, i.qty, i.cost, i.price, '"'+(i.photo||'')+'"', '"'+(i.location||'')+'"', i.dateAdded||'', i.dateSold||''].join(',') + '\n';
+    var status = isSalvageSold(i) ? 'sold' : 'active';
+    var price = i.price || 0;
+    var cost = i.cost || 0;
+    var gm = (price > 0 && cost > 0) ? Math.round((1 - cost/price) * 100) : 0;
+    csv += [
+      status,
+      '"' + (i.description||'').replace(/"/g,'""') + '"',
+      i.category || '',
+      i.condition || '',
+      i.qty || 1,
+      cost,
+      price,
+      gm,
+      '"' + (i.location||'').replace(/"/g,'""') + '"',
+      '"' + (i.notes||'').replace(/"/g,'""') + '"',
+      i.dateAdded || '',
+      i.dateSold || ''
+    ].join(',') + '\n';
   });
   var blob = new Blob([csv], {type:'text/csv'});
   var a = document.createElement('a');
@@ -6506,6 +6752,7 @@ function exportSalvageCSV() {
 // Init salvage on load
 setTimeout(function(){ if(document.getElementById('salvage-tbody')) renderSalvage(); }, 100);
 
+
 function closeLightbox() {
   var lb=document.getElementById('img-lightbox');
   if(lb) lb.style.display='none';
@@ -6515,5 +6762,5 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 </script>
 <div id="img-lightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out">
   <div style="position:relative;max-width:90vw;max-height:90vh" onclick="event.stopPropagation()">
-    <img id="img-lightbox-img" src="file:///C:/Users/Lance/Downloads/index_files/NorwoodSupply_PricingTool_Updated.html" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
+    <img id="img-lightbox-img" src="" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
     </div></div></body></html>
