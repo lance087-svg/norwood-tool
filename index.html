@@ -6035,6 +6035,7 @@ function openStockCounter() {
 }
 function closeStockCounter() { document.getElementById('stock-counter-modal').classList.add('hidden'); }
 
+function getProducts() { return INVENTORY; }
 function scSearchProducts() {
   var q = (document.getElementById('sc-search').value || '').toLowerCase().trim();
   var resultsEl = document.getElementById('sc-search-results');
