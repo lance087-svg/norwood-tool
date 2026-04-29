@@ -6127,7 +6127,7 @@ function aiCountStock() {
   fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages: [{ role: 'user', content: [
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
       { type: 'text', text: prodHint + 'Count the individual pieces/units visible in this photo. For lumber, count the cross-sections visible at the end of the stack. For doors or other items, count individual units. Be as accurate as possible. Respond ONLY with a JSON object, no markdown, no backticks. Fields: count (number), confidence (string: high/medium/low), notes (string, brief observation about the count).' }
     ] }] })
@@ -6299,7 +6299,7 @@ function aiIdentifySalvage() {
   fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:'You are identifying a building material item for a building supply store (Norwood Supply in Jacksonville FL). Respond ONLY with a JSON object, no markdown, no backticks. Fields: description (string, brief product description), category (one of: Doors, Lumber, Millwork, Hardware, Plywood/Sheet, Misc), condition (one of: New, Good, Fair, Rough), estimatedRetail (number, estimated new retail value in dollars), suggestedPrice (number, suggested salvage sell price in dollars), notes (string, any relevant details about the item).'}]}]})
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:'You are identifying a building material item for a building supply store (Norwood Supply in Jacksonville FL). Respond ONLY with a JSON object, no markdown, no backticks. Fields: description (string, brief product description), category (one of: Doors, Lumber, Millwork, Hardware, Plywood/Sheet, Misc), condition (one of: New, Good, Fair, Rough), estimatedRetail (number, estimated new retail value in dollars), suggestedPrice (number, suggested salvage sell price in dollars), notes (string, any relevant details about the item).'}]}]})
   }).then(function(r){return r.json();})
   .then(function(data){
     var text=(data.content&&data.content[0]&&data.content[0].text)||'';
