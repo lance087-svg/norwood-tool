@@ -2038,6 +2038,33 @@ function init() {
   
   // Load any saved edits — imageUrl is NEVER stored in edits, always comes from file
   const savedEdits = JSON.parse(localStorage.getItem('ns_edits') || '{}');
+  // ── LUMBER PRICE MIGRATION (auto-applies new bundled prices) ─────────────
+  // When this bundled file's LUMBER_PRICE_DATE is newer than what the user's
+  // browser has applied, copy cost/pricePerM/fixedRetail from the bundled
+  // products into ns_edits for every Lumber item, overriding stale edits.
+  const LUMBER_PRICE_DATE = '2026-06-15';
+  try {
+    const storedDate = localStorage.getItem('ns_lumber_price_date') || '';
+    if (storedDate !== LUMBER_PRICE_DATE) {
+      let migrated = 0;
+      const bundle = [...doorProds, ...invProds];
+      for (const p of bundle) {
+        if (p.category !== 'Lumber' && p.category !== 'Plywood') continue;
+        if (typeof p.cost !== 'number' && p.cost == null) continue;
+        const e = savedEdits[p.id] || {};
+        e.cost = p.cost;
+        e.fixedRetail = p.fixedRetail;
+        if (p.pricePerM !== undefined) e.pricePerM = p.pricePerM;
+        // Preserve user-set fields: onHand, reorderPoint, notes, imageUrl, group recategorization, etc.
+        // Only force the three price fields.
+        savedEdits[p.id] = e;
+        migrated++;
+      }
+      localStorage.setItem('ns_edits', JSON.stringify(savedEdits));
+      localStorage.setItem('ns_lumber_price_date', LUMBER_PRICE_DATE);
+      console.log('Norwood lumber price migration applied: ' + migrated + ' items updated to ' + LUMBER_PRICE_DATE);
+    }
+  } catch(err) { console.warn('Lumber price migration failed:', err); }
   products = [...doorProds, ...invProds].map(p => {
     if (savedEdits[p.id]) {
       const edit = {...savedEdits[p.id]};
