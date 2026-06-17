@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<!-- saved from url=(0049)file:///C:/Users/Lance/Downloads/inventory_1.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norwood Supply — Inventory</title>
 
 <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script src="./inventory_files/firebase-app-compat.js.download"></script>
+<script src="./inventory_files/firebase-firestore-compat.js.download"></script>
+<script src="./inventory_files/firebase-storage-compat.js.download"></script>
 
 <!-- JsBarcode for barcode generation -->
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="./inventory_files/JsBarcode.all.min.js.download"></script>
 
 <style>
   :root {
@@ -551,9 +551,9 @@
      MODE TABS
 ═════════════════════════════════════════════ -->
 <div class="mode-tabs">
-  <div class="mode-tab active" onclick="switchMode('add')">➕ Add Item</div>
-  <div class="mode-tab" onclick="switchMode('browse')">📦 Browse</div>
-  <div class="mode-tab" onclick="switchMode('count')">🔢 Count</div>
+  <div class="mode-tab active" onclick="switchMode(&#39;add&#39;)">➕ Add Item</div>
+  <div class="mode-tab" onclick="switchMode(&#39;browse&#39;)">📦 Browse</div>
+  <div class="mode-tab" onclick="switchMode(&#39;count&#39;)">🔢 Count</div>
 </div>
 
 <!-- CONFIG BANNER (hidden once Firebase is set up) -->
@@ -597,16 +597,16 @@
 
   <!-- PHOTO CAPTURE -->
   <div class="card">
-    <div class="card-title">📷 Photo & AI Assist</div>
-    <div class="photo-area" onclick="document.getElementById('photoInput').click()">
+    <div class="card-title">📷 Photo &amp; AI Assist</div>
+    <div class="photo-area" onclick="document.getElementById(&#39;photoInput&#39;).click()">
       <div class="photo-placeholder" id="photoPlaceholder">
         <div class="camera-icon">📸</div>
         <div>Tap to take photo or choose from gallery</div>
-        <div style="font-size:0.75rem;margin-top:4px;color:#bbb;">AI will suggest description & category</div>
+        <div style="font-size:0.75rem;margin-top:4px;color:#bbb;">AI will suggest description &amp; category</div>
       </div>
-      <img id="photoPreview" alt="Item photo"/>
+      <img id="photoPreview" alt="Item photo">
     </div>
-    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(this)"/>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
     <div class="ai-result" id="aiResult">
       <span class="ai-badge">AI SUGGESTION</span>
       <div id="aiResultText"></div>
@@ -630,7 +630,7 @@
     </select>
 
     <!-- DOOR fields -->
-    <div id="doorFields">
+    <div id="doorFields" style="display: none;">
       <label>Door Type</label>
       <select id="doorType" onchange="buildSKU()">
         <option value="">— Select —</option>
@@ -642,7 +642,7 @@
       </select>
 
       <label>Size (e.g. 3068, 2868, 2468)</label>
-      <input type="text" id="doorSize" maxlength="6" placeholder="3068" oninput="buildSKU()" style="text-transform:uppercase;"/>
+      <input type="text" id="doorSize" maxlength="6" placeholder="3068" oninput="buildSKU()" style="text-transform:uppercase;">
 
       <label>Material</label>
       <select id="doorMat" onchange="buildSKU()">
@@ -683,7 +683,7 @@
         <option value="TRHLD">Threshold</option>
       </select>
       <label>Size / Profile</label>
-      <input type="text" id="mwSize" placeholder="316, 432..." maxlength="8" oninput="buildSKU()"/>
+      <input type="text" id="mwSize" placeholder="316, 432..." maxlength="8" oninput="buildSKU()">
     </div>
 
     <!-- LUMBER fields -->
@@ -700,7 +700,7 @@
         <option value="PLY">Plywood</option>
       </select>
       <label>Dimension</label>
-      <input type="text" id="lbDim" placeholder="2X4-8, 1X6-12..." maxlength="10" oninput="buildSKU()" style="text-transform:uppercase;"/>
+      <input type="text" id="lbDim" placeholder="2X4-8, 1X6-12..." maxlength="10" oninput="buildSKU()" style="text-transform:uppercase;">
     </div>
 
     <!-- HARDWARE fields -->
@@ -717,14 +717,14 @@
         <option value="KICK">Kick Plate</option>
       </select>
       <label>Description</label>
-      <input type="text" id="hwDesc" placeholder="35-SS, Satin Nickel..." maxlength="12" oninput="buildSKU()" style="text-transform:uppercase;"/>
+      <input type="text" id="hwDesc" placeholder="35-SS, Satin Nickel..." maxlength="12" oninput="buildSKU()" style="text-transform:uppercase;">
     </div>
 
     <label style="margin-top:16px;">Generated SKU</label>
     <div class="sku-display" id="skuDisplay">—</div>
 
     <label style="margin-top:12px;">Vendor / Brand</label>
-    <input type="text" id="itemVendor" placeholder="e.g. Masonite, Jeld-Wen, TLC..."/>
+    <input type="text" id="itemVendor" placeholder="e.g. Masonite, Jeld-Wen, TLC...">
   </div>
 
   <!-- DESCRIPTION -->
@@ -734,10 +734,10 @@
     <textarea id="itemDesc" placeholder="e.g. 3/0 x 6/8 Fiberglass Smooth Exterior Prehung — 4-9/16 Jamb, Sill, Bronze Hardware"></textarea>
 
     <label>Location in Yard / Warehouse</label>
-    <input type="text" id="itemLocation" placeholder="e.g. Row 3, Bin B, Warehouse Left..."/>
+    <input type="text" id="itemLocation" placeholder="e.g. Row 3, Bin B, Warehouse Left...">
 
     <label>Notes</label>
-    <input type="text" id="itemNotes" placeholder="Optional — condition, color, special order..."/>
+    <input type="text" id="itemNotes" placeholder="Optional — condition, color, special order...">
   </div>
 
   <!-- PRICING -->
@@ -755,16 +755,16 @@
     <div class="price-row" style="margin-top:12px;">
       <div>
         <label>Cost (each)</label>
-        <input type="number" id="itemCost" placeholder="0.00" step="0.01" min="0" oninput="calcPrice()"/>
+        <input type="number" id="itemCost" placeholder="0.00" step="0.01" min="0" oninput="calcPrice()">
       </div>
       <div>
         <label>Sell Price</label>
-        <input type="number" id="itemPrice" placeholder="0.00" step="0.01" min="0" oninput=""/>
+        <input type="number" id="itemPrice" placeholder="0.00" step="0.01" min="0" oninput="">
       </div>
     </div>
 
     <label>Initial QOH (Quantity on Hand)</label>
-    <input type="number" id="itemQOH" placeholder="0" min="0" step="1" value="0"/>
+    <input type="number" id="itemQOH" placeholder="0" min="0" step="1" value="0">
   </div>
 
   <!-- ACTIONS -->
@@ -772,7 +772,7 @@
     <div class="card-title">⚡ Actions</div>
     <button class="btn btn-green" onclick="saveItem()">💾 Save to Inventory</button>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveAndPrint()">🖨️ Save & Print Label</button>
+      <button class="btn btn-primary" onclick="saveAndPrint()">🖨️ Save &amp; Print Label</button>
       <button class="btn btn-outline" onclick="resetForm()">🔄 Clear Form</button>
     </div>
   </div>
@@ -786,7 +786,7 @@
 <div class="panel" id="panel-browse">
 
   <div class="search-row">
-    <input type="text" id="searchInput" placeholder="Search SKU or description..." oninput="filterItems()"/>
+    <input type="text" id="searchInput" placeholder="Search SKU or description..." oninput="filterItems()">
     <button class="btn btn-primary" style="width:auto;margin:0;padding:10px 14px;white-space:nowrap;" onclick="loadInventory()">↻</button>
   </div>
 
@@ -821,16 +821,12 @@
 
     <div class="count-scanner">
       <div style="font-size:0.8rem;font-weight:700;color:var(--norwood-blue);margin-bottom:6px;">SCAN OR TYPE SKU</div>
-      <input type="text"
-             id="countSKU"
-             placeholder="DR-EXT-3068-FG-SMT"
-             style="text-transform:uppercase;letter-spacing:1px;"
-             onkeydown="if(event.key==='Enter') lookupSKU()"/>
+      <input type="text" id="countSKU" placeholder="DR-EXT-3068-FG-SMT" style="text-transform:uppercase;letter-spacing:1px;" onkeydown="if(event.key===&#39;Enter&#39;) lookupSKU()">
       <button class="btn btn-primary" style="margin-top:10px;" onclick="lookupSKU()">🔍 Look Up</button>
     </div>
 
     <div class="count-result" id="countResult">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--norwood-blue);font-family:'Courier New',monospace;" id="countResultSKU"></div>
+      <div style="font-size:0.78rem;font-weight:700;color:var(--norwood-blue);font-family:&#39;Courier New&#39;,monospace;" id="countResultSKU"></div>
       <div style="font-size:0.95rem;font-weight:600;color:#222;margin:4px 0 10px;" id="countResultDesc"></div>
       <div style="font-size:0.8rem;color:#777;">Current QOH: <strong id="countCurrentQOH">—</strong></div>
 
@@ -840,9 +836,7 @@
         <button class="qty-btn" onclick="adjustQty(1)">+</button>
       </div>
 
-      <input type="number" id="qtyManual" placeholder="Or type exact count" min="0"
-             style="margin-top:10px;text-align:center;font-size:1.1rem;"
-             oninput="document.getElementById('qtyInput').textContent=this.value||'0'"/>
+      <input type="number" id="qtyManual" placeholder="Or type exact count" min="0" style="margin-top:10px;text-align:center;font-size:1.1rem;" oninput="document.getElementById(&#39;qtyInput&#39;).textContent=this.value||&#39;0&#39;">
 
       <button class="btn btn-green" onclick="saveCount()" style="margin-top:12px;">✅ Save Count</button>
       <button class="btn btn-outline" onclick="printCountLabel()" style="margin-top:8px;">🖨️ Reprint Label</button>
@@ -1345,5 +1339,6 @@ window.onload = () => {
   if (firebaseReady) loadInventory();
 };
 </script>
-</body>
-</html>
+
+
+</body></html>
