@@ -7,6 +7,39 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+  // Load Firebase SDK dynamically (pricing tool doesn't include it)
+  function loadFirebaseSDK(callback) {
+    if (typeof firebase !== 'undefined') { callback(); return; }
+    var s1 = document.createElement('script');
+    s1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+    s1.onload = function() {
+      var s2 = document.createElement('script');
+      s2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
+      s2.onload = callback;
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s1);
+  }
+  // Pre-load Firebase so it's ready when user clicks the button
+  loadFirebaseSDK(function() { console.log('Norwood patch: Firebase ready'); });
+
+  // Load Firebase SDK if not already present (pricing tool doesn't include it)
+  function loadFirebaseSDK(callback) {
+    if (typeof firebase !== 'undefined') { callback(); return; }
+    var s1 = document.createElement('script');
+    s1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+    s1.onload = function() {
+      var s2 = document.createElement('script');
+      s2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
+      s2.onload = callback;
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s1);
+  }
+  loadFirebaseSDK(function() {
+    console.log('Norwood patch: Firebase SDK ready');
+  });
+
   // ── FIX 1: DESCRIPTION DEDUPLICATION ──────────────────────
   // Monkey-patch showQuote and showInvoice so the sub-description
   // line only appears when it differs from the item name.
@@ -169,19 +202,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function loadInv() {
     var listEl = document.getElementById('invList');
-    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-family:system-ui;">Connecting to Firestore...</div>';
+    listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-family:system-ui;">Connecting to inventory...</div>';
+    // Ensure Firebase SDK is loaded first
+    await new Promise(function(resolve) { loadFirebaseSDK(resolve); });
     try {
-      // Wait up to 5 seconds for Firebase to initialize
-      var attempts = 0;
-      while ((typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) && attempts < 50) {
-        await new Promise(function(r){ setTimeout(r, 100); });
-        attempts++;
-      }
-      if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
-        listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Firebase not connected. Please refresh the page and try again.</div>';
+      if (typeof firebase === 'undefined') {
+        listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Could not load Firebase. Check your internet connection.</div>';
         return;
       }
-      var db = firebase.firestore();
+      var _fbConfig = {
+        apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+        authDomain: "norwood-supply.firebaseapp.com",
+        projectId: "norwood-supply",
+        storageBucket: "norwood-supply.firebasestorage.app",
+        messagingSenderId: "933963197210",
+        appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
+      };
+      var _fbApp;
+      try {
+        _fbApp = firebase.app('norwood-inv');
+      } catch(e) {
+        _fbApp = firebase.initializeApp(_fbConfig, 'norwood-inv');
+      }
+      var db = _fbApp.firestore();
       var snap = await db.collection('norwood').limit(500).get();
       var valid = ['DR', 'MW', 'LB', 'HW'];
       _inv = snap.docs
