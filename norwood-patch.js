@@ -20,25 +20,27 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     document.head.appendChild(s1);
   }
-  // Pre-load Firebase so it's ready when user clicks the button
-  loadFirebaseSDK(function() { console.log('Norwood patch: Firebase ready'); });
-
-  // Load Firebase SDK if not already present (pricing tool doesn't include it)
-  function loadFirebaseSDK(callback) {
-    if (typeof firebase !== 'undefined') { callback(); return; }
-    var s1 = document.createElement('script');
-    s1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
-    s1.onload = function() {
-      var s2 = document.createElement('script');
-      s2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
-      s2.onload = callback;
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
-  }
+  // Pre-load Firebase — sets window._db using the named 'norwood-inv' app
   loadFirebaseSDK(function() {
-    console.log('Norwood patch: Firebase SDK ready');
+    console.log('Norwood patch: Firebase ready');
+    if (window._db) return; // already set
+    try {
+      var _fbConfig = {
+        apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+        authDomain: "norwood-supply.firebaseapp.com",
+        projectId: "norwood-supply",
+        storageBucket: "norwood-supply.firebasestorage.app",
+        messagingSenderId: "933963197210",
+        appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
+      };
+      var app;
+      try { app = firebase.app('norwood-inv'); }
+      catch(e) { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
+      window._db = app.firestore();
+      console.log('Norwood patch: window._db ready via norwood-inv app');
+    } catch(e) { console.warn('Norwood patch: db init error', e); }
   });
+
 
   // ── FIX 1: DESCRIPTION DEDUPLICATION ──────────────────────
   // Monkey-patch showQuote and showInvoice so the sub-description
@@ -81,8 +83,64 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   if (typeof _origShowInvoice === 'function') {
-    window.showInvoice = function() {
+    window.showInvoice = function(existingInvNum) {
       _origShowInvoice.apply(this, arguments);
+
+      // ── DEDUCT INVENTORY (only on new invoices, not when loading existing) ──
+      if (!existingInvNum) {
+        setTimeout(function() {
+          var liveLines = (typeof lines !== 'undefined' ? lines : [])
+            .filter(function(l) { return l.isLive && l.sku && l.sku !== 'CUSTOM'; });
+          console.log('[PATCH-DEDUCT] live lines to deduct:', liveLines.length,
+            liveLines.map(function(l){ return l.sku + ' x' + l.qty; }));
+
+          if (!liveLines.length) return;
+
+          var cfg = {
+            apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+            authDomain: "norwood-supply.firebaseapp.com",
+            projectId: "norwood-supply",
+            storageBucket: "norwood-supply.firebasestorage.app",
+            messagingSenderId: "933963197210",
+            appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
+          };
+
+          // Use the already-initialised norwood-inv app
+          var app;
+          try { app = firebase.app('norwood-inv'); }
+          catch(e) { app = firebase.initializeApp(cfg, 'norwood-inv'); }
+          var db = app.firestore();
+
+          var deducted = 0;
+          liveLines.forEach(function(l) {
+            var sku = String(l.sku).trim();
+            var qty = parseInt(l.qty) || 1;
+            db.collection('norwood').doc(sku).get().then(function(doc) {
+              if (!doc.exists) {
+                console.warn('[PATCH-DEDUCT] No doc for SKU:', sku);
+                return;
+              }
+              var newQoh = Math.max(0, (parseInt(doc.data().qoh) || 0) - qty);
+              return doc.ref.update({
+                qoh: newQoh,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }).then(function() {
+                deducted++;
+                console.log('[PATCH-DEDUCT] ✅', sku, '→ qoh now', newQoh);
+                if (deducted === liveLines.length) {
+                  if (typeof showToast === 'function') {
+                    showToast('✅ Inventory updated for ' + deducted + ' item(s)', '#2d6a30');
+                  }
+                }
+              });
+            }).catch(function(e) {
+              console.error('[PATCH-DEDUCT] ❌ Error on', sku, ':', e.message);
+            });
+          });
+        }, 300); // wait 300ms to ensure invoice is saved first
+      }
+
+      // ── DEDUP: hide sub-description when it duplicates the item name ────────
       setTimeout(function() {
         var cells = document.querySelectorAll('#invoice-content td[style*="line-height"]');
         cells.forEach(function(td) {
@@ -91,9 +149,10 @@ document.addEventListener('DOMContentLoaded', function() {
                        td.querySelector('span[style*="font-size: 11px"]');
           if (strong && span) {
             var itemText = strong.textContent.trim();
-            // span text starts with the description before any SKU
-            var descText = span.textContent.split('·')[0].trim();
-            if (descText === itemText) {
+            var spanText = span.textContent.trim();
+            var descText = spanText.split('·')[0].trim();
+            var hasSku = /^[A-Z]{2}-/.test(spanText);
+            if (spanText && !hasSku && (descText === itemText || spanText === itemText)) {
               span.style.display = 'none';
             }
           }
@@ -352,8 +411,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var pseudo = {
       id: 'inv_' + sku,
       sku: sku,
+      // item = the bold headline on the invoice line
       item: item.description || sku,
-      description: item.description || sku,
+      // description = blank so the invoice renderer only shows the SKU
+      // appended via its own "· SKU:xxx" logic — never duplicated, never hidden
+      description: '',
       category: item.category || 'Other',
       group: 'Inventory',
       size: '',
@@ -363,7 +425,8 @@ document.addEventListener('DOMContentLoaded', function() {
       uom: 'EA',
       notes: item.notes || '',
       imageUrl: item.photoBase64 ? 'data:image/jpeg;base64,' + item.photoBase64 : '',
-      isCustom: false
+      isCustom: false,
+      isLive: true   // ← tells deductInventoryForInvoice to write back to Firestore
     };
 
     var qty    = parseInt(document.getElementById('qty-in').value) || 1;
