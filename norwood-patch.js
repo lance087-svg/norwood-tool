@@ -73,18 +73,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Inject styles
   var style = document.createElement('style');
-  style.textContent = [
-    '.invChip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #d0dce8;background:#fff;color:#555;transition:all 0.15s;user-select:none;display:inline-block;font-family:system-ui}',
-    '.invChip.active{background:#1E70B8;border-color:#1E70B8;color:#fff}',
-    '.invChip:hover:not(.active){background:#e8f2fb;border-color:#1E70B8;color:#1E70B8}',
-    '.invResultItem{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;border:1.5px solid #e8edf2;background:#fff;transition:all 0.15s}',
-    '.invResultItem:hover{border-color:#1E70B8;background:#f0f7ff;box-shadow:0 2px 8px rgba(30,112,184,0.10)}',
-    '.invResultItem.zero-stock{opacity:0.55;border-style:dashed}',
-    '.invQohBadge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:800;flex-shrink:0;white-space:nowrap;font-family:system-ui}',
-    '.invQohBadge.good{background:#e8f5e9;color:#2E7D32}',
-    '.invQohBadge.low{background:#fff3e0;color:#e65100}',
-    '.invQohBadge.zero{background:#fce4ec;color:#c62828}'
-  ].join('');
+  style.textContent =
+    /* Inventory lookup chips */
+    '.invChip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #d0dce8;background:#fff;color:#555;transition:all 0.15s;user-select:none;display:inline-block;font-family:system-ui}' +
+    '.invChip.active{background:#1E70B8;border-color:#1E70B8;color:#fff}' +
+    '.invChip:hover:not(.active){background:#e8f2fb;border-color:#1E70B8;color:#1E70B8}' +
+    '.invResultItem{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;border:1.5px solid #e8edf2;background:#fff;transition:all 0.15s}' +
+    '.invResultItem:hover{border-color:#1E70B8;background:#f0f7ff;box-shadow:0 2px 8px rgba(30,112,184,0.10)}' +
+    '.invResultItem.zero-stock{opacity:0.55;border-style:dashed}' +
+    '.invQohBadge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:800;flex-shrink:0;white-space:nowrap;font-family:system-ui}' +
+    '.invQohBadge.good{background:#e8f5e9;color:#2E7D32}' +
+    '.invQohBadge.low{background:#fff3e0;color:#e65100}' +
+    '.invQohBadge.zero{background:#fce4ec;color:#c62828}' +
+    /* Invoice banner: change light-blue #90CAF9 text to white, bump font sizes */
+    '.inv-banner-tag{color:#fff!important;font-size:11px!important}' +
+    '.inv-banner-contact{color:#fff!important;font-size:12px!important;line-height:1.9!important}' +
+    '.inv-banner-num{color:#fff!important;font-size:14px!important;font-weight:700!important;margin-top:4px!important}' +
+    '.inv-banner-meta{color:#fff!important;font-size:12px!important;line-height:2!important}' +
+    '.inv-banner-title{font-size:28px!important;letter-spacing:4px!important}' +
+    '.inv-banner-logo{font-size:26px!important}' +
+    /* Quote banner: same treatment */
+    '.qp-banner-tag{color:#fff!important;font-size:11px!important}' +
+    '.qp-banner-contact{color:#fff!important;font-size:12px!important;line-height:1.9!important}' +
+    '.qp-banner-num{color:#fff!important;font-size:14px!important;font-weight:700!important}' +
+    '.qp-banner-meta{color:#fff!important;font-size:12px!important;line-height:2!important}' +
+    '.qp-banner-title{font-size:28px!important;letter-spacing:4px!important}' +
+    '.qp-banner-logo{font-size:26px!important}' +
+    /* Print: force color backgrounds and white text */
+    '@media print{.inv-banner,.qp-banner{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+    '.inv-banner-contact,.inv-banner-tag,.inv-banner-num,.inv-banner-meta,' +
+    '.qp-banner-contact,.qp-banner-tag,.qp-banner-num,.qp-banner-meta{color:#fff!important}}';
   document.head.appendChild(style);
 
   // Inject modal HTML
