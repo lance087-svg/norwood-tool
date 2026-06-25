@@ -4456,60 +4456,87 @@ function formatDoorGroup(g) {
 // ── INVENTORY DEDUCTION ──────────────────────────────────────────────────────
 function deductInventoryForInvoice(lineItems, invNum, customerName, grand, sub, tax) {
   // ── FIRESTORE LIVE INVENTORY DEDUCTION ────────────────────────────────────
-  // Deducts qoh from the 'norwood' Firestore collection for each line item
-  // that has a matching SKU document. Custom/special-order items are skipped.
-  var db = window._db || firebase.firestore();
+  console.log('[DEDUCT] Called for', invNum, 'with', lineItems.length, 'line items');
+  console.log('[DEDUCT] window._db:', window._db ? 'READY' : 'NULL');
+  console.log('[DEDUCT] Line items:', lineItems.map(function(l){ return {sku:l.sku, item:l.item, qty:l.qty}; }));
+
+  // Get db — try window._db first, then try to init Firebase directly
+  var db = window._db;
+  if (!db) {
+    try {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        db = firebase.firestore();
+        window._db = db;
+        console.log('[DEDUCT] db recovered from firebase.firestore()');
+      } else {
+        console.error('[DEDUCT] Firebase not available — cannot deduct inventory');
+        showToast('⚠️ Firebase not connected — inventory not updated', '#c04040');
+        return;
+      }
+    } catch(e) {
+      console.error('[DEDUCT] Firebase init error:', e);
+      showToast('⚠️ Firebase error — inventory not updated', '#c04040');
+      return;
+    }
+  }
+
   var transactions = JSON.parse(localStorage.getItem('ns_transactions') || '[]');
   var deducted = [];
   var promises = [];
 
   lineItems.forEach(function(l) {
     var sku = (l.sku && l.sku !== 'CUSTOM') ? String(l.sku).trim() : null;
-    if (!sku) return; // skip custom/special-order lines
+    console.log('[DEDUCT] Line —', 'raw sku:', l.sku, '→ resolved sku:', sku, '| item:', l.item);
+    if (!sku) { console.log('[DEDUCT] Skipping — no valid SKU'); return; }
 
     var qty = parseInt(l.qty) || 1;
     var promise = db.collection('norwood').doc(sku).get().then(function(doc) {
-      if (!doc.exists) return; // SKU not in live inventory — skip silently
+      console.log('[DEDUCT] Firestore lookup for', sku, '— exists:', doc.exists);
+      if (!doc.exists) {
+        // SKU not found as doc ID — try querying by sku field as fallback
+        return db.collection('norwood').where('sku', '==', sku).limit(1).get().then(function(snap) {
+          console.log('[DEDUCT] Field query for sku=', sku, '— found:', snap.size, 'docs');
+          if (snap.empty) return;
+          var docRef = snap.docs[0].ref;
+          var data = snap.docs[0].data();
+          var currentQoh = parseInt(data.qoh) || 0;
+          var newQoh = Math.max(0, currentQoh - qty);
+          return docRef.update({
+            qoh: newQoh,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            console.log('[DEDUCT] ✅ Deducted', qty, 'from', sku, '→ QOH now', newQoh);
+            deducted.push({ sku:sku, name:l.item||sku, qty:qty, retail:l.retail||0, cost:l.cost||0, prevQty:currentQoh, newQty:newQoh });
+          });
+        });
+      }
       var currentQoh = parseInt(doc.data().qoh) || 0;
       var newQoh = Math.max(0, currentQoh - qty);
       return db.collection('norwood').doc(sku).update({
         qoh: newQoh,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(function() {
-        deducted.push({
-          sku: sku,
-          name: l.item || sku,
-          qty: qty,
-          retail: l.retail || 0,
-          cost: l.cost || 0,
-          prevQty: currentQoh,
-          newQty: newQoh
-        });
+        console.log('[DEDUCT] ✅ Deducted', qty, 'from', sku, '→ QOH now', newQoh);
+        deducted.push({ sku:sku, name:l.item||sku, qty:qty, retail:l.retail||0, cost:l.cost||0, prevQty:currentQoh, newQty:newQoh });
       });
     }).catch(function(err) {
-      console.warn('Inventory deduction failed for SKU ' + sku + ':', err);
+      console.error('[DEDUCT] ❌ Error for SKU', sku, ':', err);
     });
     promises.push(promise);
   });
 
   Promise.all(promises).then(function() {
-    // ── SAVE TRANSACTION RECORD ──────────────────────────────────────────────
+    console.log('[DEDUCT] All done. Deducted:', deducted.length, 'items');
     var c2 = (typeof getCustomer === 'function') ? getCustomer() : {};
     var txn = {
-      id: invNum,
-      date: new Date().toISOString(),
-      customer: customerName,
-      paymentStatus: (c2.payment || 'BALANCE DUE'),
-      items: deducted,
-      subtotal: sub || 0,
-      tax: tax || 0,
-      grand: grand || 0,
-      cost: deducted.reduce(function(s, i) { return s + (i.cost * i.qty); }, 0),
+      id: invNum, date: new Date().toISOString(), customer: customerName,
+      paymentStatus: (c2.payment || 'BALANCE DUE'), items: deducted,
+      subtotal: sub||0, tax: tax||0, grand: grand||0,
+      cost: deducted.reduce(function(s,i){ return s+(i.cost*i.qty); }, 0),
       gm: grand > 0 ? ((grand - deducted.reduce(function(s,i){return s+(i.cost*i.qty);},0)) / grand * 100) : 0
     };
     transactions.unshift(txn);
     localStorage.setItem('ns_transactions', JSON.stringify(transactions));
-
     if (deducted.length > 0) {
       showToast('✅ ' + invNum + ' — inventory updated for ' + deducted.length + ' item(s)', '#2d6a30');
     } else {
