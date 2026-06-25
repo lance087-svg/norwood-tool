@@ -153,8 +153,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var listEl = document.getElementById('invList');
     listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-family:system-ui;">Connecting to Firestore...</div>';
     try {
-      if (typeof firebase === 'undefined') {
-        listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Firebase not connected.</div>';
+      // Wait up to 5 seconds for Firebase to initialize
+      var attempts = 0;
+      while ((typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) && attempts < 50) {
+        await new Promise(function(r){ setTimeout(r, 100); });
+        attempts++;
+      }
+      if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+        listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Firebase not connected. Please refresh the page and try again.</div>';
         return;
       }
       var db = firebase.firestore();
