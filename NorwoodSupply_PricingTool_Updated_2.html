@@ -432,6 +432,25 @@ tr:hover td{background:#fdf9f3}
 </style>
 <script src="file:///C:/Users/Lance/Downloads/index_files/jspdf.umd.min.js.download"></script>
 <script src="file:///C:/Users/Lance/Downloads/index_files/html2canvas.min.js.download"></script>
+<!-- ── FIREBASE SDK ──────────────────────────────────────────────────────── -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+(function() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+    authDomain: "norwood-supply.firebaseapp.com",
+    projectId: "norwood-supply",
+    storageBucket: "norwood-supply.firebasestorage.app",
+    messagingSenderId: "933963197210",
+    appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
+  };
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  window._db = firebase.firestore();
+})();
+</script>
 </head>
 <body>
 
@@ -1909,7 +1928,7 @@ let poCounter = parseInt(localStorage.getItem('ns_po_counter')||'5000');
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init() {
-  // Build products from SEED + INVENTORY
+  // ── STEP 1: Build static products immediately so UI is usable at once ───────
   const doorProds = SEED.map(p => ({...p, onHand: null}));
   const invProds = INVENTORY.map(p => ({
     id: p.id, sku: p.sku, item: p.name, category: p.category,
@@ -1919,17 +1938,81 @@ function init() {
     notes: p.notes || '', imageUrl: p.imageUrl || '',
     reorderPoint: p.reorderPoint || null
   }));
-  
-  // Load any saved edits — imageUrl is NEVER stored in edits, always comes from file
   const savedEdits = JSON.parse(localStorage.getItem('ns_edits') || '{}');
-  products = [...doorProds, ...invProds].map(p => {
+  const staticProducts = [...doorProds, ...invProds].map(p => {
     if (savedEdits[p.id]) {
       const edit = {...savedEdits[p.id]};
-      delete edit.imageUrl; // Always use the imageUrl baked into the file
+      delete edit.imageUrl;
       return {...p, ...edit};
     }
     return p;
   });
+  products = staticProducts;
+
+  // ── STEP 2: Load LIVE inventory from Firestore and merge to front ─────────
+  // Live items appear first in all dropdowns/selectors, tagged [LIVE]
+  // Falls back gracefully if Firebase is unavailable
+  (function loadFirestoreProducts() {
+    var db = window._db;
+    if (!db) return; // Firebase not available — static products only
+    db.collection('norwood').limit(500).get().then(function(snap) {
+      var validCats = ['DR','MW','LB','HW'];
+      var liveItems = snap.docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(d) {
+          if (d.id.startsWith('__')) return false;
+          if (d.type === 'salvage') return false;
+          return validCats.includes(d.category) || (d.sku && d.description);
+        });
+
+      if (!liveItems.length) return; // nothing loaded, keep static
+
+      // Map Firestore fields → pricing tool product format
+      var liveProds = liveItems.map(function(d) {
+        var catMap = { DR: 'Exterior', MW: 'Millwork', LB: 'Lumber', HW: 'Hardware' };
+        return {
+          id:          d.sku || d.id,
+          sku:         d.sku || d.id,
+          item:        d.description || d.sku,
+          category:    catMap[d.category] || d.category || 'Live Inventory',
+          group:       'Live Inventory',
+          size:        '',
+          description: d.description || '',
+          cost:        parseFloat(d.cost) || 0,
+          fixedRetail: parseFloat(d.price) || null,
+          onHand:      parseInt(d.qoh) || 0,
+          uom:         'EA',
+          isLumber:    d.category === 'LB',
+          notes:       d.notes || (d.location ? 'Location: ' + d.location : ''),
+          imageUrl:    '',
+          isLive:      true,   // flag so deduction knows this is a Firestore item
+          itemNo:      d.itemNo || null,
+          vendor:      d.vendor || '',
+          location:    d.location || ''
+        };
+      });
+
+      // Remove any static products whose SKU conflicts with a live item
+      var liveSkus = new Set(liveProds.map(function(p) { return String(p.sku); }));
+      var filteredStatic = products.filter(function(p) {
+        return !liveSkus.has(String(p.sku));
+      });
+
+      // Live items first, then remaining static items
+      products = [...liveProds, ...filteredStatic];
+
+      // Refresh UI
+      populateCatDropdown();
+      buildCatPills('cat-pills', setCatFilter);
+      buildCatPills('admin-pills', setAdminFilter);
+      var liveCount = liveProds.length;
+      document.getElementById('prod-count').textContent =
+        products.length + ' products (' + liveCount + ' live from inventory)';
+      showToast('\u2705 ' + liveCount + ' live inventory items loaded', '#2d6a30');
+    }).catch(function(err) {
+      console.warn('Firestore product load failed, using static catalog:', err);
+    });
+  })();
 
   // ── FIX CATEGORIES: runs every load, overrides any localStorage cache ──────
   var _catFixes = [
@@ -4375,7 +4458,7 @@ function deductInventoryForInvoice(lineItems, invNum, customerName, grand, sub, 
   // ── FIRESTORE LIVE INVENTORY DEDUCTION ────────────────────────────────────
   // Deducts qoh from the 'norwood' Firestore collection for each line item
   // that has a matching SKU document. Custom/special-order items are skipped.
-  var db = firebase.firestore();
+  var db = window._db || firebase.firestore();
   var transactions = JSON.parse(localStorage.getItem('ns_transactions') || '[]');
   var deducted = [];
   var promises = [];
