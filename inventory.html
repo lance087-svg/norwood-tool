@@ -1003,19 +1003,20 @@ window.nwSaveAndNext = function() {
   var saveBtn = document.getElementById('nw-save-btn');
   if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
 
+  // Update local cache immediately (works offline)
+  var found = allItems.find(function(i) { return i.sku === nwScanItem.docId || i.id === nwScanItem.docId; });
+  if (found) found.qoh = nwCurrentQOH;
+
+  // Save to Firestore — if offline the SDK queues it and syncs automatically when back online
   db.collection('norwood').doc(nwScanItem.docId).update({
     qoh: nwCurrentQOH,
     lastCountedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
-    // Update local allItems so Browse reflects change
-    var found = allItems.find(function(i) { return i.sku === nwScanItem.docId || i.id === nwScanItem.docId; });
-    if (found) found.qoh = nwCurrentQOH;
-    showToast('Saved — QOH now ' + nwCurrentQOH, 'success', 2000);
-    nwSkipNext();
+    showToast('\u2705 QOH saved: ' + nwCurrentQOH, 'success', 2000);
   }).catch(function(err) {
-    showToast('Save failed: ' + err.message, 'error');
-    if (saveBtn) { saveBtn.textContent = '✅ Save & Scan Next'; saveBtn.disabled = false; }
+    showToast('Saved locally \u2014 will sync when back online', 'info', 3000);
   });
+  nwSkipNext();
 };
 
 // Skip without saving, restart camera
@@ -1104,7 +1105,29 @@ function nwLookup(barcode) {
 function nwDoLookup(barcode) {
   var num = parseInt(barcode);
 
-  // Try itemNo field first (what our barcodes encode)
+  // ── Search local cache first (works offline) ──────────────────────
+  var cached = null;
+  if (allItems && allItems.length) {
+    if (!isNaN(num)) {
+      cached = allItems.find(function(i) { return parseInt(i.itemNo) === num; });
+    }
+    if (!cached) {
+      cached = allItems.find(function(i) { return i.sku === barcode || i.id === barcode; });
+    }
+  }
+
+  if (cached) {
+    // Found in local cache — no network needed
+    nwShowResultFromObj(cached.sku || cached.id, cached);
+    return;
+  }
+
+  // ── Not in cache — try Firestore (needs internet) ─────────────────
+  if (!db || !firebaseReady) {
+    nwSetError('Item ' + barcode + ' not in local cache and no internet connection.\nGo back inside to sync, then try again.');
+    return;
+  }
+
   var p = isNaN(num)
     ? Promise.resolve(null)
     : db.collection('norwood').where('itemNo', '==', num).limit(1).get()
@@ -1112,7 +1135,6 @@ function nwDoLookup(barcode) {
 
   p.then(function(doc) {
     if (doc) { nwShowResult(doc); return; }
-    // Fallback: try document ID
     return db.collection('norwood').doc(barcode).get().then(function(d) {
       if (d.exists) { nwShowResult(d); }
       else {
@@ -1121,9 +1143,30 @@ function nwDoLookup(barcode) {
       }
     });
   }).catch(function(err) {
-    nwSetError('Error: ' + err.message);
-    setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 2500);
+    // Network failed — give a clear message
+    nwSetError('No internet. Item ' + barcode + ' not in local cache.\nSync inside first.');
+    setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
   });
+}
+
+// Show result from a plain object (local cache hit)
+function nwShowResultFromObj(docId, d) {
+  nwScanItem       = Object.assign({}, d);
+  nwScanItem.docId = docId;
+  nwOrigQOH        = (d.qoh !== undefined && d.qoh !== null) ? parseInt(d.qoh) || 0 : 0;
+  nwCurrentQOH     = nwOrigQOH;
+
+  document.getElementById('nw-res-itemno').textContent = d.itemNo ? 'Item No. ' + d.itemNo : docId;
+  document.getElementById('nw-res-desc').textContent   = d.description || '(No description)';
+
+  var price = parseFloat(d.price || 0);
+  document.getElementById('nw-res-price').textContent  = price > 0 ? '$' + price.toFixed(2) : '';
+
+  nwUpdateQOH();
+
+  document.getElementById('nw-scan-status').style.display = 'none';
+  document.getElementById('nw-scan-error').style.display  = 'none';
+  document.getElementById('nw-scan-result').style.display = 'block';
 }
 
 // ── Show result ───────────────────────────────────────────────────────
