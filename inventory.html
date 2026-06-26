@@ -993,47 +993,24 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
     setScanStatus('Starting camera…', '#aaa');
 
     const ZXing = window.ZXing;
-    if (!ZXing) { setScanError('ZXing library not loaded — check internet.'); return; }
+    if (!ZXing) { setScanError('ZXing not loaded — check internet.'); return; }
 
     try {
       codeReader = new ZXing.BrowserMultiFormatReader();
+      scanActive = true;
+      setScanStatus('Point at a Norwood barcode label', '#aaa');
 
-      ZXing.BrowserMultiFormatReader.listVideoInputDevices().then(devices => {
-        let deviceId = undefined;
-        if (devices && devices.length) {
-          const back = devices.find(d => /back|rear|environment/i.test(d.label));
-          deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
+      // decodeFromVideoDevice(null) = let browser pick back camera automatically
+      codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+        if (!scanActive) return;
+        if (result) {
+          const barcode = result.getText().trim();
+          setScanStatus('✅ Found: ' + barcode, '#4caf50');
+          scanActive = false;
+          lookupScannedItem(barcode);
         }
-        scanActive = true;
-        setScanStatus('Point at a Norwood barcode label', '#aaa');
-        codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-          if (!scanActive) return;
-          if (result) {
-            const barcode = result.getText().trim();
-            setScanStatus('✅ Found: ' + barcode, '#4caf50');
-            scanActive = false;
-            lookupScannedItem(barcode);
-          }
-        });
-      }).catch(() => {
-        // Fallback if listVideoInputDevices fails
-        scanActive = true;
-        setScanStatus('Point at a Norwood barcode label', '#aaa');
-        codeReader.decodeFromConstraints(
-          { video: { facingMode: { ideal: 'environment' } } },
-          video,
-          (result, err) => {
-            if (!scanActive) return;
-            if (result) {
-              const barcode = result.getText().trim();
-              setScanStatus('✅ Found: ' + barcode, '#4caf50');
-              scanActive = false;
-              lookupScannedItem(barcode);
-            }
-          }
-        ).catch(e2 => setScanError('Camera error: ' + (e2.message || e2)));
+        // err fires on every non-barcode frame — ignore it, that's normal
       });
-
     } catch(e) {
       setScanError('Scanner error: ' + (e.message || e));
     }
