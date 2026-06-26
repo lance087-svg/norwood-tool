@@ -997,9 +997,27 @@ window.openScanner = function() {
 
 // Close scanner
 window.nwScanClose = function() {
-  nwStopCamera();
-  document.getElementById('nw-scanner-overlay').style.display = 'none';
-  nwScanItem = null;
+  nwScanActive = false;
+  nwScanItem   = null;
+  var overlay  = document.getElementById('nw-scanner-overlay');
+  // Hide first so user sees instant response
+  if (overlay) overlay.style.display = 'none';
+  // Then stop camera in background
+  if (nwScanner) {
+    try {
+      nwScanner.stop().then(function() {
+        nwScanner = null;
+        var el = document.getElementById('nw-scan-video');
+        if (el) el.innerHTML = '';
+      }).catch(function() {
+        nwScanner = null;
+        var el = document.getElementById('nw-scan-video');
+        if (el) el.innerHTML = '';
+      });
+    } catch(e) {
+      nwScanner = null;
+    }
+  }
 };
 
 // +/- buttons
@@ -1031,7 +1049,9 @@ window.nwSaveAndNext = function() {
 
 // Skip without saving
 window.nwSkipNext = function() {
-  nwScanItem = null;
+  nwScanItem   = null;
+  nwOrigQOH    = 0;
+  nwCurrentQOH = 0;
   nwResetUI();
   nwRestartCamera();
 };
@@ -1095,15 +1115,37 @@ function nwStartCamera() {
 function nwStopCamera() {
   nwScanActive = false;
   if (nwScanner) {
-    nwScanner.stop().catch(function() {});
-    nwScanner.clear();
-    nwScanner = null;
+    try {
+      nwScanner.stop().then(function() {
+        nwScanner = null;
+      }).catch(function() {
+        nwScanner = null;
+      });
+    } catch(e) {
+      nwScanner = null;
+    }
   }
 }
 
 function nwRestartCamera() {
-  nwStopCamera();
-  setTimeout(nwStartCamera, 500);
+  nwScanActive = false;
+  // Stop existing scanner then clear the div and restart fresh
+  var doStart = function() {
+    // Clear the container div so html5-qrcode can reinitialize
+    var el = document.getElementById('nw-scan-video');
+    if (el) el.innerHTML = '';
+    nwScanner = null;
+    setTimeout(nwStartCamera, 300);
+  };
+  if (nwScanner) {
+    try {
+      nwScanner.stop().then(doStart).catch(doStart);
+    } catch(e) {
+      doStart();
+    }
+  } else {
+    doStart();
+  }
 }
 
 
