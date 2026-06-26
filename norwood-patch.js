@@ -290,8 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
         .filter(function(d) {
           if (d.id.indexOf('__') === 0) return false;
-          if (d.type === 'salvage') return false;
-          return valid.indexOf(d.category) > -1 || (d.sku && d.description && !d.salvageType);
+          // Include salvage items (isSalvage flag from new inventory tool)
+          if (d.isSalvage) return true;
+          // Exclude old-style type=salvage items that haven't been converted
+          if (d.type === 'salvage') return true;
+          return valid.indexOf(d.category) > -1 || (d.sku && d.description);
         })
         .sort(function(a, b) {
           var qa = a.qoh || 0, qb = b.qoh || 0;
@@ -360,6 +363,13 @@ document.addEventListener('DOMContentLoaded', function() {
         noTag.style.cssText = 'background:#1E70B8;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;';
         noTag.textContent = '#' + item.itemNo;
         skuLine.appendChild(noTag);
+      }
+      // Salvage badge
+      if (item.isSalvage || item.type === 'salvage') {
+        var salvTag = document.createElement('span');
+        salvTag.style.cssText = 'background:#fff3e0;color:#e65100;border:1px solid #e65100;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;';
+        salvTag.textContent = '🏷️ SALVAGE';
+        skuLine.appendChild(salvTag);
       }
       skuLine.appendChild(document.createTextNode(item.sku || ''));
 
