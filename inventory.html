@@ -1098,36 +1098,64 @@ function nwLookup(barcode) {
 function nwDoLookup(barcode) {
   var num = parseInt(barcode);
 
-  // With Firestore offline persistence enabled, these queries work with
-  // no internet — Firestore serves from local cache automatically
+  // ── Step 1: Search allItems array in memory (always works, online or off) ──
+  var item = null;
+  if (typeof allItems !== 'undefined' && allItems && allItems.length) {
+    if (!isNaN(num)) {
+      item = allItems.find(function(i) { return parseInt(i.itemNo) === num; });
+    }
+    if (!item) {
+      item = allItems.find(function(i) {
+        return (i.sku && i.sku === barcode) || (i.id && i.id === barcode);
+      });
+    }
+  }
+
+  if (item) {
+    // Found in memory — show it directly, no network needed
+    var docId = item.sku || item.id || barcode;
+    nwScanItem       = JSON.parse(JSON.stringify(item)); // copy
+    nwScanItem.docId = docId;
+    nwOrigQOH        = parseInt(item.qoh) || 0;
+    nwCurrentQOH     = nwOrigQOH;
+
+    document.getElementById('nw-res-itemno').textContent = item.itemNo ? 'Item No. ' + item.itemNo : docId;
+    document.getElementById('nw-res-desc').textContent   = item.description || '(No description)';
+    var price = parseFloat(item.price || 0);
+    document.getElementById('nw-res-price').textContent  = price > 0 ? '$' + price.toFixed(2) : '';
+    nwUpdateQOH();
+    document.getElementById('nw-scan-status').style.display = 'none';
+    document.getElementById('nw-scan-error').style.display  = 'none';
+    document.getElementById('nw-scan-result').style.display = 'block';
+    return;
+  }
+
+  // ── Step 2: Not in memory — try Firestore (needs internet) ──
+  if (!db) {
+    nwSetError('Item ' + barcode + ' not found in memory.\n\nOpen Browse tab indoors on WiFi first, then come back out to scan.');
+    return;
+  }
+
   var p = isNaN(num)
     ? Promise.resolve(null)
-    : db.collection('norwood').where('itemNo', '==', num).limit(1).get({ source: 'cache' })
-        .catch(function() {
-          // Cache miss — try network
-          return db.collection('norwood').where('itemNo', '==', num).limit(1).get();
-        })
+    : db.collection('norwood').where('itemNo', '==', num).limit(1).get()
         .then(function(s) { return s.empty ? null : s.docs[0]; });
 
   p.then(function(doc) {
     if (doc) { nwShowResult(doc); return; }
-    // Try by document ID
-    return db.collection('norwood').doc(barcode).get({ source: 'cache' })
-      .catch(function() {
-        return db.collection('norwood').doc(barcode).get();
-      })
-      .then(function(d) {
-        if (d.exists) { nwShowResult(d); }
-        else {
-          nwSetError('Item ' + barcode + ' not found. Make sure you opened Browse indoors first to sync the cache.');
-          setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
-        }
-      });
+    return db.collection('norwood').doc(barcode).get().then(function(d) {
+      if (d.exists) { nwShowResult(d); }
+      else {
+        nwSetError('Item ' + barcode + ' not found.\n\nOpen Browse tab indoors to sync, then retry.');
+        setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
+      }
+    });
   }).catch(function(err) {
-    nwSetError('Lookup failed. Open Browse indoors first, then come back out. (' + err.message + ')');
+    nwSetError('No internet and item not in memory.\n\nOpen Browse indoors first, then scan out here.');
     setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
   });
 }
+
 
 // ── Show result ───────────────────────────────────────────────────────
 function nwShowResult(doc) {
