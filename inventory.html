@@ -104,10 +104,10 @@
   <div style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:right;">6200 Norwood Ave<br>Jacksonville, FL</div>
 </div>
 <div class="mode-tabs">
-  <div class="mode-tab active" onclick="switchMode('add')">&#x2795; Add Item</div>
-  <div class="mode-tab" onclick="switchMode('browse')">&#x1F4E6; Browse</div>
-  <div class="mode-tab" onclick="switchMode('count')">&#x1F522; Count</div>
-  <div class="mode-tab" onclick="switchMode('returns')">&#x21A9;&#xFE0F; Returns</div>
+  <div class="mode-tab active" onclick="switchMode('add',this)">&#x2795; Add Item</div>
+  <div class="mode-tab" onclick="switchMode('browse',this)">&#x1F4E6; Browse</div>
+  <div class="mode-tab" onclick="switchMode('count',this)">&#x1F522; Count</div>
+  <div class="mode-tab" onclick="switchMode('returns',this)">&#x21A9;&#xFE0F; Returns</div>
   <div class="mode-tab" onclick="openScanner()">&#x1F4F7; Scan</div>
 </div>
 <div id="configBanner" class="config-banner" style="margin:12px 16px 0;display:none;"><span class="icon">&#x26A0;&#xFE0F;</span><span><strong>Setup needed:</strong> Configure Firebase in the script section.</span></div>
@@ -448,10 +448,10 @@ let currentGM = 33, currentPhoto = null, currentPhotoBase64 = null;
 let allItems = [], activeCatFilter = 'ALL', activeSalvageFilter = 'ALL';
 let countItem = null, currentQty = 0, recentCountsList = [];
 
-function switchMode(mode) {
+function switchMode(mode, tabEl) {
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  event.target.classList.add('active');
+  if (tabEl) tabEl.classList.add('active');
   document.getElementById('panel-' + mode).classList.add('active');
   if (mode === 'browse') loadInventory();
   if (mode === 'returns') loadReturnLog();
