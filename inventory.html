@@ -426,14 +426,16 @@ const firebaseConfig = {
   measurementId: "G-6QWRWPECGH"
 };
 
-let db, firebaseReady = false;
+let db; window.firebaseReady = false; let firebaseReady = false;
 
 function initFirebase() {
   try {
     if (typeof firebase === 'undefined') { setTimeout(initFirebase, 200); return; }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    firebaseReady = true;
+    firebaseReady = true; window.firebaseReady = true;
+    window.firebaseReady = true;
+    window.db = db;
     document.getElementById('configBanner').style.display = 'none';
     console.log('Firebase connected — Norwood Supply');
     db.collection('norwood').doc('__rules_test__').set({ ts: Date.now() })
@@ -1052,12 +1054,12 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
     setScanStatus('\U0001f50d Looking up item\u2026', '#aaa');
 
     // Wait for Firebase if not ready yet (can take 1-2 seconds on first load)
-    if (!window.db || !window.firebaseReady) {
+    if (!db || !firebaseReady) {
       setScanStatus('⏳ Connecting to Firebase…', '#aaa');
       let waited = 0;
       const wait = setInterval(() => {
         waited += 200;
-        if (window.db && window.firebaseReady) {
+        if (db && firebaseReady) {
           clearInterval(wait);
           doLookup(barcode);
         } else if (waited >= 6000) {
@@ -1072,7 +1074,7 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
 
   function doLookup(barcode) {
     setScanStatus('🔍 Looking up item…', '#aaa');
-    const firestoreDb = window.db;
+    const firestoreDb = db;
 
     const numVal = parseInt(barcode);
     const byItemNo = !isNaN(numVal)
