@@ -1028,7 +1028,27 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
   function lookupScannedItem(barcode) {
     setScanStatus('\U0001f50d Looking up item\u2026', '#aaa');
 
-    if (!window.db) { setScanError('Firebase not ready.'); return; }
+    // Wait for Firebase if not ready yet (can take 1-2 seconds on first load)
+    if (!window.db || !window.firebaseReady) {
+      setScanStatus('⏳ Connecting to Firebase…', '#aaa');
+      let waited = 0;
+      const wait = setInterval(() => {
+        waited += 200;
+        if (window.db && window.firebaseReady) {
+          clearInterval(wait);
+          doLookup(barcode);
+        } else if (waited >= 6000) {
+          clearInterval(wait);
+          setScanError('Firebase not connected. Make sure you have internet and reload the page.');
+        }
+      }, 200);
+      return;
+    }
+    doLookup(barcode);
+  }
+
+  function doLookup(barcode) {
+    setScanStatus('🔍 Looking up item…', '#aaa');
     const firestoreDb = window.db;
 
     const numVal = parseInt(barcode);
