@@ -432,6 +432,10 @@ function initFirebase() {
     if (typeof firebase === 'undefined') { setTimeout(initFirebase, 200); return; }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    // Enable offline persistence — makes Firestore work without internet
+    db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+      console.log('Persistence unavailable:', err.code);
+    });
     firebaseReady = true; window.firebaseReady = true;
     window.firebaseReady = true;
     window.db = db;
@@ -1083,20 +1087,9 @@ function nwRestartCamera() {
 // ── Firestore lookup ─────────────────────────────────────────────────
 function nwLookup(barcode) {
   nwSetStatus('Looking up...', '#aaa');
-
-  // Wait for Firebase if needed
-  if (!db || !firebaseReady) {
-    var waited = 0;
-    var timer = setInterval(function() {
-      waited += 300;
-      if (db && firebaseReady) {
-        clearInterval(timer);
-        nwDoLookup(barcode);
-      } else if (waited > 6000) {
-        clearInterval(timer);
-        nwSetError('Firebase not connected. Reload the page.');
-      }
-    }, 300);
+  // db is always available once initialized (offline persistence handles no-signal)
+  if (!db) {
+    nwSetError('App not ready. Close and reopen the Scan tab.');
     return;
   }
   nwDoLookup(barcode);
@@ -1105,68 +1098,35 @@ function nwLookup(barcode) {
 function nwDoLookup(barcode) {
   var num = parseInt(barcode);
 
-  // ── Search local cache first (works offline) ──────────────────────
-  var cached = null;
-  if (allItems && allItems.length) {
-    if (!isNaN(num)) {
-      cached = allItems.find(function(i) { return parseInt(i.itemNo) === num; });
-    }
-    if (!cached) {
-      cached = allItems.find(function(i) { return i.sku === barcode || i.id === barcode; });
-    }
-  }
-
-  if (cached) {
-    // Found in local cache — no network needed
-    nwShowResultFromObj(cached.sku || cached.id, cached);
-    return;
-  }
-
-  // ── Not in cache — try Firestore (needs internet) ─────────────────
-  if (!db || !firebaseReady) {
-    nwSetError('Item ' + barcode + ' not in local cache and no internet connection.\nGo back inside to sync, then try again.');
-    return;
-  }
-
+  // With Firestore offline persistence enabled, these queries work with
+  // no internet — Firestore serves from local cache automatically
   var p = isNaN(num)
     ? Promise.resolve(null)
-    : db.collection('norwood').where('itemNo', '==', num).limit(1).get()
+    : db.collection('norwood').where('itemNo', '==', num).limit(1).get({ source: 'cache' })
+        .catch(function() {
+          // Cache miss — try network
+          return db.collection('norwood').where('itemNo', '==', num).limit(1).get();
+        })
         .then(function(s) { return s.empty ? null : s.docs[0]; });
 
   p.then(function(doc) {
     if (doc) { nwShowResult(doc); return; }
-    return db.collection('norwood').doc(barcode).get().then(function(d) {
-      if (d.exists) { nwShowResult(d); }
-      else {
-        nwSetError('Item ' + barcode + ' not found.');
-        setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 2000);
-      }
-    });
+    // Try by document ID
+    return db.collection('norwood').doc(barcode).get({ source: 'cache' })
+      .catch(function() {
+        return db.collection('norwood').doc(barcode).get();
+      })
+      .then(function(d) {
+        if (d.exists) { nwShowResult(d); }
+        else {
+          nwSetError('Item ' + barcode + ' not found. Make sure you opened Browse indoors first to sync the cache.');
+          setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
+        }
+      });
   }).catch(function(err) {
-    // Network failed — give a clear message
-    nwSetError('No internet. Item ' + barcode + ' not in local cache.\nSync inside first.');
+    nwSetError('Lookup failed. Open Browse indoors first, then come back out. (' + err.message + ')');
     setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 3000);
   });
-}
-
-// Show result from a plain object (local cache hit)
-function nwShowResultFromObj(docId, d) {
-  nwScanItem       = Object.assign({}, d);
-  nwScanItem.docId = docId;
-  nwOrigQOH        = (d.qoh !== undefined && d.qoh !== null) ? parseInt(d.qoh) || 0 : 0;
-  nwCurrentQOH     = nwOrigQOH;
-
-  document.getElementById('nw-res-itemno').textContent = d.itemNo ? 'Item No. ' + d.itemNo : docId;
-  document.getElementById('nw-res-desc').textContent   = d.description || '(No description)';
-
-  var price = parseFloat(d.price || 0);
-  document.getElementById('nw-res-price').textContent  = price > 0 ? '$' + price.toFixed(2) : '';
-
-  nwUpdateQOH();
-
-  document.getElementById('nw-scan-status').style.display = 'none';
-  document.getElementById('nw-scan-error').style.display  = 'none';
-  document.getElementById('nw-scan-result').style.display = 'block';
 }
 
 // ── Show result ───────────────────────────────────────────────────────
