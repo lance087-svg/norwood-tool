@@ -726,15 +726,27 @@ async function printLabel(){
 
 async function loadInventory(){
   const list=document.getElementById('inventoryList');
-  if(!firebaseReady){list.innerHTML='<div class="empty-state"><div class="empty-icon">⚙️</div><p>Configure Firebase to load inventory.</p></div>';return;}
-  list.innerHTML='<div class="empty-state"><p>Loading...</p></div>';
+  if(!firebaseReady){
+    if(list)list.innerHTML='<div class="empty-state"><div class="empty-icon">⚙️</div><p>Configure Firebase to load inventory.</p></div>';
+    return;
+  }
+  if(list)list.innerHTML='<div class="empty-state"><p>Loading...</p></div>';
   try{
     const snap=await db.collection('norwood').limit(500).get();
     const validCats=['DR','MW','LB','HW'];
-    allItems=snap.docs.map(d=>({id:d.id,...d.data()})).filter(d=>{if(d.id.startsWith('__'))return false;if(d.type==='salvage'||d.isSalvage||d.salvageType)return true;return validCats.includes(d.category)||(d.sku&&d.description);}).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-    renderItems();
-  }catch(e){list.innerHTML='<div class="empty-state"><p>Error loading: '+e.message+'</p></div>';}
+    allItems=snap.docs.map(d=>({id:d.id,...d.data()})).filter(d=>{
+      if(d.id.startsWith('__'))return false;
+      if(d.type==='salvage'||d.isSalvage||d.salvageType)return true;
+      return validCats.includes(d.category)||(d.sku&&d.description);
+    }).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    // Only render if Browse panel is visible
+    if(list)renderItems();
+    console.log('Inventory loaded: '+allItems.length+' items in memory');
+  }catch(e){
+    if(list)list.innerHTML='<div class="empty-state"><p>Error loading: '+e.message+'</p></div>';
+  }
 }
+
 
 function renderItems(){
   const search=(document.getElementById('searchInput').value||'').toLowerCase();
@@ -1097,6 +1109,7 @@ function nwLookup(barcode) {
 
 function nwDoLookup(barcode) {
   var num = parseInt(barcode);
+  console.log('Scan lookup:', barcode, 'num:', num, 'allItems count:', (allItems||[]).length);
 
   // ── Step 1: Search allItems array in memory (always works, online or off) ──
   var item = null;
