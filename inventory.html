@@ -115,61 +115,54 @@
 <div class="loading-overlay" id="loadingOverlay"><div class="big-spinner"></div><span id="loadingMsg">Saving...</span></div>
 
 <!-- CAMERA SCANNER OVERLAY -->
-<div id="nw-scanner-overlay">
-  <div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#1E70B8;box-sizing:border-box;flex-shrink:0;">
-    <span style="color:#fff;font-family:Arial,sans-serif;font-size:18px;font-weight:700;">&#x1F4F7; Scan Item</span>
-    <button id="nw-scan-close" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;line-height:1;">&#x2715;</button>
+<div id="nw-scanner-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column;align-items:center;">
+
+  <!-- Header -->
+  <div style="width:100%;background:#1E70B8;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;flex-shrink:0;">
+    <span style="color:#fff;font-size:18px;font-weight:700;">&#x1F4F7; Scan Item</span>
+    <button onclick="nwScanClose()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;">&#x2715;</button>
   </div>
-  <div style="position:relative;width:100%;max-width:480px;margin-top:8px;flex-shrink:0;">
-    <video id="nw-scan-video" style="width:100%;display:block;background:#111;max-height:55vh;" playsinline autoplay muted></video>
-    <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;">
-      <div style="position:relative;width:72%;height:30%;box-shadow:0 0 0 4000px rgba(0,0,0,0.45);">
-        <div style="position:absolute;inset:0;border:3px solid #1E70B8;border-radius:8px;"></div>
-        <div style="position:absolute;top:-3px;left:-3px;width:20px;height:20px;border-top:4px solid #fff;border-left:4px solid #fff;border-radius:4px 0 0 0;"></div>
-        <div style="position:absolute;top:-3px;right:-3px;width:20px;height:20px;border-top:4px solid #fff;border-right:4px solid #fff;border-radius:0 4px 0 0;"></div>
-        <div style="position:absolute;bottom:-3px;left:-3px;width:20px;height:20px;border-bottom:4px solid #fff;border-left:4px solid #fff;border-radius:0 0 0 4px;"></div>
-        <div style="position:absolute;bottom:-3px;right:-3px;width:20px;height:20px;border-bottom:4px solid #fff;border-right:4px solid #fff;border-radius:0 0 4px 0;"></div>
-      </div>
-    </div>
-  </div>
-  <p id="nw-scan-status" style="color:#aaa;font-family:Arial,sans-serif;font-size:14px;margin:12px 0 4px;text-align:center;padding:0 20px;flex-shrink:0;">Point at a Norwood barcode label</p>
-  <div id="nw-scan-result" style="display:none;width:calc(100% - 32px);max-width:448px;background:#1a1a2e;border:1px solid #1E70B8;border-radius:10px;padding:16px;box-sizing:border-box;flex-shrink:0;margin-top:8px;">
-    <!-- Item info row -->
-    <div style="display:flex;gap:14px;align-items:flex-start;">
-      <img id="nw-result-photo" src="" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;background:#333;display:none;flex-shrink:0;">
-      <div id="nw-result-no-photo" style="width:72px;height:72px;border-radius:6px;background:#2a2a3e;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:#555;">&#x1F6AA;</div>
-      <div style="flex:1;min-width:0;">
-        <div id="nw-result-badge" style="display:none;font-size:10px;font-weight:700;background:#e65100;color:#fff;padding:2px 7px;border-radius:3px;margin-bottom:4px;">SALVAGE</div>
-        <div id="nw-result-sku" style="color:#1E70B8;font-family:monospace;font-size:11px;margin-bottom:3px;"></div>
-        <div id="nw-result-desc" style="color:#fff;font-family:Arial,sans-serif;font-size:14px;font-weight:600;line-height:1.3;word-wrap:break-word;"></div>
-        <div style="color:#4caf50;font-size:18px;font-weight:800;font-family:Arial,sans-serif;margin-top:4px;" id="nw-result-price"></div>
-      </div>
-    </div>
+
+  <!-- Video -->
+  <video id="nw-scan-video" playsinline autoplay muted style="width:100%;max-width:480px;max-height:50vh;background:#111;display:block;flex-shrink:0;"></video>
+
+  <!-- Status -->
+  <p id="nw-scan-status" style="color:#aaa;font-size:14px;margin:10px 0 4px;text-align:center;padding:0 16px;flex-shrink:0;">Point at a label barcode</p>
+
+  <!-- Result card -->
+  <div id="nw-scan-result" style="display:none;width:calc(100% - 24px);max-width:460px;background:#1a1a2e;border:2px solid #1E70B8;border-radius:10px;padding:14px;margin-top:6px;box-sizing:border-box;">
+
+    <!-- Item info -->
+    <div id="nw-res-itemno" style="color:#1E70B8;font-size:13px;font-weight:800;font-family:monospace;margin-bottom:4px;"></div>
+    <div id="nw-res-desc" style="color:#fff;font-size:15px;font-weight:600;line-height:1.3;margin-bottom:4px;"></div>
+    <div id="nw-res-price" style="color:#4caf50;font-size:20px;font-weight:800;margin-bottom:12px;"></div>
 
     <!-- QOH adjuster -->
-    <div style="background:#0d1117;border-radius:8px;padding:12px;margin-top:12px;text-align:center;">
-      <div style="color:#888;font-size:10px;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Quantity on Hand</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:0;">
-        <button id="nw-qoh-minus" style="width:52px;height:52px;border-radius:10px 0 0 10px;border:2px solid #333;border-right:none;background:#1a1a2e;color:#e74c3c;font-size:1.8rem;font-weight:300;cursor:pointer;line-height:1;touch-action:manipulation;">&#x2212;</button>
-        <div id="nw-result-qoh" style="min-width:80px;height:52px;border:2px solid #333;background:#111;color:#fff;font-size:1.8rem;font-weight:900;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;"></div>
-        <button id="nw-qoh-plus" style="width:52px;height:52px;border-radius:0 10px 10px 0;border:2px solid #333;border-left:none;background:#1a1a2e;color:#4caf50;font-size:1.8rem;font-weight:300;cursor:pointer;line-height:1;touch-action:manipulation;">+</button>
+    <div style="background:#0d1117;border-radius:8px;padding:12px;text-align:center;margin-bottom:12px;">
+      <div style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Quantity on Hand</div>
+      <div style="display:flex;align-items:center;justify-content:center;">
+        <button onclick="nwQohAdj(-1)" style="width:56px;height:56px;font-size:28px;font-weight:300;background:#1a1a2e;color:#e74c3c;border:2px solid #444;border-right:none;border-radius:8px 0 0 8px;cursor:pointer;touch-action:manipulation;">&#x2212;</button>
+        <div id="nw-res-qoh" style="min-width:90px;height:56px;background:#111;border:2px solid #444;color:#fff;font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center;"></div>
+        <button onclick="nwQohAdj(1)" style="width:56px;height:56px;font-size:28px;font-weight:300;background:#1a1a2e;color:#4caf50;border:2px solid #444;border-left:none;border-radius:0 8px 8px 0;cursor:pointer;touch-action:manipulation;">+</button>
       </div>
-      <div id="nw-qoh-status" style="color:#888;font-size:11px;font-family:Arial,sans-serif;margin-top:6px;">Current stock</div>
+      <div id="nw-res-status" style="color:#888;font-size:12px;margin-top:8px;">Tap +/&#x2212; to adjust</div>
     </div>
 
-    <!-- Action buttons -->
-    <button id="nw-save-qoh" style="width:100%;margin-top:10px;background:#2E7D32;border:none;color:#fff;font-size:15px;font-weight:700;padding:13px;border-radius:8px;cursor:pointer;font-family:Arial,sans-serif;">&#x2705; Save &amp; Scan Next</button>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button id="nw-result-scan-again" style="flex:1;background:#1E70B8;border:none;color:#fff;font-size:13px;font-weight:600;padding:10px;border-radius:7px;cursor:pointer;font-family:Arial,sans-serif;">Skip &amp; Scan Next</button>
-      <button id="nw-result-close" style="flex:1;background:#2a2a3e;border:none;color:#aaa;font-size:13px;padding:10px;border-radius:7px;cursor:pointer;font-family:Arial,sans-serif;">Close</button>
+    <!-- Buttons -->
+    <button onclick="nwSaveAndNext()" style="width:100%;padding:14px;background:#2E7D32;border:none;color:#fff;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;margin-bottom:8px;">&#x2705; Save &amp; Scan Next</button>
+    <div style="display:flex;gap:8px;">
+      <button onclick="nwSkipNext()" style="flex:1;padding:11px;background:#1E70B8;border:none;color:#fff;font-size:13px;font-weight:600;border-radius:7px;cursor:pointer;">Skip &amp; Scan Next</button>
+      <button onclick="nwScanClose()" style="flex:1;padding:11px;background:#333;border:none;color:#aaa;font-size:13px;border-radius:7px;cursor:pointer;">Close</button>
     </div>
   </div>
-  <div id="nw-scan-error" style="display:none;width:calc(100% - 32px);max-width:448px;background:#3a1a1a;border:1px solid #c0392b;border-radius:10px;padding:16px;text-align:center;box-sizing:border-box;flex-shrink:0;margin-top:8px;">
-    <div id="nw-error-msg" style="color:#e74c3c;font-family:Arial,sans-serif;font-size:14px;margin-bottom:12px;"></div>
-    <button id="nw-error-retry" style="background:#c0392b;border:none;color:#fff;font-size:14px;padding:10px 24px;border-radius:7px;cursor:pointer;font-family:Arial,sans-serif;">Try Again</button>
+
+  <!-- Error card -->
+  <div id="nw-scan-error" style="display:none;width:calc(100% - 24px);max-width:460px;background:#3a1a1a;border:2px solid #c0392b;border-radius:10px;padding:16px;text-align:center;margin-top:6px;box-sizing:border-box;">
+    <div id="nw-err-msg" style="color:#e74c3c;font-size:14px;margin-bottom:12px;"></div>
+    <button onclick="nwErrRetry()" style="background:#c0392b;border:none;color:#fff;font-size:14px;padding:10px 24px;border-radius:7px;cursor:pointer;">Try Again</button>
   </div>
+
 </div>
-
 <!-- ITEM DETAIL MODAL -->
 <div class="modal-overlay" id="itemDetailModal" style="display:none;" onclick="if(event.target===this)closeItemDetail()">
   <div class="modal" style="max-height:92vh;overflow-y:auto;padding:0;border-radius:16px 16px 0 0;">
@@ -971,252 +964,222 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
 
 
 // ════════════════════════════════════════════
-//  CAMERA SCANNER  (📷 Scan tab)
+//  CAMERA SCANNER
 // ════════════════════════════════════════════
-(function(){
-  'use strict';
+var nwCodeReader   = null;
+var nwScanActive   = false;
+var nwScanItem     = null;   // current item data object
+var nwOrigQOH      = 0;      // QOH when item was loaded
+var nwCurrentQOH   = 0;      // QOH user has dialed in
 
-  const COLLECTION = 'norwood';
-  let codeReader = null;
-  let scanActive  = false;
-  let currentScanItem = null;  // item data from last successful scan
-  let currentScanQOH  = 0;    // working QOH value user can adjust
+// Open scanner
+window.openScanner = function() {
+  var ov = document.getElementById('nw-scanner-overlay');
+  ov.style.display = 'flex';
+  nwResetUI();
+  nwStartCamera();
+};
 
-  // ── Open / Close ─────────────────────────────────────────────────────
-  window.openScanner = function() {
-    document.getElementById('nw-scanner-overlay').style.display = 'flex';
-    resetScanUI();
-    startCamera();
-  };
+// Close scanner
+window.nwScanClose = function() {
+  nwStopCamera();
+  document.getElementById('nw-scanner-overlay').style.display = 'none';
+  nwScanItem = null;
+};
 
-  function closeScanner() {
-    stopCamera();
-    document.getElementById('nw-scanner-overlay').style.display = 'none';
-    currentScanItem = null;
-  }
+// +/- buttons
+window.nwQohAdj = function(delta) {
+  nwCurrentQOH = Math.max(0, nwCurrentQOH + delta);
+  nwUpdateQOH();
+};
 
-  // ── Camera ───────────────────────────────────────────────────────────
-  function startCamera() {
-    const video = document.getElementById('nw-scan-video');
-    setScanStatus('Point at a Norwood barcode label', '#aaa');
+// Save & next
+window.nwSaveAndNext = function() {
+  if (!nwScanItem) { nwSkipNext(); return; }
+  if (nwCurrentQOH === nwOrigQOH) { nwSkipNext(); return; } // no change
 
-    const ZXing = window.ZXing;
-    if (!ZXing) { setScanError('ZXing not loaded — check internet.'); return; }
+  var btn = document.querySelector('#nw-scan-result button');
+  // Find the green save button
+  var saveBtn = document.getElementById('nw-save-btn');
+  if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
 
-    try {
-      codeReader = new ZXing.BrowserMultiFormatReader();
-      scanActive = true;
-
-      // null = let browser pick camera (defaults to back camera on phones)
-      codeReader.decodeFromVideoDevice(null, video, (result, err) => {
-        if (!scanActive) return;
-        if (result) {
-          const barcode = result.getText().trim();
-          setScanStatus('✅ Found: ' + barcode, '#4caf50');
-          scanActive = false;
-          lookupScannedItem(barcode);
-        }
-        // err fires on every non-barcode frame — totally normal, ignore it
-      });
-    } catch(e) {
-      setScanError('Scanner error: ' + (e.message || e));
-    }
-  }
-
-  function stopCamera() {
-    scanActive = false;
-    if (codeReader) {
-      try { codeReader.reset(); } catch(_) {}
-      codeReader = null;
-    }
-    const video = document.getElementById('nw-scan-video');
-    if (video && video.srcObject) {
-      video.srcObject.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-    }
-  }
-
-  function restartCamera() {
-    // Stop existing reader, start fresh
-    if (codeReader) {
-      try { codeReader.reset(); } catch(_) {}
-      codeReader = null;
-    }
-    scanActive = false;
-    setTimeout(startCamera, 300);
-  }
-
-  // ── Firestore lookup ─────────────────────────────────────────────────
-  function lookupScannedItem(barcode) {
-    setScanStatus('🔍 Looking up item…', '#aaa');
-
-    if (!db || !firebaseReady) {
-      setScanStatus('⏳ Connecting to Firebase…', '#aaa');
-      let waited = 0;
-      const wait = setInterval(() => {
-        waited += 200;
-        if (db && firebaseReady) { clearInterval(wait); doLookup(barcode); }
-        else if (waited >= 6000) { clearInterval(wait); setScanError('Firebase not connected. Reload the page and try again.'); }
-      }, 200);
-      return;
-    }
-    doLookup(barcode);
-  }
-
-  function doLookup(barcode) {
-    setScanStatus('🔍 Looking up…', '#aaa');
-    const numVal = parseInt(barcode);
-    const byItemNo = !isNaN(numVal)
-      ? db.collection(COLLECTION).where('itemNo', '==', numVal).limit(1).get()
-      : Promise.resolve({ empty: true });
-
-    byItemNo.then(snap => {
-      if (!snap.empty) { showScanResult(barcode, snap.docs[0]); return; }
-      return db.collection(COLLECTION).where('itemNumber', '==', barcode).limit(1).get()
-        .then(snap2 => {
-          if (!snap2.empty) { showScanResult(barcode, snap2.docs[0]); return; }
-          return db.collection(COLLECTION).doc(barcode).get().then(doc => {
-            if (doc.exists) showScanResult(barcode, doc);
-            else {
-              setScanError('Item <strong>' + esc(barcode) + '</strong> not found in inventory.');
-              // Auto-restart camera after 2 seconds so they can try another
-              setTimeout(() => { resetScanUI(); restartCamera(); }, 2000);
-            }
-          });
-        });
-    }).catch(err => {
-      setScanError('Firestore error: ' + err.message);
-      setTimeout(() => { resetScanUI(); restartCamera(); }, 2500);
-    });
-  }
-
-  // ── Show result with QOH adjuster ────────────────────────────────────
-  function showScanResult(barcode, doc) {
-    const d = doc.data();
-    currentScanItem = { docId: doc.id, ...d };
-    currentScanQOH  = d.qoh !== undefined ? parseInt(d.qoh) : 0;
-
-    document.getElementById('nw-result-sku').textContent  = d.itemNo ? 'Item No. ' + d.itemNo : doc.id;
-    document.getElementById('nw-result-desc').textContent = d.description || d.name || '(No description)';
-
-    const price = d.price || d.retailPrice || 0;
-    document.getElementById('nw-result-price').textContent = price ? '$' + parseFloat(price).toFixed(2) : '';
-
-    updateQOHDisplay();
-
-    const badge   = document.getElementById('nw-result-badge');
-    badge.style.display = (d.isSalvage || d.type === 'salvage') ? 'inline-block' : 'none';
-
-    const photoSrc = d.photoBase64 || d.thumbnail || '';
-    const photoEl  = document.getElementById('nw-result-photo');
-    const noPhoto  = document.getElementById('nw-result-no-photo');
-    if (photoSrc) {
-      photoEl.src = photoSrc.startsWith('data:') ? photoSrc : 'data:image/jpeg;base64,' + photoSrc;
-      photoEl.style.display = 'block'; noPhoto.style.display = 'none';
-    } else {
-      photoEl.style.display = 'none'; noPhoto.style.display = 'flex';
-    }
-
-    document.getElementById('nw-scan-status').style.display = 'none';
-    document.getElementById('nw-scan-error').style.display  = 'none';
-    document.getElementById('nw-scan-result').style.display = 'block';
-  }
-
-  function updateQOHDisplay() {
-    document.getElementById('nw-result-qoh').textContent = currentScanQOH;
-    const orig = currentScanItem ? (currentScanItem.qoh !== undefined ? parseInt(currentScanItem.qoh) : 0) : 0;
-    const diff = currentScanQOH - orig;
-    const statusEl = document.getElementById('nw-qoh-status');
-    if (diff === 0) statusEl.textContent = 'Current stock — tap +/− to adjust';
-    else if (diff > 0) statusEl.textContent = '⬆️ Adding ' + diff + ' unit' + (diff > 1 ? 's' : '');
-    else statusEl.textContent = '⬇️ Removing ' + Math.abs(diff) + ' unit' + (Math.abs(diff) > 1 ? 's' : '');
-    statusEl.style.color = diff === 0 ? '#888' : diff > 0 ? '#4caf50' : '#e74c3c';
-  }
-
-  // ── Save QOH and scan next ────────────────────────────────────────────
-  function saveAndScanNext() {
-    if (!currentScanItem) { scanNext(); return; }
-    const orig = currentScanItem.qoh !== undefined ? parseInt(currentScanItem.qoh) : 0;
-    if (currentScanQOH === orig) {
-      // No change — just scan next
-      scanNext();
-      return;
-    }
-    // Save to Firestore
-    document.getElementById('nw-save-qoh').textContent = 'Saving…';
-    document.getElementById('nw-save-qoh').disabled = true;
-    db.collection(COLLECTION).doc(currentScanItem.docId).update({
-      qoh: currentScanQOH,
-      lastCountedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-      // Also update in allItems so Browse reflects it
-      const inList = allItems.find(i => i.sku === currentScanItem.docId || i.id === currentScanItem.docId);
-      if (inList) inList.qoh = currentScanQOH;
-      showToast('✅ Item No. ' + (currentScanItem.itemNo || currentScanItem.docId) + ' — QOH updated to ' + currentScanQOH, 'success', 2500);
-      scanNext();
-    }).catch(err => {
-      showToast('Save failed: ' + err.message, 'error');
-      document.getElementById('nw-save-qoh').textContent = '✅ Save & Scan Next';
-      document.getElementById('nw-save-qoh').disabled = false;
-    });
-  }
-
-  function scanNext() {
-    currentScanItem = null;
-    currentScanQOH  = 0;
-    document.getElementById('nw-save-qoh').textContent = '✅ Save & Scan Next';
-    document.getElementById('nw-save-qoh').disabled = false;
-    resetScanUI();
-    restartCamera();
-  }
-
-  // ── UI helpers ────────────────────────────────────────────────────────
-  function setScanStatus(msg, color) {
-    const el = document.getElementById('nw-scan-status');
-    el.innerHTML = msg; el.style.color = color || '#aaa'; el.style.display = 'block';
-    document.getElementById('nw-scan-result').style.display = 'none';
-    document.getElementById('nw-scan-error').style.display  = 'none';
-  }
-  function setScanError(msg) {
-    document.getElementById('nw-error-msg').innerHTML = msg;
-    document.getElementById('nw-scan-error').style.display  = 'block';
-    document.getElementById('nw-scan-result').style.display = 'none';
-    document.getElementById('nw-scan-status').style.display = 'none';
-  }
-  function resetScanUI() {
-    currentScanItem = null; currentScanQOH = 0;
-    document.getElementById('nw-scan-result').style.display = 'none';
-    document.getElementById('nw-scan-error').style.display  = 'none';
-    setScanStatus('Point at a Norwood barcode label', '#aaa');
-  }
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  // ── Wire buttons ──────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('nw-scan-close').addEventListener('click', closeScanner);
-
-    document.getElementById('nw-result-close').addEventListener('click', closeScanner);
-
-    document.getElementById('nw-result-scan-again').addEventListener('click', function() {
-      scanNext();
-    });
-
-    document.getElementById('nw-save-qoh').addEventListener('click', saveAndScanNext);
-
-    document.getElementById('nw-qoh-minus').addEventListener('click', function() {
-      if (currentScanQOH > 0) { currentScanQOH--; updateQOHDisplay(); }
-    });
-
-    document.getElementById('nw-qoh-plus').addEventListener('click', function() {
-      currentScanQOH++; updateQOHDisplay();
-    });
-
-    document.getElementById('nw-error-retry').addEventListener('click', function() {
-      resetScanUI(); restartCamera();
-    });
+  db.collection('norwood').doc(nwScanItem.docId).update({
+    qoh: nwCurrentQOH,
+    lastCountedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    // Update local allItems so Browse reflects change
+    var found = allItems.find(function(i) { return i.sku === nwScanItem.docId || i.id === nwScanItem.docId; });
+    if (found) found.qoh = nwCurrentQOH;
+    showToast('Saved — QOH now ' + nwCurrentQOH, 'success', 2000);
+    nwSkipNext();
+  }).catch(function(err) {
+    showToast('Save failed: ' + err.message, 'error');
+    if (saveBtn) { saveBtn.textContent = '✅ Save & Scan Next'; saveBtn.disabled = false; }
   });
+};
 
-})();
+// Skip without saving, restart camera
+window.nwSkipNext = function() {
+  nwScanItem = null;
+  nwResetUI();
+  nwRestartCamera();
+};
+
+// Retry after error
+window.nwErrRetry = function() {
+  nwResetUI();
+  nwRestartCamera();
+};
+
+// ── Camera ──────────────────────────────────────────────────────────
+function nwStartCamera() {
+  var video = document.getElementById('nw-scan-video');
+  nwSetStatus('Starting camera...', '#aaa');
+
+  if (!window.ZXing) {
+    nwSetError('ZXing not loaded. Check internet connection.');
+    return;
+  }
+
+  try {
+    nwCodeReader = new window.ZXing.BrowserMultiFormatReader();
+    nwScanActive = true;
+    nwSetStatus('Point at a Norwood barcode label', '#aaa');
+
+    nwCodeReader.decodeFromVideoDevice(null, video, function(result, err) {
+      if (!nwScanActive) return;
+      if (result) {
+        var barcode = result.getText().trim();
+        nwSetStatus('Found: ' + barcode, '#4caf50');
+        nwScanActive = false;
+        nwLookup(barcode);
+      }
+      // err on every frame with no barcode is normal — ignore
+    });
+  } catch(e) {
+    nwSetError('Camera error: ' + (e.message || String(e)));
+  }
+}
+
+function nwStopCamera() {
+  nwScanActive = false;
+  if (nwCodeReader) {
+    try { nwCodeReader.reset(); } catch(e) {}
+    nwCodeReader = null;
+  }
+  var video = document.getElementById('nw-scan-video');
+  if (video && video.srcObject) {
+    video.srcObject.getTracks().forEach(function(t) { t.stop(); });
+    video.srcObject = null;
+  }
+}
+
+function nwRestartCamera() {
+  nwStopCamera();
+  setTimeout(nwStartCamera, 400);
+}
+
+// ── Firestore lookup ─────────────────────────────────────────────────
+function nwLookup(barcode) {
+  nwSetStatus('Looking up...', '#aaa');
+
+  // Wait for Firebase if needed
+  if (!db || !firebaseReady) {
+    var waited = 0;
+    var timer = setInterval(function() {
+      waited += 300;
+      if (db && firebaseReady) {
+        clearInterval(timer);
+        nwDoLookup(barcode);
+      } else if (waited > 6000) {
+        clearInterval(timer);
+        nwSetError('Firebase not connected. Reload the page.');
+      }
+    }, 300);
+    return;
+  }
+  nwDoLookup(barcode);
+}
+
+function nwDoLookup(barcode) {
+  var num = parseInt(barcode);
+
+  // Try itemNo field first (what our barcodes encode)
+  var p = isNaN(num)
+    ? Promise.resolve(null)
+    : db.collection('norwood').where('itemNo', '==', num).limit(1).get()
+        .then(function(s) { return s.empty ? null : s.docs[0]; });
+
+  p.then(function(doc) {
+    if (doc) { nwShowResult(doc); return; }
+    // Fallback: try document ID
+    return db.collection('norwood').doc(barcode).get().then(function(d) {
+      if (d.exists) { nwShowResult(d); }
+      else {
+        nwSetError('Item ' + barcode + ' not found.');
+        setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 2000);
+      }
+    });
+  }).catch(function(err) {
+    nwSetError('Error: ' + err.message);
+    setTimeout(function() { nwResetUI(); nwRestartCamera(); }, 2500);
+  });
+}
+
+// ── Show result ───────────────────────────────────────────────────────
+function nwShowResult(doc) {
+  var d = doc.data();
+
+  nwScanItem    = d;
+  nwScanItem.docId = doc.id;
+  nwOrigQOH     = (d.qoh !== undefined && d.qoh !== null) ? parseInt(d.qoh) || 0 : 0;
+  nwCurrentQOH  = nwOrigQOH;
+
+  document.getElementById('nw-res-itemno').textContent = d.itemNo ? 'Item No. ' + d.itemNo : doc.id;
+  document.getElementById('nw-res-desc').textContent   = d.description || '(No description)';
+
+  var price = parseFloat(d.price || 0);
+  document.getElementById('nw-res-price').textContent  = price > 0 ? '$' + price.toFixed(2) : '';
+
+  nwUpdateQOH();
+
+  document.getElementById('nw-scan-status').style.display = 'none';
+  document.getElementById('nw-scan-error').style.display  = 'none';
+  document.getElementById('nw-scan-result').style.display = 'block';
+}
+
+function nwUpdateQOH() {
+  document.getElementById('nw-res-qoh').textContent = nwCurrentQOH;
+  var diff = nwCurrentQOH - nwOrigQOH;
+  var el   = document.getElementById('nw-res-status');
+  if (!el) return;
+  if (diff === 0)      { el.textContent = 'Tap +/− to adjust'; el.style.color = '#888'; }
+  else if (diff > 0)   { el.textContent = '⬆ Adding ' + diff;   el.style.color = '#4caf50'; }
+  else                 { el.textContent = '⬇ Removing ' + Math.abs(diff); el.style.color = '#e74c3c'; }
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────
+function nwSetStatus(msg, color) {
+  var el = document.getElementById('nw-scan-status');
+  el.textContent = msg; el.style.color = color || '#aaa';
+  el.style.display = 'block';
+  document.getElementById('nw-scan-result').style.display = 'none';
+  document.getElementById('nw-scan-error').style.display  = 'none';
+}
+
+function nwSetError(msg) {
+  document.getElementById('nw-err-msg').textContent      = msg;
+  document.getElementById('nw-scan-error').style.display = 'block';
+  document.getElementById('nw-scan-result').style.display = 'none';
+  document.getElementById('nw-scan-status').style.display = 'none';
+}
+
+function nwResetUI() {
+  nwScanItem = null; nwOrigQOH = 0; nwCurrentQOH = 0;
+  document.getElementById('nw-scan-result').style.display = 'none';
+  document.getElementById('nw-scan-error').style.display  = 'none';
+  nwSetStatus('Point at a Norwood barcode label', '#aaa');
+}
 
 </script>
 </body>
