@@ -7,7 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{--norwood-blue:#1E70B8;--norwood-blue-dark:#155a96;--norwood-blue-light:#e8f2fb;--orange:#E65100;--green:#2E7D32;--gray-light:#f5f7fa;--gray-mid:#dde3ea;--gray-text:#444;--white:#ffffff;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,0.10);}
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -124,7 +124,7 @@
   </div>
 
   <!-- Video -->
-  <video id="nw-scan-video" playsinline autoplay muted style="width:100%;max-width:480px;max-height:50vh;background:#111;display:block;flex-shrink:0;"></video>
+  <div id="nw-scan-video" style="width:100%;max-width:480px;flex-shrink:0;"></div>
 
   <!-- Status -->
   <p id="nw-scan-status" style="color:#aaa;font-size:14px;margin:10px 0 4px;text-align:center;padding:0 16px;flex-shrink:0;">Point at a label barcode</p>
@@ -982,16 +982,15 @@ window.onload=()=>{showCatFields('');if(firebaseReady)loadInventory();};
 // ════════════════════════════════════════════
 //  CAMERA SCANNER
 // ════════════════════════════════════════════
-var nwCodeReader   = null;
-var nwScanActive   = false;
-var nwScanItem     = null;   // current item data object
-var nwOrigQOH      = 0;      // QOH when item was loaded
-var nwCurrentQOH   = 0;      // QOH user has dialed in
+var nwScanner    = null;
+var nwScanActive = false;
+var nwScanItem   = null;
+var nwOrigQOH    = 0;
+var nwCurrentQOH = 0;
 
 // Open scanner
 window.openScanner = function() {
-  var ov = document.getElementById('nw-scanner-overlay');
-  ov.style.display = 'flex';
+  document.getElementById('nw-scanner-overlay').style.display = 'flex';
   nwResetUI();
   nwStartCamera();
 };
@@ -1012,30 +1011,25 @@ window.nwQohAdj = function(delta) {
 // Save & next
 window.nwSaveAndNext = function() {
   if (!nwScanItem) { nwSkipNext(); return; }
-  if (nwCurrentQOH === nwOrigQOH) { nwSkipNext(); return; } // no change
+  if (nwCurrentQOH === nwOrigQOH) { nwSkipNext(); return; }
 
-  var btn = document.querySelector('#nw-scan-result button');
-  // Find the green save button
-  var saveBtn = document.getElementById('nw-save-btn');
-  if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
-
-  // Update local cache immediately (works offline)
+  // Update local memory immediately
   var found = allItems.find(function(i) { return i.sku === nwScanItem.docId || i.id === nwScanItem.docId; });
   if (found) found.qoh = nwCurrentQOH;
 
-  // Save to Firestore — if offline the SDK queues it and syncs automatically when back online
+  // Save to Firestore (queues if offline, syncs when back on WiFi)
   db.collection('norwood').doc(nwScanItem.docId).update({
     qoh: nwCurrentQOH,
     lastCountedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
-    showToast('\u2705 QOH saved: ' + nwCurrentQOH, 'success', 2000);
-  }).catch(function(err) {
-    showToast('Saved locally \u2014 will sync when back online', 'info', 3000);
+    showToast('✅ QOH saved: ' + nwCurrentQOH, 'success', 2000);
+  }).catch(function() {
+    showToast('Saved locally — will sync when back on WiFi', 'info', 3000);
   });
   nwSkipNext();
 };
 
-// Skip without saving, restart camera
+// Skip without saving
 window.nwSkipNext = function() {
   nwScanItem = null;
   nwResetUI();
@@ -1048,53 +1042,70 @@ window.nwErrRetry = function() {
   nwRestartCamera();
 };
 
-// ── Camera ──────────────────────────────────────────────────────────
+// ── Camera using html5-qrcode ────────────────────────────────────────
 function nwStartCamera() {
-  var video = document.getElementById('nw-scan-video');
   nwSetStatus('Starting camera...', '#aaa');
 
-  if (!window.ZXing) {
-    nwSetError('ZXing not loaded. Check internet connection.');
+  if (!window.Html5Qrcode) {
+    nwSetError('Scanner library not loaded. Check internet.');
     return;
   }
 
   try {
-    nwCodeReader = new window.ZXing.BrowserMultiFormatReader();
+    nwScanner = new Html5Qrcode('nw-scan-video');
     nwScanActive = true;
-    nwSetStatus('Point at a Norwood barcode label', '#aaa');
 
-    nwCodeReader.decodeFromVideoDevice(null, video, function(result, err) {
-      if (!nwScanActive) return;
-      if (result) {
-        var barcode = result.getText().trim();
-        nwSetStatus('Found: ' + barcode, '#4caf50');
+    var config = {
+      fps: 10,
+      qrbox: { width: 250, height: 120 },
+      aspectRatio: 1.5,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A
+      ]
+    };
+
+    nwScanner.start(
+      { facingMode: 'environment' },
+      config,
+      function(barcode) {
+        // Success callback
+        if (!nwScanActive) return;
         nwScanActive = false;
+        nwSetStatus('Found: ' + barcode, '#4caf50');
         nwLookup(barcode);
+      },
+      function(err) {
+        // Error on each frame with no barcode — ignore
       }
-      // err on every frame with no barcode is normal — ignore
+    ).then(function() {
+      nwSetStatus('Point at a Norwood barcode label', '#aaa');
+    }).catch(function(err) {
+      nwSetError('Camera error: ' + (err.message || String(err)));
     });
+
   } catch(e) {
-    nwSetError('Camera error: ' + (e.message || String(e)));
+    nwSetError('Scanner error: ' + (e.message || String(e)));
   }
 }
 
 function nwStopCamera() {
   nwScanActive = false;
-  if (nwCodeReader) {
-    try { nwCodeReader.reset(); } catch(e) {}
-    nwCodeReader = null;
-  }
-  var video = document.getElementById('nw-scan-video');
-  if (video && video.srcObject) {
-    video.srcObject.getTracks().forEach(function(t) { t.stop(); });
-    video.srcObject = null;
+  if (nwScanner) {
+    nwScanner.stop().catch(function() {});
+    nwScanner.clear();
+    nwScanner = null;
   }
 }
 
 function nwRestartCamera() {
   nwStopCamera();
-  setTimeout(nwStartCamera, 400);
+  setTimeout(nwStartCamera, 500);
 }
+
 
 // ── Firestore lookup ─────────────────────────────────────────────────
 function nwLookup(barcode) {
