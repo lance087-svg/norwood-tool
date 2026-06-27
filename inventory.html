@@ -2041,6 +2041,14 @@ function renderItems() {
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-self:center;">
+        <div style="display:flex;gap:3px;margin-bottom:2px;">
+          <button onclick="event.stopPropagation();adjustQOH('${item.sku}',-1)"
+            style="background:#fff;border:1.5px solid #e57373;border-radius:5px;font-size:1rem;font-weight:900;cursor:pointer;padding:3px 9px;color:#c62828;line-height:1;flex:1;"
+            title="Remove 1">−</button>
+          <button onclick="event.stopPropagation();adjustQOH('${item.sku}',1)"
+            style="background:#fff;border:1.5px solid #81c784;border-radius:5px;font-size:1rem;font-weight:900;cursor:pointer;padding:3px 9px;color:#2E7D32;line-height:1;flex:1;"
+            title="Add 1">+</button>
+        </div>
         <button onclick="event.stopPropagation();duplicateItem('${item.sku}')"
           style="background:none;border:1px solid #e1bee7;border-radius:5px;font-size:1rem;cursor:pointer;padding:5px 7px;color:#6a1b9a;line-height:1;"
           title="Duplicate Item">📋</button>
@@ -2509,6 +2517,20 @@ async function loadReturnLog() {
 
 
 // ── DUPLICATE ITEM ──
+async function adjustQOH(sku, delta) {
+  const item = allItems.find(i => i.sku === sku);
+  if (!item) return;
+  const newQOH = Math.max(0, (item.qoh ?? 0) + delta);
+  try {
+    await db.collection('norwood').doc(sku).update({ qoh: newQOH });
+    item.qoh = newQOH;
+    renderItems();
+    showToast((delta > 0 ? '▲' : '▼') + ' QOH updated: ' + sku + ' → ' + newQOH, delta > 0 ? '#2d6a30' : '#b71c1c');
+  } catch(e) {
+    showToast('❌ Failed to update QOH', '#b71c1c');
+  }
+}
+
 function duplicateItem(sku) {
   const item = allItems.find(i => i.id === sku || i.sku === sku);
   if (!item) { showToast('Item not found', 'error'); return; }
