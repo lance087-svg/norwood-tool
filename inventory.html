@@ -925,28 +925,10 @@
     <div class="chip salvage-chip" data-sv="SALVAGE" onclick="filterSalvage(this)" style="font-size:0.8rem;padding:5px 12px;background:#fff3e0;color:#e65100;border-color:#e65100;">🏷️ Salvage Only</div>
   </div>
 
-  <!-- One-time Salvage Import tool -->
-  <div id="salvageImportTool" style="background:#fff3e0;border:2px solid #e65100;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-    <div>
-      <div style="font-size:0.85rem;font-weight:700;color:#e65100;">🏷️ Import Salvage Items</div>
-      <div style="font-size:0.78rem;color:#888;margin-top:2px;">One-time import of 38 salvage/damaged items from salvage.html into inventory. These are not used — they are salvage/damaged surplus.</div>
-    </div>
-    <button onclick="importSalvageItems()"
-      style="background:#e65100;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-      Import Salvage Items
-    </button>
-  </div>
-
-  <!-- One-time Item Number assignment tool -->
-  <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-    <div>
-      <div style="font-size:0.85rem;font-weight:700;color:#e65100;">🔢 Item Numbers</div>
-      <div style="font-size:0.78rem;color:#888;margin-top:2px;">Assign short Item No. to all existing items so you can look them up by number instead of long SKU.</div>
-    </div>
-    <button onclick="assignAllItemNumbers()"
-      style="background:#e65100;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
-      Assign Item Numbers
-    </button>
+  <!-- Utility links (minimized) -->
+  <div style="display:flex;gap:16px;margin-bottom:10px;padding:4px 2px;">
+    <span onclick="importSalvageItems()" style="font-size:0.68rem;color:#bbb;cursor:pointer;text-decoration:underline;white-space:nowrap;">Import Salvage Items</span>
+    <span onclick="assignAllItemNumbers()" style="font-size:0.68rem;color:#bbb;cursor:pointer;text-decoration:underline;white-space:nowrap;">Assign Item Numbers</span>
   </div>
 
   <!-- Summary Banner -->
