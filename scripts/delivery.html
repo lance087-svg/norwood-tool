@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Norwood Delivery</title>
+<style>
+  :root {
+    --blue: #1E70B8;
+    --blue-dark: #155a94;
+    --blue-light: #e8f2fb;
+    --orange: #E65100;
+    --green: #2e7d32;
+    --green-light: #e8f5e9;
+    --yellow: #f9a825;
+    --yellow-light: #fffde7;
+    --gray-50: #f8f9fa;
+    --gray-100: #f1f3f4;
+    --gray-200: #e8eaed;
+    --gray-400: #9aa0a6;
+    --gray-600: #5f6368;
+    --gray-900: #1a1a1a;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* HEADER */
+  .app-header {
+    background: var(--blue);
+    color: white;
+    padding: 16px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .app-header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
+  .app-header .sub { font-size: 12px; opacity: 0.85; margin-top: 1px; }
+  .driver-badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* DRIVER SELECT */
+  #driver-screen {
+    padding: 32px 20px;
+  }
+  .screen-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+  .screen-sub {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-bottom: 28px;
+  }
+  .driver-list { display: flex; flex-direction: column; gap: 12px; }
+  .driver-btn {
+    background: white;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    text-align: left;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gray-900);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .driver-btn:active { background: var(--blue-light); border-color: var(--blue); }
+  .driver-icon {
+    width: 44px; height: 44px;
+    background: var(--blue-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .driver-btn .role { font-size: 12px; color: var(--gray-600); font-weight: 400; margin-top: 2px; }
+
+  /* QUEUE SCREEN */
+  #queue-screen { display: none; padding: 16px 16px; }
+  .date-banner {
+    background: var(--blue);
+    color: white;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .date-banner .label { font-size: 12px; opacity: 0.8; }
+  .date-banner .val { font-size: 16px; font-weight: 700; }
+  .date-banner .count-badge {
+    background: white;
+    color: var(--blue);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-400);
+    margin: 16px 4px 8px;
+  }
+
+  .delivery-card {
+    background: white;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border-left: 5px solid var(--gray-200);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .delivery-card:active { transform: scale(0.98); }
+  .delivery-card.status-scheduled { border-left-color: var(--yellow); }
+  .delivery-card.status-enroute { border-left-color: var(--blue); }
+  .delivery-card.status-delivered { border-left-color: var(--green); opacity: 0.7; }
+
+  .card-top {
+    padding: 14px 16px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .card-inv { font-size: 12px; color: var(--gray-400); font-weight: 600; }
+  .card-name { font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .card-items { font-size: 13px; color: var(--gray-600); margin-top: 3px; }
+  .status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .pill-scheduled { background: var(--yellow-light); color: #6d4c00; }
+  .pill-enroute { background: var(--blue-light); color: var(--blue-dark); }
+  .pill-delivered { background: var(--green-light); color: var(--green); }
+
+  .card-bottom {
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-addr { font-size: 13px; color: var(--gray-600); flex: 1; }
+  .map-btn {
+    background: var(--blue-light);
+    color: var(--blue);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--gray-400);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 16px; }
+
+  /* DELIVERY DETAIL SCREEN */
+  #detail-screen { display: none; padding: 0; }
+  .detail-header {
+    background: white;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .back-btn {
+    background: var(--gray-100);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--blue);
+  }
+  .detail-inv { font-size: 12px; color: var(--gray-400); }
+  .detail-name { font-size: 18px; font-weight: 700; }
+
+  .detail-body { padding: 16px; }
+
+  .info-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .info-card h3 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-400);
+    margin-bottom: 10px;
+  }
+  .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .info-row:last-child { margin-bottom: 0; }
+  .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .info-text { font-size: 15px; color: var(--gray-900); line-height: 1.4; }
+  .info-sub { font-size: 12px; color: var(--gray-600); margin-top: 1px; }
+
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    padding: 0 0 8px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .items-table td {
+    padding: 8px 0;
+    font-size: 14px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: top;
+  }
+  .items-table td:last-child { text-align: right; color: var(--gray-600); }
+  .items-table tr:last-child td { border-bottom: none; }
+
+  /* NOTES */
+  .notes-area {
+    width: 100%;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: none;
+    min-height: 80px;
+    color: var(--gray-900);
+  }
+  .notes-area:focus { outline: none; border-color: var(--blue); }
+
+  /* PHOTO SECTION */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .photo-thumb {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: var(--gray-100);
+  }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-del {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo-add-btn {
+    aspect-ratio: 1;
+    border: 2px dashed var(--gray-200);
+    border-radius: 8px;
+    background: var(--gray-50);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--gray-400);
+    font-weight: 600;
+  }
+  .photo-add-btn .cam-icon { font-size: 24px; }
+  #photo-input { display: none; }
+
+  /* STATUS ACTIONS */
+  .action-bar { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+  .btn {
+    width: 100%;
+    border: none;
+    border-radius: var(--radius);
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: opacity 0.15s;
+    letter-spacing: 0.2px;
+  }
+  .btn:active { opacity: 0.8; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-enroute { background: var(--blue); color: white; }
+  .btn-delivered { background: var(--green); color: white; }
+  .btn-call { background: var(--gray-100); color: var(--gray-900); font-size: 15px; }
+  .btn-maps { background: var(--orange); color: white; font-size: 15px; }
+
+  .status-done {
+    background: var(--green-light);
+    color: var(--green);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a1a;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999;
+    transition: transform 0.3s;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* SMS LOG */
+  .sms-log {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--gray-600);
+  }
+  .sms-log .sms-row { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+  .sms-log .sms-icon { flex-shrink: 0; }
+  .sms-log .sms-time { color: var(--gray-400); white-space: nowrap; }
+
+  .photo-required-note {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #6d4c00;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadString, getDownloadURL }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC7YaVUQTmLHAUOO5eROvJ6I_jbvJP7VJU",
+  authDomain: "norwood-supply.firebaseapp.com",
+  projectId: "norwood-supply",
+  storageBucket: "norwood-supply.appspot.com",
+  messagingSenderId: "407510932360",
+  appId: "1:407510932360:web:ee4c1dde6440ede4be3db6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ─── TWILIO CONFIG (fill in when account is ready) ───────────────────────────
+const TWILIO_ACCOUNT_SID = "YOUR_ACCOUNT_SID";   // e.g. ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+const TWILIO_AUTH_TOKEN  = "YOUR_AUTH_TOKEN";
+const TWILIO_FROM_NUMBER = "YOUR_TWILIO_NUMBER"; // e.g. +19041234567
+// NOTE: In production, move SMS calls to a Firebase Cloud Function so credentials
+// are never exposed in the browser. This stub lets you test everything else now.
+
+const SMS_TEMPLATES = {
+  scheduled: (name, date, window) =>
+    `Hi ${name}, your Norwood Supply delivery is scheduled for ${date}${window ? ', ' + window : ''}. We'll text you when your driver is on the way. Questions? Call (904) 768-6818.`,
+  enroute: (name) =>
+    `Your Norwood Supply driver is on the way! Expect arrival within 30–60 minutes. Please ensure someone is available to receive the delivery. – Norwood Supply`,
+  delivered: (name) =>
+    `Your Norwood Supply delivery is complete. Thank you for your business! Questions? Call (904) 768-6818 or visit norwoodsupply.com.`
+};
+
+async function sendSMS(toNumber, message, deliveryId, stage) {
+  if (!TWILIO_ACCOUNT_SID || TWILIO_ACCOUNT_SID === "YOUR_ACCOUNT_SID") {
+    console.log(`[SMS STUB] To: ${toNumber}\nMessage: ${message}`);
+    logSMSToFirestore(deliveryId, toNumber, message, stage, "stub");
+    return { ok: true, stub: true };
+  }
+  try {
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const body = new URLSearchParams({ To: toNumber, From: TWILIO_FROM_NUMBER, Body: message });
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + btoa(TWILIO_ACCOUNT_SID + ":" + TWILIO_AUTH_TOKEN),
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body
+    });
+    const json = await resp.json();
+    logSMSToFirestore(deliveryId, toNumber, message, stage, json.status || "sent");
+    return json;
+  } catch(e) {
+    console.error("SMS error:", e);
+  }
+}
+
+async function logSMSToFirestore(deliveryId, to, body, stage, status) {
+  try {
+    await addDoc(collection(db, "sms_log"), {
+      deliveryId, to, body, stage, status,
+      sentAt: serverTimestamp()
+    });
+  } catch(e) {}
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentDriver = null;
+let deliveries = [];
+let currentDelivery = null;
+let capturedPhotos = []; // base64 strings
+
+// ─── DRIVER LIST ──────────────────────────────────────────────────────────────
+const DRIVERS = [
+  { id: "andre",   name: "Andre",         role: "Driver / Sales" },
+  { id: "robert",  name: "Robert Bryson", role: "Driver / Yard" },
+  { id: "contractor", name: "Contractor", role: "Outside Contractor" },
+];
+
+function buildDriverScreen() {
+  const list = document.getElementById("driver-list");
+  list.innerHTML = "";
+  DRIVERS.forEach(d => {
+    const btn = document.createElement("button");
+    btn.className = "driver-btn";
+    btn.innerHTML = `<div class="driver-icon">🚛</div>
+      <div><div>${d.name}</div><div class="role">${d.role}</div></div>`;
+    btn.onclick = () => selectDriver(d);
+    list.appendChild(btn);
+  });
+}
+
+function selectDriver(driver) {
+  currentDriver = driver;
+  document.getElementById("driver-badge").textContent = driver.name;
+  showScreen("queue");
+  loadDeliveries();
+}
+
+// ─── LOAD DELIVERIES ──────────────────────────────────────────────────────────
+async function loadDeliveries() {
+  const today = new Date().toISOString().slice(0, 10);
+  const queueDiv = document.getElementById("delivery-queue");
+  queueDiv.innerHTML = `<div class="empty-state"><div class="icon">⏳</div><p>Loading deliveries…</p></div>`;
+  try {
+    const q = query(
+      collection(db, "deliveries"),
+      where("driverId", "==", currentDriver.id),
+      where("deliveryDate", "==", today)
+    );
+    const snap = await getDocs(q);
+    deliveries = [];
+    snap.forEach(d => deliveries.push({ id: d.id, ...d.data() }));
+    deliveries.sort((a, b) => (a.stopOrder || 99) - (b.stopOrder || 99));
+    renderQueue();
+  } catch(e) {
+    queueDiv.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>Could not load deliveries.<br>Check connection.</p></div>`;
+  }
+}
+
+function renderQueue() {
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  document.getElementById("date-label").textContent = dateStr;
+
+  const active = deliveries.filter(d => d.status !== "delivered");
+  const done = deliveries.filter(d => d.status === "delivered");
+  document.getElementById("stop-count").textContent = `${active.length} stop${active.length !== 1 ? "s" : ""}`;
+
+  const queueDiv = document.getElementById("delivery-queue");
+  if (deliveries.length === 0) {
+    queueDiv.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No deliveries assigned for today.</p></div>`;
+    return;
+  }
+
+  let html = "";
+  if (active.length > 0) {
+    html += `<div class="section-label">Today's Stops</div>`;
+    active.forEach(d => html += deliveryCardHTML(d));
+  }
+  if (done.length > 0) {
+    html += `<div class="section-label">Completed</div>`;
+    done.forEach(d => html += deliveryCardHTML(d));
+  }
+  queueDiv.innerHTML = html;
+
+  queueDiv.querySelectorAll(".delivery-card").forEach(card => {
+    card.onclick = () => openDelivery(card.dataset.id);
+  });
+}
+
+function deliveryCardHTML(d) {
+  const statusLabel = { scheduled: "Scheduled", enroute: "En Route", delivered: "Delivered" }[d.status] || d.status;
+  const pillClass = { scheduled: "pill-scheduled", enroute: "pill-enroute", delivered: "pill-delivered" }[d.status] || "";
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(d.address || "")}`;
+  return `<div class="delivery-card status-${d.status}" data-id="${d.id}">
+    <div class="card-top">
+      <div>
+        <div class="card-inv">INV #${d.invoiceNumber || "—"}</div>
+        <div class="card-name">${d.customerName || "Customer"}</div>
+        <div class="card-items">${(d.items || []).length} item${(d.items||[]).length !== 1 ? "s" : ""}</div>
+      </div>
+      <span class="status-pill ${pillClass}">${statusLabel}</span>
+    </div>
+    <div class="card-bottom">
+      <div class="card-addr">${d.address || "No address"}</div>
+      <a class="map-btn" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">🗺 Maps</a>
+    </div>
+  </div>`;
+}
+
+// ─── DELIVERY DETAIL ──────────────────────────────────────────────────────────
+function openDelivery(id) {
+  currentDelivery = deliveries.find(d => d.id === id);
+  capturedPhotos = (currentDelivery.photos || []).map(p => ({ url: p, saved: true }));
+  renderDetail();
+  showScreen("detail");
+}
+
+function renderDetail() {
+  const d = currentDelivery;
+  document.getElementById("detail-inv").textContent = `INV #${d.invoiceNumber || "—"}`;
+  document.getElementById("detail-name").textContent = d.customerName || "Customer";
+
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(d.address || "")}`;
+  const tel = (d.customerPhone || "").replace(/\D/g, "");
+
+  document.getElementById("detail-info").innerHTML = `
+    <div class="info-row">
+      <div class="info-icon">📍</div>
+      <div><div class="info-text">${d.address || "No address on file"}</div></div>
+    </div>
+    <div class="info-row">
+      <div class="info-icon">📞</div>
+      <div><div class="info-text">${d.customerPhone || "No phone"}</div></div>
+    </div>
+    ${d.deliveryWindow ? `<div class="info-row"><div class="info-icon">🕐</div><div><div class="info-text">${d.deliveryWindow}</div><div class="info-sub">Delivery window</div></div></div>` : ""}
+    ${d.deliveryNotes ? `<div class="info-row"><div class="info-icon">📋</div><div><div class="info-text">${d.deliveryNotes}</div><div class="info-sub">Office notes</div></div></div>` : ""}
+  `;
+
+  // Items
+  const rows = (d.items || []).map(it =>
+    `<tr><td>${it.qty || 1}×</td><td>${it.description || ""}</td><td>${it.sku || ""}</td></tr>`
+  ).join("");
+  document.getElementById("detail-items").innerHTML = `
+    <table class="items-table">
+      <thead><tr><th>Qty</th><th>Description</th><th>SKU</th></tr></thead>
+      <tbody>${rows || "<tr><td colspan='3' style='color:#9aa0a6'>No items listed</td></tr>"}</tbody>
+    </table>`;
+
+  // SMS log
+  renderSMSLog();
+
+  // Photos
+  renderPhotoGrid();
+
+  // Actions
+  renderActions(mapsUrl, tel);
+}
+
+function renderSMSLog() {
+  const d = currentDelivery;
+  const log = d.smsLog || {};
+  let html = "";
+  const stages = [
+    { key: "scheduled", label: "Scheduled text" },
+    { key: "enroute",   label: "En Route text" },
+    { key: "delivered", label: "Delivered text" },
+  ];
+  stages.forEach(s => {
+    const sent = log[s.key];
+    html += `<div class="sms-row">
+      <span class="sms-icon">${sent ? "✅" : "⬜"}</span>
+      <span style="flex:1">${s.label}</span>
+      <span class="sms-time">${sent ? formatTime(sent) : "pending"}</span>
+    </div>`;
+  });
+  document.getElementById("sms-log").innerHTML = html;
+}
+
+function renderPhotoGrid() {
+  const grid = document.getElementById("photo-grid");
+  let html = "";
+  capturedPhotos.forEach((p, i) => {
+    const src = p.saved ? p.url : p.dataUrl;
+    html += `<div class="photo-thumb">
+      <img src="${src}" />
+      ${!p.saved ? `<button class="photo-del" onclick="removePhoto(${i})">✕</button>` : ""}
+    </div>`;
+  });
+  if (capturedPhotos.length < 6) {
+    html += `<div class="photo-add-btn" onclick="document.getElementById('photo-input').click()">
+      <span class="cam-icon">📷</span><span>Add Photo</span>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function renderActions(mapsUrl, tel) {
+  const d = currentDelivery;
+  const actionsDiv = document.getElementById("detail-actions");
+  const unsaved = capturedPhotos.filter(p => !p.saved);
+
+  if (d.status === "delivered") {
+    actionsDiv.innerHTML = `<div class="status-done">✅ Delivery Complete</div>`;
+    return;
+  }
+
+  let html = "";
+  if (d.status === "scheduled") {
+    html += `<div class="action-bar">
+      <button class="btn btn-enroute" onclick="markEnRoute()">🚛 I'm On My Way</button>
+      <a class="btn btn-maps" href="${mapsUrl}" target="_blank">🗺 Open in Maps</a>
+      ${tel ? `<a class="btn btn-call" href="tel:${tel}">📞 Call Customer</a>` : ""}
+    </div>`;
+  }
+
+  if (d.status === "enroute") {
+    const photoCount = capturedPhotos.filter(p => !p.saved).length + capturedPhotos.filter(p => p.saved).length;
+    const needsPhoto = photoCount === 0;
+    html += `
+      ${needsPhoto ? `<div class="photo-required-note">⚠️ Take at least 1 photo before marking delivered.</div>` : ""}
+      <div class="action-bar">
+        <button class="btn btn-delivered" onclick="markDelivered()" ${needsPhoto ? "disabled" : ""}>
+          ✅ Mark Delivered
+        </button>
+        <a class="btn btn-maps" href="${mapsUrl}" target="_blank">🗺 Open in Maps</a>
+        ${tel ? `<a class="btn btn-call" href="tel:${tel}">📞 Call Customer</a>` : ""}
+      </div>`;
+  }
+
+  actionsDiv.innerHTML = html;
+}
+
+// ─── PHOTO HANDLING ───────────────────────────────────────────────────────────
+document.getElementById("photo-input").addEventListener("change", function(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      capturedPhotos.push({ dataUrl: ev.target.result, saved: false });
+      renderPhotoGrid();
+      renderActions(
+        `https://maps.google.com/?q=${encodeURIComponent(currentDelivery.address || "")}`,
+        (currentDelivery.customerPhone || "").replace(/\D/g, "")
+      );
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = "";
+});
+
+window.removePhoto = function(idx) {
+  capturedPhotos.splice(idx, 1);
+  renderPhotoGrid();
+  renderActions(
+    `https://maps.google.com/?q=${encodeURIComponent(currentDelivery.address || "")}`,
+    (currentDelivery.customerPhone || "").replace(/\D/g, "")
+  );
+};
+
+async function uploadPhotos() {
+  const unsaved = capturedPhotos.filter(p => !p.saved);
+  const urls = [];
+  for (const p of unsaved) {
+    try {
+      const ext = p.dataUrl.includes("png") ? "png" : "jpg";
+      const path = `deliveries/${currentDelivery.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const storageRef = ref(storage, path);
+      await uploadString(storageRef, p.dataUrl, "data_url");
+      const url = await getDownloadURL(storageRef);
+      urls.push(url);
+    } catch(e) {
+      console.error("Photo upload error:", e);
+    }
+  }
+  return urls;
+}
+
+// ─── STATUS ACTIONS ───────────────────────────────────────────────────────────
+window.markEnRoute = async function() {
+  showToast("Sending En Route notification…");
+  const d = currentDelivery;
+  const smsBody = SMS_TEMPLATES.enroute(d.customerName || "");
+  await sendSMS(d.customerPhone, smsBody, d.id, "enroute");
+  const now = new Date().toISOString();
+  const smsLog = { ...(d.smsLog || {}), enroute: now };
+  await updateDoc(doc(db, "deliveries", d.id), {
+    status: "enroute",
+    enrouteAt: serverTimestamp(),
+    smsLog
+  });
+  currentDelivery.status = "enroute";
+  currentDelivery.smsLog = smsLog;
+  updateLocalDelivery();
+  renderDetail();
+  showToast("✅ Status updated — customer notified");
+};
+
+window.markDelivered = async function() {
+  const btn = document.querySelector(".btn-delivered");
+  if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+  try {
+    const photoUrls = await uploadPhotos();
+    const d = currentDelivery;
+    const driverNotes = document.getElementById("driver-notes").value.trim();
+    const allPhotos = [...(d.photos || []), ...photoUrls];
+    const smsBody = SMS_TEMPLATES.delivered(d.customerName || "");
+    await sendSMS(d.customerPhone, smsBody, d.id, "delivered");
+    const now = new Date().toISOString();
+    const smsLog = { ...(d.smsLog || {}), delivered: now };
+    await updateDoc(doc(db, "deliveries", d.id), {
+      status: "delivered",
+      deliveredAt: serverTimestamp(),
+      photos: allPhotos,
+      driverNotes,
+      smsLog,
+      deliveredBy: currentDriver.id
+    });
+    currentDelivery.status = "delivered";
+    currentDelivery.photos = allPhotos;
+    currentDelivery.smsLog = smsLog;
+    capturedPhotos = allPhotos.map(u => ({ url: u, saved: true }));
+    updateLocalDelivery();
+    renderDetail();
+    showToast("✅ Delivery confirmed — customer notified");
+  } catch(e) {
+    showToast("❌ Error saving. Try again.");
+    if (btn) { btn.disabled = false; btn.textContent = "✅ Mark Delivered"; }
+  }
+};
+
+function updateLocalDelivery() {
+  const idx = deliveries.findIndex(d => d.id === currentDelivery.id);
+  if (idx >= 0) deliveries[idx] = { ...currentDelivery };
+}
+
+// ─── SCREENS ──────────────────────────────────────────────────────────────────
+function showScreen(name) {
+  ["driver", "queue", "detail"].forEach(s => {
+    document.getElementById(s + "-screen").style.display = s === name ? "" : "none";
+  });
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function showToast(msg, duration = 2800) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), duration);
+}
+
+function formatTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildDriverScreen();
+showScreen("driver");
+
+// Expose to global for onclick handlers
+window.showScreen = showScreen;
+</script>
+
+<!-- APP HEADER -->
+<div class="app-header">
+  <div>
+    <div class="h1" style="font-size:18px;font-weight:700">Norwood Delivery</div>
+    <div class="sub">Driver App</div>
+  </div>
+  <div class="driver-badge" id="driver-badge">Select Driver</div>
+</div>
+
+<!-- SCREEN: DRIVER SELECT -->
+<div id="driver-screen">
+  <div class="screen-title">Who's driving today?</div>
+  <div class="screen-sub">Tap your name to load your deliveries.</div>
+  <div class="driver-list" id="driver-list"></div>
+</div>
+
+<!-- SCREEN: DELIVERY QUEUE -->
+<div id="queue-screen">
+  <div class="date-banner">
+    <div>
+      <div class="label">Deliveries for</div>
+      <div class="val" id="date-label">Today</div>
+    </div>
+    <div class="count-badge" id="stop-count">— stops</div>
+  </div>
+  <div id="delivery-queue"></div>
+</div>
+
+<!-- SCREEN: DELIVERY DETAIL -->
+<div id="detail-screen">
+  <div class="detail-header">
+    <button class="back-btn" onclick="showScreen('queue'); renderQueue()">← Back</button>
+    <div>
+      <div class="detail-inv" id="detail-inv"></div>
+      <div class="detail-name" id="detail-name"></div>
+    </div>
+  </div>
+
+  <div class="detail-body">
+    <!-- Customer Info -->
+    <div class="info-card">
+      <h3>Customer &amp; Address</h3>
+      <div id="detail-info"></div>
+    </div>
+
+    <!-- Items -->
+    <div class="info-card">
+      <h3>Items on This Delivery</h3>
+      <div id="detail-items"></div>
+    </div>
+
+    <!-- SMS Status -->
+    <div class="info-card">
+      <h3>Customer Texts</h3>
+      <div class="sms-log" id="sms-log"></div>
+    </div>
+
+    <!-- Driver Notes -->
+    <div class="info-card">
+      <h3>Driver Notes</h3>
+      <textarea class="notes-area" id="driver-notes" placeholder="Condition of materials, access issues, who received the delivery…"></textarea>
+    </div>
+
+    <!-- Photos -->
+    <div class="info-card">
+      <h3>Delivery Photos</h3>
+      <div class="photo-grid" id="photo-grid"></div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" multiple>
+    </div>
+
+    <!-- Actions -->
+    <div id="detail-actions"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+</body>
+</html>
