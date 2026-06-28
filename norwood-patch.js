@@ -1,5 +1,5 @@
 // ============================================================
-//  NORWOOD PATCH v3 — loads after index.html
+//  NORWOOD PATCH v3.1 — loads after index.html
 //  Contains:
 //  1. Description deduplication fix (quotes + invoices)
 //  2. Live Inventory Lookup panel
@@ -7,6 +7,7 @@
 //  4. Firestore sync for quotes/invoices (cross-device)
 //  5. One-time localStorage → Firestore migration
 //  6. Quote tab / Invoice tab split in nav
+//  7. *** CENTS FIX — decimal prices throughout ***
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -61,11 +62,8 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ── FIRESTORE QUOTE/INVOICE SYNC ─────────────────────────────────────────
-  // All saves/reads go to Firestore collection 'ns_quotes'
-  // localStorage is kept as fallback cache only
-
   var QUOTES_COL = 'ns_quotes';
-  var _syncEnabled = false; // flips true once Firebase confirmed ready
+  var _syncEnabled = false;
 
   function waitForDB(cb, tries) {
     tries = tries || 0;
@@ -74,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { waitForDB(cb, tries + 1); }, 300);
   }
 
-  // Save a single quote/invoice to Firestore
   function syncSaveQuote(q) {
     waitForDB(function(db) {
       var docId = String(q.id);
@@ -84,7 +81,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Delete a quote/invoice from Firestore
   function syncDeleteQuote(id) {
     waitForDB(function(db) {
       db.collection(QUOTES_COL).doc(String(id)).delete()
@@ -92,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Load ALL quotes from Firestore → merge into localStorage → refresh UI
   function syncLoadAll(callback) {
     waitForDB(function(db) {
       db.collection(QUOTES_COL)
@@ -102,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(snap) {
           var quotes = [];
           snap.forEach(function(doc) { quotes.push(doc.data()); });
-          // Write to localStorage so index.html functions keep working
           localStorage.setItem('ns_quotes', JSON.stringify(quotes));
           if (typeof callback === 'function') callback(quotes);
         })
@@ -114,9 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ── PATCH getSavedQuotes / saveQuotesToStorage ───────────────────────────
-  // index.html uses these two functions for all quote persistence.
-  // We intercept them to mirror everything to Firestore.
-
   var _patchedStorage = false;
   function patchStorageFunctions() {
     if (_patchedStorage) return;
@@ -124,27 +115,19 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(patchStorageFunctions, 400); return;
     }
     _patchedStorage = true;
-
-    // Wrap saveQuotesToStorage — called every time a quote is saved/updated
     var _origSave = window.saveQuotesToStorage;
     window.saveQuotesToStorage = function(quotes) {
-      _origSave.apply(this, arguments); // keep localStorage working
-      // Mirror each quote to Firestore
+      _origSave.apply(this, arguments);
       if (_syncEnabled && Array.isArray(quotes)) {
         quotes.forEach(function(q) { if (q && q.id) syncSaveQuote(q); });
       }
     };
-
     console.log('[SYNC] Storage functions patched');
   }
-
-  // Start patching as soon as functions are available
   setTimeout(patchStorageFunctions, 500);
 
-  // ── ONE-TIME MIGRATION ────────────────────────────────────────────────────
-  // Adds a "☁️ Sync to Cloud" button in the Manage tab
+  // ── ONE-TIME MIGRATION UI ─────────────────────────────────────────────────
   function addMigrationUI() {
-    // Try several times until Manage tab content is rendered
     var tries = 0;
     function tryAdd() {
       tries++;
@@ -178,18 +161,13 @@ document.addEventListener('DOMContentLoaded', function() {
         '</div>'
       ].join('');
 
-      // Insert at top of admin page
       adminPage.insertBefore(panel, adminPage.firstChild);
 
-      // Migrate button
       document.getElementById('nw-migrate-btn').addEventListener('click', function() {
         var btn = this;
         var status = document.getElementById('nw-sync-status');
         var local = JSON.parse(localStorage.getItem('ns_quotes') || '[]');
-        if (!local.length) {
-          status.textContent = '⚠️ No local quotes found to migrate.';
-          return;
-        }
+        if (!local.length) { status.textContent = '⚠️ No local quotes found to migrate.'; return; }
         if (!confirm('Push ' + local.length + ' quotes/invoices to Firestore? This is safe — nothing is deleted.')) return;
         btn.disabled = true;
         btn.textContent = 'Migrating…';
@@ -216,7 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
 
-      // Load from cloud button
       document.getElementById('nw-sync-load-btn').addEventListener('click', function() {
         var btn = this;
         var status = document.getElementById('nw-sync-status');
@@ -232,7 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
           status.textContent = '✅ Loaded ' + quotes.length + ' records from cloud.';
           btn.disabled = false;
           btn.textContent = '🔄 Load from Cloud';
-          // Refresh the history view if it's open
           if (typeof renderHistory === 'function') renderHistory();
           if (typeof showToast === 'function') showToast('✅ Loaded ' + quotes.length + ' quotes from cloud', '#2d6a30');
         });
@@ -240,24 +216,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     tryAdd();
   }
-
   addMigrationUI();
 
   // ── AUTO-LOAD FROM CLOUD ON STARTUP ──────────────────────────────────────
-  // When anyone opens the tool, silently pull latest from Firestore
-  // so they always see the most current quotes without clicking anything
   waitForDB(function(db) {
     _syncEnabled = true;
-    // Small delay to let index.html finish initializing
     setTimeout(function() {
       syncLoadAll(function(quotes) {
         if (!quotes || !quotes.length) return;
-        // Refresh history tab if it's visible
         if (typeof renderHistory === 'function') {
           var histPage = document.getElementById('page-history');
-          if (histPage && histPage.classList.contains('active')) {
-            renderHistory();
-          }
+          if (histPage && histPage.classList.contains('active')) renderHistory();
         }
         console.log('[SYNC] Auto-loaded', quotes.length, 'quotes from cloud');
       });
@@ -265,25 +234,18 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ── QUOTE / INVOICE TAB SPLIT ─────────────────────────────────────────────
-  // Renames existing "Saved Quotes" tab to "📋 Quotes"
-  // Adds new "🧾 Invoices" tab that filters history to invoices only
-
   function splitQuoteInvoiceTabs() {
     var histTab = document.getElementById('tab-history');
     if (!histTab) { setTimeout(splitQuoteInvoiceTabs, 400); return; }
-    if (document.getElementById('tab-invoices')) return; // already done
+    if (document.getElementById('tab-invoices')) return;
 
-    // Rename existing tab
     histTab.textContent = '📋 Quotes';
     histTab.title = 'Saved Quotes';
-
-    // Override its click to show only quotes
     histTab.onclick = function() {
       if (window.showPage) window.showPage('history', this);
       setTimeout(function() { NWTabs.showType('quote'); }, 100);
     };
 
-    // Create new Invoices tab
     var invTab = document.createElement('button');
     invTab.className = 'tab';
     invTab.id = 'tab-invoices';
@@ -294,43 +256,29 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(function() { NWTabs.showType('invoice'); }, 100);
     };
     histTab.insertAdjacentElement('afterend', invTab);
-
     console.log('[TABS] Quote/Invoice tabs split');
   }
 
-  // Tab filter controller
   window.NWTabs = {
     _currentType: null,
-
     showType: function(type) {
       this._currentType = type;
-
-      // Add filter bar if not present
       var histPage = document.getElementById('page-history');
       if (!histPage) return;
-
-      // Add type badge at top of history page
       var badge = document.getElementById('nw-type-badge');
       if (!badge) {
         badge = document.createElement('div');
         badge.id = 'nw-type-badge';
         badge.style.cssText = 'margin-bottom:14px;font-size:13px;font-weight:700;color:#1a2438;display:flex;align-items:center;gap:10px;';
-        var listEl = histPage.querySelector('#history-list, [id*="history"]') || histPage;
         histPage.insertBefore(badge, histPage.firstChild);
       }
-
       var isInvoice = type === 'invoice';
       badge.innerHTML = isInvoice
         ? '<span style="background:#1565C0;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">🧾 INVOICES</span> Showing invoices only'
         : '<span style="background:#2E7D32;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">📋 QUOTES</span> Showing quotes only';
-
-      // Filter the history cards
       this._filterCards(type);
     },
-
     _filterCards: function(type) {
-      var self = this;
-      // Cards may not be rendered yet — retry
       var tries = 0;
       function tryFilter() {
         tries++;
@@ -338,7 +286,6 @@ document.addEventListener('DOMContentLoaded', function() {
         var cards = document.querySelectorAll('.hcard');
         if (!cards.length) { setTimeout(tryFilter, 200); return; }
         cards.forEach(function(card) {
-          // Cards have a badge like .hbadge-quote or .hbadge-invoice
           var hasQuoteBadge   = card.querySelector('.hbadge-quote');
           var hasInvoiceBadge = card.querySelector('.hbadge-invoice') ||
                                 card.querySelector('.hbadge-paid')   ||
@@ -349,8 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
             card.style.display = hasQuoteBadge ? '' : 'none';
           }
         });
-
-        // Update empty state
         var visible = Array.from(cards).filter(function(c) { return c.style.display !== 'none'; });
         var emptyEl = document.getElementById('nw-empty-filter');
         if (!visible.length) {
@@ -371,18 +316,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       tryFilter();
     },
-
-    // Re-apply current filter after history re-renders
     reapply: function() {
       if (this._currentType) this._filterCards(this._currentType);
     }
   };
 
-  // Patch renderHistory to re-apply filter after it re-renders
   function patchRenderHistory() {
-    if (typeof window.renderHistory !== 'function') {
-      setTimeout(patchRenderHistory, 400); return;
-    }
+    if (typeof window.renderHistory !== 'function') { setTimeout(patchRenderHistory, 400); return; }
     var _origRender = window.renderHistory;
     window.renderHistory = function() {
       _origRender.apply(this, arguments);
@@ -393,7 +333,6 @@ document.addEventListener('DOMContentLoaded', function() {
   splitQuoteInvoiceTabs();
 
   // ── FIX 1: MONKEY-PATCH showQuote / showInvoice ───────────────────────────
-
   var _origShowQuote   = window.showQuote;
   var _origShowInvoice = window.showInvoice;
 
@@ -421,43 +360,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (typeof _origShowInvoice === 'function') {
     var _deductedKeys = {};
-
     window.showInvoice = function(existingInvNum) {
       _origShowInvoice.apply(this, arguments);
       if (existingInvNum) return;
-
       var renderKey = Date.now();
-
       setTimeout(function() {
         if (_deductedKeys[renderKey]) return;
         _deductedKeys[renderKey] = true;
-
         var liveLines = (typeof lines !== 'undefined' ? lines : [])
           .filter(function(l) {
-            return l.isLive === true
-              && l.sku
-              && String(l.sku).trim().length > 0
-              && l.sku !== 'CUSTOM';
+            return l.isLive === true && l.sku && String(l.sku).trim().length > 0 && l.sku !== 'CUSTOM';
           });
-
         console.log('[PATCH-DEDUCT] live lines:', liveLines.length,
           liveLines.map(function(l) { return l.sku + ' x' + l.qty; }));
-
         if (!liveLines.length) { runDedup(); return; }
-
         var app;
         try { app = firebase.app('norwood-inv'); }
         catch(e) {
-          try {
-            app = firebase.initializeApp(_fbConfig, 'norwood-inv');
-          } catch(e2) {
-            console.error('[PATCH-DEDUCT] Firebase unavailable:', e2.message);
-            runDedup(); return;
-          }
+          try { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
+          catch(e2) { console.error('[PATCH-DEDUCT] Firebase unavailable:', e2.message); runDedup(); return; }
         }
         var db = app.firestore();
         var deducted = 0;
-
         liveLines.forEach(function(l) {
           var sku = String(l.sku).trim();
           var qty = Math.max(1, parseInt(l.qty) || 1);
@@ -472,16 +396,11 @@ document.addEventListener('DOMContentLoaded', function() {
               deducted++;
               console.log('[PATCH-DEDUCT] ✅', sku, curQoh, '→', newQoh);
               if (deducted === liveLines.length) {
-                if (typeof showToast === 'function') {
-                  showToast('✅ Inventory updated: ' + deducted + ' item(s) deducted', '#2d6a30');
-                }
+                if (typeof showToast === 'function') showToast('✅ Inventory updated: ' + deducted + ' item(s) deducted', '#2d6a30');
               }
             });
-          }).catch(function(e) {
-            console.error('[PATCH-DEDUCT] ❌', sku, ':', e.message);
-          });
+          }).catch(function(e) { console.error('[PATCH-DEDUCT] ❌', sku, ':', e.message); });
         });
-
         runDedup();
       }, 500);
 
@@ -508,7 +427,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ── FIX 2: LIVE INVENTORY LOOKUP ──────────────────────────────────────────
-
   var style = document.createElement('style');
   style.textContent =
     '.invChip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #d0dce8;background:#fff;color:#555;transition:all 0.15s;user-select:none;display:inline-block;font-family:system-ui}' +
@@ -522,7 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
     '.invQohOut{background:#fce4ec;color:#c62828;border:1px solid #ef9a9a}';
   document.head.appendChild(style);
 
-  // Build inventory lookup modal
   var modal = document.createElement('div');
   modal.id = 'invModal';
   modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:flex-start;justify-content:center;padding-top:60px;';
@@ -549,7 +466,6 @@ document.addEventListener('DOMContentLoaded', function() {
   ].join('');
   document.body.appendChild(modal);
 
-  // Add "📦 Add from Inventory" button to the quote builder
   function addInvButton() {
     var addRow = document.querySelector('.add-row');
     if (!addRow) { setTimeout(addInvButton, 500); return; }
@@ -579,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var q = (document.getElementById('invSearch').value || '').toLowerCase();
     var listEl = document.getElementById('invList');
     if (!listEl) return;
-
     var filtered = _inv.filter(function(item) {
       if (_invCat === 'SAL') return item.isSalvage || item.type === 'salvage';
       if (_invCat !== 'ALL' && item.category !== _invCat) return false;
@@ -588,12 +503,10 @@ document.addEventListener('DOMContentLoaded', function() {
              (item.sku || '').toLowerCase().indexOf(q) > -1 ||
              (String(item.itemNo || '')).indexOf(q) > -1;
     });
-
     if (!filtered.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#a89060;font-family:system-ui;font-size:13px;">No items found</div>';
       return;
     }
-
     listEl.innerHTML = '';
     filtered.slice(0, 100).forEach(function(item) {
       var qoh = item.qoh || 0;
@@ -601,11 +514,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (qoh > 5)      { qc = 'invQohIn';  ql = qoh + ' in stock'; }
       else if (qoh > 0) { qc = 'invQohLow'; ql = qoh + ' left'; }
       else              { qc = 'invQohOut'; ql = 'Out of stock'; }
-
       var row = document.createElement('div');
       row.className = 'invResultItem';
       row.dataset.sku = item.sku;
-
       var photoEl;
       if (item.photoBase64) {
         photoEl = document.createElement('img');
@@ -616,10 +527,8 @@ document.addEventListener('DOMContentLoaded', function() {
         photoEl.style.cssText = 'width:48px;height:48px;border-radius:6px;background:#f0f3f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;';
         photoEl.textContent = item.isSalvage || item.type === 'salvage' ? '🏷️' : '📦';
       }
-
       var info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0;';
-
       var skuLine = document.createElement('div');
       skuLine.style.cssText = 'font-size:11px;color:#1E70B8;font-family:Courier New,monospace;font-weight:700;margin-bottom:2px;';
       if (item.itemNo) {
@@ -635,16 +544,14 @@ document.addEventListener('DOMContentLoaded', function() {
         skuLine.appendChild(salvTag);
       }
       skuLine.appendChild(document.createTextNode(item.sku || ''));
-
       var descLine = document.createElement('div');
       descLine.style.cssText = 'font-size:14px;font-weight:600;color:#222;line-height:1.3;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
       descLine.textContent = item.description || item.sku || '';
-
       var metaLine = document.createElement('div');
       metaLine.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
       var priceSpan = document.createElement('span');
       priceSpan.style.cssText = 'font-size:14px;font-weight:800;color:#2E7D32;';
-      priceSpan.textContent = '$' + (item.price || 0).toFixed(2);
+      priceSpan.textContent = '$' + parseFloat(item.price || 0).toFixed(2);
       metaLine.appendChild(priceSpan);
       if (item.vendor) {
         var vSpan = document.createElement('span');
@@ -658,15 +565,12 @@ document.addEventListener('DOMContentLoaded', function() {
         lSpan.textContent = '📍' + item.location;
         metaLine.appendChild(lSpan);
       }
-
       info.appendChild(skuLine);
       info.appendChild(descLine);
       info.appendChild(metaLine);
-
       var badge = document.createElement('span');
       badge.className = 'invQohBadge ' + qc;
       badge.textContent = ql;
-
       row.appendChild(photoEl);
       row.appendChild(info);
       row.appendChild(badge);
@@ -753,8 +657,8 @@ document.addEventListener('DOMContentLoaded', function() {
                  ? calcRetail(pseudo.cost, gm, pseudo.fixedRetail)
                  : (pseudo.fixedRetail || Math.round(pseudo.cost / (1 - gm)));
     lines.push(Object.assign({}, pseudo, { qty: qty, retail: retail, gm: gm, lineId: Date.now() }));
-    if (typeof recalcLines  === 'function') recalcLines();
-    if (typeof renderLines  === 'function') renderLines();
+    if (typeof recalcLines   === 'function') recalcLines();
+    if (typeof renderLines   === 'function') renderLines();
     if (typeof renderSummary === 'function') renderSummary();
     document.getElementById('qty-in').value = 1;
     closeInv();
@@ -776,5 +680,121 @@ document.addEventListener('DOMContentLoaded', function() {
   modal.addEventListener('click', function(e) {
     if (e.target === modal) closeInv();
   });
+
+  // ── FIX 7: CENTS / DECIMAL PRICE FIX ─────────────────────────────────────
+  // Enables $9.59-style pricing throughout the quote and invoice builder.
+  // Runs after the tool finishes initializing so it catches all rendered inputs.
+
+  function nwCentsFix() {
+
+    // ── 7a. Allow decimals on all price-related inputs ──
+    function fixPriceInputs() {
+      var hits = 0;
+      document.querySelectorAll('input[type="number"]').forEach(function(el) {
+        var name = (el.name || el.id || el.className || '').toLowerCase();
+        // Target price, unit, retail, cost fields — skip pure qty/count fields
+        if (/price|retail|cost|unit|rate|amount/.test(name) ||
+            el.closest('td') !== null) {          // catch table row inputs too
+          el.setAttribute('step', '0.01');
+          el.setAttribute('inputmode', 'decimal');
+          // Remove any integer-only constraint
+          if ((el.getAttribute('pattern') || '') === '\\d*') {
+            el.removeAttribute('pattern');
+          }
+          hits++;
+        }
+      });
+      return hits;
+    }
+
+    // ── 7b. Safe float parser — strips $, commas, spaces ──
+    function toFloat(v) {
+      if (v === null || v === undefined) return 0;
+      var n = parseFloat(String(v).replace(/[$,\s]/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
+
+    // ── 7c. Format a number as "9.59" (no $ — callers add it) ──
+    function fmt(n) { return toFloat(n).toFixed(2); }
+
+    // ── 7d. Recalculate one table row: qty × price → total cell ──
+    function recalcRow(row) {
+      var qtyEl   = row.querySelector('[name*="qty"],[id*="qty"],[class*="qty"]');
+      var priceEl = row.querySelector('[name*="price"],[id*="price"],[class*="price"],[name*="retail"],[id*="retail"]');
+      var totalEl = row.querySelector('[name*="total"],[id*="total"],[class*="total"],[class*="ext"],[class*="line"]');
+      if (!qtyEl || !priceEl || !totalEl) return;
+      var total = (parseFloat(qtyEl.value) || 0) * toFloat(priceEl.value);
+      if (totalEl.tagName === 'INPUT') {
+        totalEl.value = fmt(total);
+      } else {
+        totalEl.textContent = '$' + fmt(total);
+      }
+    }
+
+    // ── 7e. Re-format any total/subtotal display elements ──
+    function fixTotals() {
+      var sel = [
+        '[id*="subtotal"],[id*="Subtotal"],[id*="sub-total"]',
+        '[id*="grandtotal"],[id*="grandTotal"],[id*="grand-total"]',
+        '[id*="invoiceTotal"],[id*="invoice-total"]',
+        '[class*="subtotal"],[class*="grand-total"],[class*="invoice-total"]'
+      ].join(',');
+      document.querySelectorAll(sel).forEach(function(el) {
+        var raw = el.tagName === 'INPUT' ? el.value : el.textContent;
+        var num = toFloat(raw);
+        if (num === 0) return;
+        var formatted = '$' + fmt(num);
+        // Only rewrite if it looks like a bare money value
+        if (/^\$?[\d,]+(\.\d{0,4})?$/.test(raw.trim())) {
+          if (el.tagName === 'INPUT') { el.value = fmt(num); }
+          else { el.textContent = formatted; }
+        }
+      });
+    }
+
+    // ── 7f. Wrap known global calc functions so totals stay formatted ──
+    var wrapTargets = [
+      'calculateTotal','calcTotal','updateTotal','recalc','recalculate',
+      'updateLineTotal','calcLineTotal','computeTotal','refreshTotals','updateInvoice'
+    ];
+    wrapTargets.forEach(function(fn) {
+      if (typeof window[fn] === 'function') {
+        var orig = window[fn];
+        window[fn] = function() {
+          var r = orig.apply(this, arguments);
+          setTimeout(fixTotals, 30);
+          return r;
+        };
+        console.log('[cents-fix] Wrapped', fn);
+      }
+    });
+
+    // ── 7g. Live recalc as user types in any price or qty field ──
+    document.addEventListener('input', function(e) {
+      var el = e.target;
+      if (el.tagName !== 'INPUT') return;
+      var name = (el.name || el.id || el.className || '').toLowerCase();
+      if (/price|retail|cost|qty|quantity|unit/.test(name)) {
+        var row = el.closest('tr');
+        if (row) recalcRow(row);
+        setTimeout(fixTotals, 40);
+      }
+    }, true);
+
+    // ── 7h. Watch for new rows added dynamically ──
+    new MutationObserver(function(muts) {
+      var added = false;
+      muts.forEach(function(m) { if (m.addedNodes.length) added = true; });
+      if (added) { fixPriceInputs(); setTimeout(fixTotals, 60); }
+    }).observe(document.body, { childList: true, subtree: true });
+
+    // ── 7i. Initial pass ──
+    var n = fixPriceInputs();
+    fixTotals();
+    console.log('[cents-fix] Ready — ' + n + ' price input(s) unlocked for decimals.');
+  }
+
+  // Run after a short delay so index.html has fully rendered its inputs
+  setTimeout(nwCentsFix, 800);
 
 }); // end DOMContentLoaded
