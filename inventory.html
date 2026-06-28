@@ -553,8 +553,8 @@
      MODE TABS
 ═════════════════════════════════════════════ -->
 <div class="mode-tabs">
-  <div class="mode-tab active" onclick="switchMode('add')">➕ Add Item</div>
-  <div class="mode-tab" onclick="switchMode('browse')">📦 Browse</div>
+  <div class="mode-tab active" onclick="switchMode('browse')">📦 Browse</div>
+  <div class="mode-tab" onclick="switchMode('add')">➕ Add Item</div>
   <div class="mode-tab" onclick="switchMode('count')">🔢 Count</div>
   <div class="mode-tab" onclick="switchMode('returns')">↩️ Returns</div>
 </div>
@@ -679,7 +679,7 @@
 <!-- ════════════════════════════════════════════
      PANEL 1 — ADD ITEM
 ═════════════════════════════════════════════ -->
-<div class="panel active" id="panel-add">
+<div class="panel" id="panel-add">
 
   <!-- PHOTO CAPTURE -->
   <div class="card">
@@ -906,7 +906,7 @@
 <!-- ════════════════════════════════════════════
      PANEL 2 — BROWSE
 ═════════════════════════════════════════════ -->
-<div class="panel" id="panel-browse">
+<div class="panel active" id="panel-browse">
 
   <div class="search-row">
     <input type="text" id="searchInput" placeholder="Search SKU or description..." oninput="filterItems()"/>

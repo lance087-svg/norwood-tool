@@ -769,12 +769,48 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // ── 7g. Live recalc as user types in any price or qty field ──
+    // ── 7g. Recalc on input (qty only) and on blur (price fields) ──
+    // IMPORTANT: price fields must only reformat on BLUR (when user leaves
+    // the field), NOT on every keystroke — otherwise typing "3.98" gets
+    // interrupted at "3.9" and rounded before the last digit can be entered.
+
     document.addEventListener('input', function(e) {
       var el = e.target;
       if (el.tagName !== 'INPUT') return;
       var name = (el.name || el.id || el.className || '').toLowerCase();
-      if (/price|retail|cost|qty|quantity|unit/.test(name)) {
+      // Recalc rows when QTY changes — qty fields are integers so no rounding issue
+      if (/qty|quantity/.test(name)) {
+        var row = el.closest('tr');
+        if (row) recalcRow(row);
+        setTimeout(fixTotals, 40);
+      }
+      // For price fields: update line total display in real time but DO NOT
+      // reformat the input value itself — let the user finish typing
+      if (/price|retail|cost|unit|rate|amount/.test(name)) {
+        var row = el.closest('tr');
+        if (row) {
+          // Recalc the total cell only — don't touch the price input value
+          var qtyEl = row.querySelector('[name*="qty"],[id*="qty"],[class*="qty"]');
+          var totalEl = row.querySelector('[name*="total"],[id*="total"],[class*="total"],[class*="ext"],[class*="line"]');
+          if (qtyEl && totalEl) {
+            var qty = parseFloat(qtyEl.value) || 0;
+            var price = toFloat(el.value);
+            var total = qty * price;
+            if (totalEl.tagName === 'INPUT') { totalEl.value = fmt(total); }
+            else { totalEl.textContent = '$' + fmt(total); }
+          }
+        }
+      }
+    }, true);
+
+    // On blur: NOW it's safe to clean up the price field format
+    document.addEventListener('blur', function(e) {
+      var el = e.target;
+      if (el.tagName !== 'INPUT') return;
+      var name = (el.name || el.id || el.className || '').toLowerCase();
+      if (/price|retail|cost|unit|rate|amount/.test(name)) {
+        var val = toFloat(el.value);
+        if (val > 0) el.value = fmt(val); // format to 2dp only after user leaves field
         var row = el.closest('tr');
         if (row) recalcRow(row);
         setTimeout(fixTotals, 40);
