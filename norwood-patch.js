@@ -1,14 +1,17 @@
 // ============================================================
-//  NORWOOD PATCH — loads after index.html
+//  NORWOOD PATCH v3 — loads after index.html
 //  Contains:
 //  1. Description deduplication fix (quotes + invoices)
 //  2. Live Inventory Lookup panel
 //  3. QOH deduction on invoice creation
+//  4. Firestore sync for quotes/invoices (cross-device)
+//  5. One-time localStorage → Firestore migration
+//  6. Quote tab / Invoice tab split in nav
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
 
-  // Load Firebase SDK dynamically
+  // ── FIREBASE SETUP ────────────────────────────────────────────────────────
   function loadFirebaseSDK(callback) {
     if (typeof firebase !== 'undefined') { callback(); return; }
     var s1 = document.createElement('script');
@@ -22,18 +25,33 @@ document.addEventListener('DOMContentLoaded', function() {
     document.head.appendChild(s1);
   }
 
-  // Pre-load Firebase — sets window._db using named 'norwood-inv' app
+  var _fbConfig = {
+    apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+    authDomain: "norwood-supply.firebaseapp.com",
+    projectId: "norwood-supply",
+    storageBucket: "norwood-supply.firebasestorage.app",
+    messagingSenderId: "933963197210",
+    appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
+  };
+
+  function getDB() {
+    if (window._db) return window._db;
+    loadFirebaseSDK(function() {
+      try {
+        var app;
+        try { app = firebase.app('norwood-inv'); }
+        catch(e) { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
+        window._db = app.firestore();
+        console.log('Norwood patch: _db ready');
+      } catch(e) { console.warn('Norwood patch: db init error', e); }
+    });
+    return window._db;
+  }
+
+  // Pre-load Firebase
   loadFirebaseSDK(function() {
     if (window._db) return;
     try {
-      var _fbConfig = {
-        apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
-        authDomain: "norwood-supply.firebaseapp.com",
-        projectId: "norwood-supply",
-        storageBucket: "norwood-supply.firebasestorage.app",
-        messagingSenderId: "933963197210",
-        appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
-      };
       var app;
       try { app = firebase.app('norwood-inv'); }
       catch(e) { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
@@ -42,12 +60,343 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { console.warn('Norwood patch: db init error', e); }
   });
 
+  // ── FIRESTORE QUOTE/INVOICE SYNC ─────────────────────────────────────────
+  // All saves/reads go to Firestore collection 'ns_quotes'
+  // localStorage is kept as fallback cache only
+
+  var QUOTES_COL = 'ns_quotes';
+  var _syncEnabled = false; // flips true once Firebase confirmed ready
+
+  function waitForDB(cb, tries) {
+    tries = tries || 0;
+    if (window._db) { _syncEnabled = true; cb(window._db); return; }
+    if (tries > 20) { console.warn('[SYNC] DB never ready'); return; }
+    setTimeout(function() { waitForDB(cb, tries + 1); }, 300);
+  }
+
+  // Save a single quote/invoice to Firestore
+  function syncSaveQuote(q) {
+    waitForDB(function(db) {
+      var docId = String(q.id);
+      db.collection(QUOTES_COL).doc(docId).set(q)
+        .then(function() { console.log('[SYNC] Saved', q.quoteNum); })
+        .catch(function(e) { console.error('[SYNC] Save error', e); });
+    });
+  }
+
+  // Delete a quote/invoice from Firestore
+  function syncDeleteQuote(id) {
+    waitForDB(function(db) {
+      db.collection(QUOTES_COL).doc(String(id)).delete()
+        .catch(function(e) { console.error('[SYNC] Delete error', e); });
+    });
+  }
+
+  // Load ALL quotes from Firestore → merge into localStorage → refresh UI
+  function syncLoadAll(callback) {
+    waitForDB(function(db) {
+      db.collection(QUOTES_COL)
+        .orderBy('timestamp', 'desc')
+        .limit(500)
+        .get()
+        .then(function(snap) {
+          var quotes = [];
+          snap.forEach(function(doc) { quotes.push(doc.data()); });
+          // Write to localStorage so index.html functions keep working
+          localStorage.setItem('ns_quotes', JSON.stringify(quotes));
+          if (typeof callback === 'function') callback(quotes);
+        })
+        .catch(function(e) {
+          console.error('[SYNC] Load error', e);
+          if (typeof callback === 'function') callback(null);
+        });
+    });
+  }
+
+  // ── PATCH getSavedQuotes / saveQuotesToStorage ───────────────────────────
+  // index.html uses these two functions for all quote persistence.
+  // We intercept them to mirror everything to Firestore.
+
+  var _patchedStorage = false;
+  function patchStorageFunctions() {
+    if (_patchedStorage) return;
+    if (typeof window.getSavedQuotes !== 'function') {
+      setTimeout(patchStorageFunctions, 400); return;
+    }
+    _patchedStorage = true;
+
+    // Wrap saveQuotesToStorage — called every time a quote is saved/updated
+    var _origSave = window.saveQuotesToStorage;
+    window.saveQuotesToStorage = function(quotes) {
+      _origSave.apply(this, arguments); // keep localStorage working
+      // Mirror each quote to Firestore
+      if (_syncEnabled && Array.isArray(quotes)) {
+        quotes.forEach(function(q) { if (q && q.id) syncSaveQuote(q); });
+      }
+    };
+
+    console.log('[SYNC] Storage functions patched');
+  }
+
+  // Start patching as soon as functions are available
+  setTimeout(patchStorageFunctions, 500);
+
+  // ── ONE-TIME MIGRATION ────────────────────────────────────────────────────
+  // Adds a "☁️ Sync to Cloud" button in the Manage tab
+  function addMigrationUI() {
+    // Try several times until Manage tab content is rendered
+    var tries = 0;
+    function tryAdd() {
+      tries++;
+      if (tries > 30) return;
+      var adminPage = document.getElementById('page-admin');
+      if (!adminPage) { setTimeout(tryAdd, 400); return; }
+      if (document.getElementById('nw-migration-panel')) return;
+
+      var panel = document.createElement('div');
+      panel.id = 'nw-migration-panel';
+      panel.style.cssText = 'background:#fff;border-radius:8px;border:1px solid #e0d5c0;overflow:hidden;margin-bottom:16px;';
+      panel.innerHTML = [
+        '<div style="background:#1a2438;color:#fff;padding:12px 16px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between">',
+          '☁️ Cloud Sync — Quotes &amp; Invoices',
+          '<small style="font-size:11px;color:#a89060;font-weight:400">Syncs across all devices in real time</small>',
+        '</div>',
+        '<div style="padding:16px;">',
+          '<p style="font-size:13px;color:#4a3a20;margin-bottom:12px;line-height:1.6">',
+            'Click <strong>Migrate to Cloud</strong> once to push all your existing quotes and invoices to Firestore. ',
+            'After migration, every device (Lance\'s desktop, Garon\'s phone, Cleve\'s tablet) will see the same quotes and invoices in real time.',
+          '</p>',
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">',
+            '<button id="nw-migrate-btn" style="background:#1E70B8;color:#fff;padding:9px 22px;border-radius:5px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">',
+              '☁️ Migrate to Cloud (one-time)',
+            '</button>',
+            '<button id="nw-sync-load-btn" style="background:#2d6a30;color:#fff;padding:9px 22px;border-radius:5px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">',
+              '🔄 Load from Cloud',
+            '</button>',
+            '<span id="nw-sync-status" style="font-size:12px;color:#8B6914;"></span>',
+          '</div>',
+        '</div>'
+      ].join('');
+
+      // Insert at top of admin page
+      adminPage.insertBefore(panel, adminPage.firstChild);
+
+      // Migrate button
+      document.getElementById('nw-migrate-btn').addEventListener('click', function() {
+        var btn = this;
+        var status = document.getElementById('nw-sync-status');
+        var local = JSON.parse(localStorage.getItem('ns_quotes') || '[]');
+        if (!local.length) {
+          status.textContent = '⚠️ No local quotes found to migrate.';
+          return;
+        }
+        if (!confirm('Push ' + local.length + ' quotes/invoices to Firestore? This is safe — nothing is deleted.')) return;
+        btn.disabled = true;
+        btn.textContent = 'Migrating…';
+        status.textContent = '';
+        var done = 0;
+        waitForDB(function(db) {
+          var batch = db.batch();
+          local.forEach(function(q) {
+            if (!q || !q.id) return;
+            batch.set(db.collection(QUOTES_COL).doc(String(q.id)), q);
+            done++;
+          });
+          batch.commit()
+            .then(function() {
+              status.textContent = '✅ ' + done + ' records migrated to cloud!';
+              btn.textContent = '✅ Migration Complete';
+              if (typeof showToast === 'function') showToast('✅ ' + done + ' quotes synced to cloud!', '#2d6a30');
+            })
+            .catch(function(e) {
+              status.textContent = '❌ Error: ' + e.message;
+              btn.disabled = false;
+              btn.textContent = '☁️ Migrate to Cloud (one-time)';
+            });
+        });
+      });
+
+      // Load from cloud button
+      document.getElementById('nw-sync-load-btn').addEventListener('click', function() {
+        var btn = this;
+        var status = document.getElementById('nw-sync-status');
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        syncLoadAll(function(quotes) {
+          if (!quotes) {
+            status.textContent = '❌ Could not reach cloud. Check connection.';
+            btn.disabled = false;
+            btn.textContent = '🔄 Load from Cloud';
+            return;
+          }
+          status.textContent = '✅ Loaded ' + quotes.length + ' records from cloud.';
+          btn.disabled = false;
+          btn.textContent = '🔄 Load from Cloud';
+          // Refresh the history view if it's open
+          if (typeof renderHistory === 'function') renderHistory();
+          if (typeof showToast === 'function') showToast('✅ Loaded ' + quotes.length + ' quotes from cloud', '#2d6a30');
+        });
+      });
+    }
+    tryAdd();
+  }
+
+  addMigrationUI();
+
+  // ── AUTO-LOAD FROM CLOUD ON STARTUP ──────────────────────────────────────
+  // When anyone opens the tool, silently pull latest from Firestore
+  // so they always see the most current quotes without clicking anything
+  waitForDB(function(db) {
+    _syncEnabled = true;
+    // Small delay to let index.html finish initializing
+    setTimeout(function() {
+      syncLoadAll(function(quotes) {
+        if (!quotes || !quotes.length) return;
+        // Refresh history tab if it's visible
+        if (typeof renderHistory === 'function') {
+          var histPage = document.getElementById('page-history');
+          if (histPage && histPage.classList.contains('active')) {
+            renderHistory();
+          }
+        }
+        console.log('[SYNC] Auto-loaded', quotes.length, 'quotes from cloud');
+      });
+    }, 1500);
+  });
+
+  // ── QUOTE / INVOICE TAB SPLIT ─────────────────────────────────────────────
+  // Renames existing "Saved Quotes" tab to "📋 Quotes"
+  // Adds new "🧾 Invoices" tab that filters history to invoices only
+
+  function splitQuoteInvoiceTabs() {
+    var histTab = document.getElementById('tab-history');
+    if (!histTab) { setTimeout(splitQuoteInvoiceTabs, 400); return; }
+    if (document.getElementById('tab-invoices')) return; // already done
+
+    // Rename existing tab
+    histTab.textContent = '📋 Quotes';
+    histTab.title = 'Saved Quotes';
+
+    // Override its click to show only quotes
+    histTab.onclick = function() {
+      if (window.showPage) window.showPage('history', this);
+      setTimeout(function() { NWTabs.showType('quote'); }, 100);
+    };
+
+    // Create new Invoices tab
+    var invTab = document.createElement('button');
+    invTab.className = 'tab';
+    invTab.id = 'tab-invoices';
+    invTab.textContent = '🧾 Invoices';
+    invTab.title = 'Saved Invoices';
+    invTab.onclick = function() {
+      if (window.showPage) window.showPage('history', this);
+      setTimeout(function() { NWTabs.showType('invoice'); }, 100);
+    };
+    histTab.insertAdjacentElement('afterend', invTab);
+
+    console.log('[TABS] Quote/Invoice tabs split');
+  }
+
+  // Tab filter controller
+  window.NWTabs = {
+    _currentType: null,
+
+    showType: function(type) {
+      this._currentType = type;
+
+      // Add filter bar if not present
+      var histPage = document.getElementById('page-history');
+      if (!histPage) return;
+
+      // Add type badge at top of history page
+      var badge = document.getElementById('nw-type-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'nw-type-badge';
+        badge.style.cssText = 'margin-bottom:14px;font-size:13px;font-weight:700;color:#1a2438;display:flex;align-items:center;gap:10px;';
+        var listEl = histPage.querySelector('#history-list, [id*="history"]') || histPage;
+        histPage.insertBefore(badge, histPage.firstChild);
+      }
+
+      var isInvoice = type === 'invoice';
+      badge.innerHTML = isInvoice
+        ? '<span style="background:#1565C0;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">🧾 INVOICES</span> Showing invoices only'
+        : '<span style="background:#2E7D32;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">📋 QUOTES</span> Showing quotes only';
+
+      // Filter the history cards
+      this._filterCards(type);
+    },
+
+    _filterCards: function(type) {
+      var self = this;
+      // Cards may not be rendered yet — retry
+      var tries = 0;
+      function tryFilter() {
+        tries++;
+        if (tries > 15) return;
+        var cards = document.querySelectorAll('.hcard');
+        if (!cards.length) { setTimeout(tryFilter, 200); return; }
+        cards.forEach(function(card) {
+          // Cards have a badge like .hbadge-quote or .hbadge-invoice
+          var hasQuoteBadge   = card.querySelector('.hbadge-quote');
+          var hasInvoiceBadge = card.querySelector('.hbadge-invoice') ||
+                                card.querySelector('.hbadge-paid')   ||
+                                card.querySelector('.hbadge-pending');
+          if (type === 'invoice') {
+            card.style.display = hasInvoiceBadge ? '' : 'none';
+          } else {
+            card.style.display = hasQuoteBadge ? '' : 'none';
+          }
+        });
+
+        // Update empty state
+        var visible = Array.from(cards).filter(function(c) { return c.style.display !== 'none'; });
+        var emptyEl = document.getElementById('nw-empty-filter');
+        if (!visible.length) {
+          if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.id = 'nw-empty-filter';
+            emptyEl.style.cssText = 'text-align:center;padding:40px;color:#a89060;font-size:14px;';
+            var histPage = document.getElementById('page-history');
+            if (histPage) histPage.appendChild(emptyEl);
+          }
+          emptyEl.textContent = type === 'invoice'
+            ? 'No invoices found. Convert a quote to invoice from the Quote Builder.'
+            : 'No quotes found. Build a new quote using the Quote Builder tab.';
+          emptyEl.style.display = '';
+        } else if (emptyEl) {
+          emptyEl.style.display = 'none';
+        }
+      }
+      tryFilter();
+    },
+
+    // Re-apply current filter after history re-renders
+    reapply: function() {
+      if (this._currentType) this._filterCards(this._currentType);
+    }
+  };
+
+  // Patch renderHistory to re-apply filter after it re-renders
+  function patchRenderHistory() {
+    if (typeof window.renderHistory !== 'function') {
+      setTimeout(patchRenderHistory, 400); return;
+    }
+    var _origRender = window.renderHistory;
+    window.renderHistory = function() {
+      _origRender.apply(this, arguments);
+      setTimeout(function() { NWTabs.reapply(); }, 100);
+    };
+  }
+  patchRenderHistory();
+  splitQuoteInvoiceTabs();
+
   // ── FIX 1: MONKEY-PATCH showQuote / showInvoice ───────────────────────────
 
   var _origShowQuote   = window.showQuote;
   var _origShowInvoice = window.showInvoice;
 
-  // Patch showQuote — dedup only
   if (typeof _origShowQuote === 'function') {
     window.showQuote = function() {
       _origShowQuote.apply(this, arguments);
@@ -70,25 +419,19 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
 
-  // Patch showInvoice — dedup + QOH deduction
   if (typeof _origShowInvoice === 'function') {
-    var _deductedKeys = {}; // guard: never deduct same invoice render twice
+    var _deductedKeys = {};
 
     window.showInvoice = function(existingInvNum) {
       _origShowInvoice.apply(this, arguments);
-
-      // Never deduct when loading an existing invoice
       if (existingInvNum) return;
 
-      // Use a timestamp key — each new invoice render gets a unique key
       var renderKey = Date.now();
 
       setTimeout(function() {
-        // Guard against double-fire
         if (_deductedKeys[renderKey]) return;
         _deductedKeys[renderKey] = true;
 
-        // Collect only Live Inventory lines (explicitly marked isLive===true)
         var liveLines = (typeof lines !== 'undefined' ? lines : [])
           .filter(function(l) {
             return l.isLive === true
@@ -100,29 +443,16 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[PATCH-DEDUCT] live lines:', liveLines.length,
           liveLines.map(function(l) { return l.sku + ' x' + l.qty; }));
 
-        if (!liveLines.length) {
-          // Still run dedup even if no live lines
-          runDedup();
-          return;
-        }
+        if (!liveLines.length) { runDedup(); return; }
 
-        // Get Firestore via named app
         var app;
         try { app = firebase.app('norwood-inv'); }
         catch(e) {
           try {
-            app = firebase.initializeApp({
-              apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
-              authDomain: "norwood-supply.firebaseapp.com",
-              projectId: "norwood-supply",
-              storageBucket: "norwood-supply.firebasestorage.app",
-              messagingSenderId: "933963197210",
-              appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
-            }, 'norwood-inv');
+            app = firebase.initializeApp(_fbConfig, 'norwood-inv');
           } catch(e2) {
             console.error('[PATCH-DEDUCT] Firebase unavailable:', e2.message);
-            runDedup();
-            return;
+            runDedup(); return;
           }
         }
         var db = app.firestore();
@@ -132,10 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var sku = String(l.sku).trim();
           var qty = Math.max(1, parseInt(l.qty) || 1);
           db.collection('norwood').doc(sku).get().then(function(doc) {
-            if (!doc.exists) {
-              console.warn('[PATCH-DEDUCT] SKU not in Firestore:', sku);
-              return;
-            }
+            if (!doc.exists) { console.warn('[PATCH-DEDUCT] SKU not in Firestore:', sku); return; }
             var curQoh = parseInt(doc.data().qoh) || 0;
             var newQoh = Math.max(0, curQoh - qty);
             return doc.ref.update({
@@ -158,7 +485,6 @@ document.addEventListener('DOMContentLoaded', function() {
         runDedup();
       }, 500);
 
-      // ── DEDUP: hide sub-description that duplicates the item name ─────────
       function runDedup() {
         setTimeout(function() {
           var cells = document.querySelectorAll('#invoice-content td[style*="line-height"]');
@@ -190,105 +516,96 @@ document.addEventListener('DOMContentLoaded', function() {
     '.invChip:hover:not(.active){background:#e8f2fb;border-color:#1E70B8;color:#1E70B8}' +
     '.invResultItem{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;border:1.5px solid #e8edf2;background:#fff;transition:all 0.15s}' +
     '.invResultItem:hover{border-color:#1E70B8;background:#f0f7ff;box-shadow:0 2px 8px rgba(30,112,184,0.10)}' +
-    '.invResultItem.zero-stock{opacity:0.55;border-style:dashed}' +
-    '.invQohBadge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:800;flex-shrink:0;white-space:nowrap;font-family:system-ui}' +
-    '.invQohBadge.good{background:#e8f5e9;color:#2E7D32}' +
-    '.invQohBadge.low{background:#fff3e0;color:#e65100}' +
-    '.invQohBadge.zero{background:#fce4ec;color:#c62828}' +
-    '.inv-banner-tag{color:#fff!important;font-size:11px!important}' +
-    '.inv-banner-num{font-size:22px!important;font-weight:900!important}' +
-    '.inv-meta-label{font-size:10px!important}' +
-    '.inv-meta-value{font-size:11px!important}';
+    '.invQohBadge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap}' +
+    '.invQohIn{background:#e8f5e9;color:#2E7D32;border:1px solid #a5d6a7}' +
+    '.invQohLow{background:#fff8e1;color:#F57F17;border:1px solid #ffe082}' +
+    '.invQohOut{background:#fce4ec;color:#c62828;border:1px solid #ef9a9a}';
   document.head.appendChild(style);
 
-  // Find the "Custom Item" button to insert Live Inventory button next to it
-  var customBtn = document.querySelector('button[onclick="showCustomItem()"]');
-  if (!customBtn) {
-    setTimeout(function() {
-      customBtn = document.querySelector('button[onclick="showCustomItem()"]');
-      if (customBtn) injectLiveBtn(customBtn);
-    }, 800);
-  } else {
-    injectLiveBtn(customBtn);
-  }
-
-  function injectLiveBtn(refBtn) {
-    var liveBtn = document.createElement('button');
-    liveBtn.className = refBtn.className || 'btn';
-    liveBtn.style.cssText = 'background:#1E70B8;color:#fff;font-weight:700;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;';
-    liveBtn.innerHTML = '📦 Live Inventory';
-    liveBtn.onclick = openInv;
-    refBtn.parentNode.insertBefore(liveBtn, refBtn);
-  }
-
-  // ── Modal ───────────────────────────────────────────────────────────────────
+  // Build inventory lookup modal
   var modal = document.createElement('div');
-  modal.id = '_invModal';
-  modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:none;align-items:flex-start;justify-content:center;padding-top:60px;';
-  modal.innerHTML =
-    '<div style="background:#fff;border-radius:12px;width:min(96vw,580px);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.22);overflow:hidden;">' +
-    '<div style="background:#1E70B8;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">' +
-    '<div style="font-weight:800;font-size:16px;font-family:system-ui;color:#fff;">&#x1F4E6; Live Inventory</div>' +
-    '<div id="invSubtitle" style="font-size:12px;color:#cde;font-family:system-ui;"></div>' +
-    '<button onclick="document.getElementById(\'_invModal\').style.display=\'none\'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:18px;cursor:pointer;border-radius:6px;padding:2px 10px;line-height:1;">✕</button>' +
-    '</div>' +
-    '<div style="padding:12px 14px;border-bottom:1px solid #eee;background:#f8fafc;">' +
-    '<input type="text" id="invSearch" placeholder="Search description, SKU, or Item No..." ' +
-    'style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid #cdd;border-radius:7px;font-size:14px;font-family:system-ui;outline:none;" ' +
-    'oninput="filterInv()">' +
-    '<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
-    '<span class="invChip active" data-cat="ALL" onclick="setInvCat(this)">All</span>' +
-    '<span class="invChip" data-cat="DR" onclick="setInvCat(this)">Doors</span>' +
-    '<span class="invChip" data-cat="MW" onclick="setInvCat(this)">Millwork</span>' +
-    '<span class="invChip" data-cat="LB" onclick="setInvCat(this)">Lumber</span>' +
-    '<span class="invChip" data-cat="HW" onclick="setInvCat(this)">Hardware</span>' +
-    '<label style="font-size:11px;color:#888;margin-left:auto;display:flex;align-items:center;gap:4px;cursor:pointer;font-family:system-ui;">' +
-    '<input type="checkbox" id="invShowZero" onchange="filterInv()"> Show out-of-stock</label>' +
-    '</div>' +
-    '</div>' +
-    '<div id="invList" style="overflow-y:auto;flex:1;padding:12px 14px;"></div>' +
-    '</div>';
+  modal.id = 'invModal';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:flex-start;justify-content:center;padding-top:60px;';
+  modal.innerHTML = [
+    '<div style="background:#fff;border-radius:10px;width:100%;max-width:560px;margin:0 16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);overflow:hidden;max-height:80vh;display:flex;flex-direction:column;">',
+      '<div style="background:#1a2438;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">',
+        '<div><div style="font-size:15px;font-weight:700;">📦 Add from Live Inventory</div>',
+        '<div id="invSubtitle" style="font-size:11px;color:#a89060;margin-top:1px;"></div></div>',
+        '<button onclick="document.getElementById(\'invModal\').style.display=\'none\'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:14px;">✕</button>',
+      '</div>',
+      '<div style="padding:12px 14px;border-bottom:1px solid #f0e8d8;flex-shrink:0;">',
+        '<input id="invSearch" type="text" placeholder="Search by description or SKU…" oninput="filterInv()" style="width:100%;padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">',
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;" id="invChips">',
+          '<button class="invChip active" data-cat="ALL" onclick="setInvCat(\'ALL\',this)">All</button>',
+          '<button class="invChip" data-cat="DR" onclick="setInvCat(\'DR\',this)">Doors</button>',
+          '<button class="invChip" data-cat="MW" onclick="setInvCat(\'MW\',this)">Millwork</button>',
+          '<button class="invChip" data-cat="LB" onclick="setInvCat(\'LB\',this)">Lumber</button>',
+          '<button class="invChip" data-cat="HW" onclick="setInvCat(\'HW\',this)">Hardware</button>',
+          '<button class="invChip" data-cat="SAL" onclick="setInvCat(\'SAL\',this)">🏷️ Salvage</button>',
+        '</div>',
+      '</div>',
+      '<div id="invList" style="overflow-y:auto;padding:12px 14px;flex:1;"></div>',
+    '</div>'
+  ].join('');
   document.body.appendChild(modal);
+
+  // Add "📦 Add from Inventory" button to the quote builder
+  function addInvButton() {
+    var addRow = document.querySelector('.add-row');
+    if (!addRow) { setTimeout(addInvButton, 500); return; }
+    if (document.getElementById('invOpenBtn')) return;
+    var btn = document.createElement('button');
+    btn.id = 'invOpenBtn';
+    btn.className = 'btn';
+    btn.style.cssText = 'background:#1a2438;color:#f5e8c8;white-space:nowrap;';
+    btn.textContent = '📦 Add from Inventory';
+    btn.onclick = openInv;
+    addRow.appendChild(btn);
+  }
+  addInvButton();
 
   var _inv = [];
   var _invCat = 'ALL';
 
-  window.setInvCat = function(el) {
-    document.querySelectorAll('.invChip').forEach(function(c) { c.classList.remove('active'); });
-    el.classList.add('active');
-    _invCat = el.dataset.cat;
+  window.setInvCat = function(cat, el) {
+    _invCat = cat;
+    document.querySelectorAll('.invChip').forEach(function(c) {
+      c.classList.toggle('active', c.dataset.cat === cat);
+    });
     filterInv();
   };
 
   window.filterInv = function() {
     var q = (document.getElementById('invSearch').value || '').toLowerCase();
-    var showZ = document.getElementById('invShowZero').checked;
+    var listEl = document.getElementById('invList');
+    if (!listEl) return;
+
     var filtered = _inv.filter(function(item) {
+      if (_invCat === 'SAL') return item.isSalvage || item.type === 'salvage';
       if (_invCat !== 'ALL' && item.category !== _invCat) return false;
-      if (!showZ && (item.qoh || 0) === 0) return false;
       if (!q) return true;
       return (item.description || '').toLowerCase().indexOf(q) > -1 ||
              (item.sku || '').toLowerCase().indexOf(q) > -1 ||
-             String(item.itemNo || '').indexOf(q) > -1;
+             (String(item.itemNo || '')).indexOf(q) > -1;
     });
 
-    var listEl = document.getElementById('invList');
     if (!filtered.length) {
-      listEl.innerHTML = '<div style="text-align:center;padding:32px;color:#aaa;font-family:system-ui;">No matching items. Try a different search or check out-of-stock.</div>';
+      listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#a89060;font-family:system-ui;font-size:13px;">No items found</div>';
       return;
     }
 
     listEl.innerHTML = '';
-    filtered.forEach(function(item) {
+    filtered.slice(0, 100).forEach(function(item) {
       var qoh = item.qoh || 0;
-      var qc  = qoh === 0 ? 'zero' : qoh < 3 ? 'low' : 'good';
-      var ql  = qoh === 0 ? 'Out of Stock' : 'QOH: ' + qoh;
+      var qc, ql;
+      if (qoh > 5)      { qc = 'invQohIn';  ql = qoh + ' in stock'; }
+      else if (qoh > 0) { qc = 'invQohLow'; ql = qoh + ' left'; }
+      else              { qc = 'invQohOut'; ql = 'Out of stock'; }
 
       var row = document.createElement('div');
-      row.className = 'invResultItem' + (qoh === 0 ? ' zero-stock' : '');
-      row.dataset.sku = item.sku || '';
+      row.className = 'invResultItem';
+      row.dataset.sku = item.sku;
 
-      // Photo or icon
       var photoEl;
       if (item.photoBase64) {
         photoEl = document.createElement('img');
@@ -303,10 +620,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0;';
 
-      // SKU line with item number and salvage badge
       var skuLine = document.createElement('div');
       skuLine.style.cssText = 'font-size:11px;color:#1E70B8;font-family:Courier New,monospace;font-weight:700;margin-bottom:2px;';
-
       if (item.itemNo) {
         var noTag = document.createElement('span');
         noTag.style.cssText = 'background:#1E70B8;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;';
@@ -327,12 +642,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
       var metaLine = document.createElement('div');
       metaLine.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
-
       var priceSpan = document.createElement('span');
       priceSpan.style.cssText = 'font-size:14px;font-weight:800;color:#2E7D32;';
       priceSpan.textContent = '$' + (item.price || 0).toFixed(2);
       metaLine.appendChild(priceSpan);
-
       if (item.vendor) {
         var vSpan = document.createElement('span');
         vSpan.style.cssText = 'font-size:11px;color:#888;font-family:system-ui;';
@@ -378,8 +691,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadInv();
   }
 
-  function closeInv() { modal.style.display = 'none'; }
-
   async function loadInv() {
     var listEl = document.getElementById('invList');
     listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-family:system-ui;">Connecting to inventory...</div>';
@@ -389,14 +700,6 @@ document.addEventListener('DOMContentLoaded', function() {
         listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Could not load Firebase. Check your internet connection.</div>';
         return;
       }
-      var _fbConfig = {
-        apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
-        authDomain: "norwood-supply.firebaseapp.com",
-        projectId: "norwood-supply",
-        storageBucket: "norwood-supply.firebasestorage.app",
-        messagingSenderId: "933963197210",
-        appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3"
-      };
       var _fbApp;
       try { _fbApp = firebase.app('norwood-inv'); }
       catch(e) { _fbApp = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
@@ -426,7 +729,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function pickInv(sku) {
     var item = _inv.find(function(i) { return i.sku === sku; });
     if (!item) return;
-
     var pseudo = {
       id: 'inv_' + sku,
       sku: sku,
@@ -442,24 +744,20 @@ document.addEventListener('DOMContentLoaded', function() {
       notes: item.notes || '',
       imageUrl: item.photoBase64 ? 'data:image/jpeg;base64,' + item.photoBase64 : '',
       isCustom: false,
-      isLive: true   // ← tells patch deduction to write back to Firestore
+      isLive: true
     };
-
     var qty    = parseInt(document.getElementById('qty-in').value) || 1;
     var gm     = (typeof manualGM !== 'undefined' && manualGM !== null) ? manualGM
                  : (typeof getCategoryGM === 'function' ? getCategoryGM(pseudo, qty) : 0.40);
     var retail = typeof calcRetail === 'function'
                  ? calcRetail(pseudo.cost, gm, pseudo.fixedRetail)
                  : (pseudo.fixedRetail || Math.round(pseudo.cost / (1 - gm)));
-
     lines.push(Object.assign({}, pseudo, { qty: qty, retail: retail, gm: gm, lineId: Date.now() }));
     if (typeof recalcLines  === 'function') recalcLines();
     if (typeof renderLines  === 'function') renderLines();
     if (typeof renderSummary === 'function') renderSummary();
     document.getElementById('qty-in').value = 1;
     closeInv();
-
-    // Toast
     var t = document.getElementById('_invToast');
     if (!t) {
       t = document.createElement('div');
@@ -473,7 +771,8 @@ document.addEventListener('DOMContentLoaded', function() {
     t._to = setTimeout(function() { t.style.opacity = '0'; }, 2500);
   }
 
-  // Close modal on backdrop click
+  function closeInv() { modal.style.display = 'none'; }
+
   modal.addEventListener('click', function(e) {
     if (e.target === modal) closeInv();
   });
