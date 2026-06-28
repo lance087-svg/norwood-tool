@@ -49,24 +49,21 @@
   }
 
   async function loadDeliveries(days) {
-    // Simple query — no composite index needed, filter/sort in JS
-    const { collection, query, where, getDocs } =
+    // Simplest possible query — get ALL deliveries, filter in JS
+    const { collection, getDocs } =
       await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const db = await getDB();
     const today = new Date().toISOString().slice(0,10);
     const future = new Date(); future.setDate(future.getDate() + (days||7));
     const futureStr = future.toISOString().slice(0,10);
-    // Single where clause — no composite index required
-    const q = query(
-      collection(db, "deliveries"),
-      where("deliveryDate", ">=", today)
-    );
-    const snap = await getDocs(q);
+    const snap = await getDocs(collection(db, "deliveries"));
     const results = [];
     snap.forEach(d => {
       const rec = { id: d.id, ...d.data() };
-      // Filter to 7-day window in JS
-      if (rec.deliveryDate <= futureStr) results.push(rec);
+      // Filter to today + 7 days in JS, exclude old cancelled
+      if (rec.deliveryDate && rec.deliveryDate >= today && rec.deliveryDate <= futureStr) {
+        results.push(rec);
+      }
     });
     // Sort by date then stop order in JS
     results.sort((a,b) => {
