@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Norwood — One-Time Salvage Cleanup</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;background:#f5f2ea;margin:0;padding:20px;color:#1a1008}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#6b5a3a;font-size:13px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #e0d8c4;border-radius:10px;padding:16px;margin-bottom:14px}
+  .item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0ead8;font-size:13px}
+  .item:last-child{border-bottom:none}
+  .sku{font-family:monospace;font-weight:700;color:#e65100;white-space:nowrap}
+  .btn{padding:12px 22px;border-radius:6px;border:none;font-size:14px;font-weight:700;cursor:pointer}
+  .btn-danger{background:#c0392b;color:#fff}
+  .btn-danger:disabled{background:#ccc;cursor:not-allowed}
+  .btn-scan{background:#1E70B8;color:#fff}
+  #status{font-size:13px;margin-top:10px;font-weight:600}
+  .ok{color:#2d6a30}.err{color:#c0392b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧹 One-Time Salvage Cleanup</h1>
+  <div class="sub">Removes salvage items from the live inventory database (Firestore <b>norwood</b> collection). Your standalone salvage page (salvage.html) is NOT affected — it has its own data and photos. Delete this file from GitHub when done.</div>
+
+  <div class="card">
+    <button class="btn btn-scan" onclick="scan()">1️⃣ Scan for Salvage Items</button>
+    <div id="status"></div>
+    <div id="list" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <button class="btn btn-danger" id="delBtn" disabled onclick="deleteAll()">2️⃣ Delete All Listed Items</button>
+    <div style="font-size:12px;color:#6b5a3a;margin-top:8px">Only enabled after a scan. Deletion is permanent — a backup JSON downloads automatically first.</div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+  authDomain: "norwood-supply.firebaseapp.com",
+  projectId: "norwood-supply",
+  storageBucket: "norwood-supply.firebasestorage.app",
+  messagingSenderId: "933963197210",
+  appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3",
+  measurementId: "G-6QWRWPECGH"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+let matches = [];
+
+function isSalvage(d){
+  return d.type === 'salvage' || d.isSalvage || d.salvageType ||
+         String(d.sku||'').indexOf('SALVAGE-') === 0 ||
+         String(d.vendor||'') === 'Salvage';
+}
+
+async function scan(){
+  const st = document.getElementById('status');
+  st.textContent = 'Scanning...'; st.className='';
+  try{
+    const snap = await db.collection('norwood').get();
+    matches = [];
+    snap.forEach(doc => {
+      if (doc.id.indexOf('__') === 0) return;
+      const d = doc.data();
+      if (isSalvage(d)) matches.push({ id: doc.id, data: d });
+    });
+    const list = document.getElementById('list');
+    if (!matches.length){
+      st.textContent = '✅ No salvage items found in inventory. Nothing to do.'; st.className='ok';
+      list.innerHTML = '';
+      return;
+    }
+    st.textContent = 'Found ' + matches.length + ' salvage item(s):'; st.className='ok';
+    list.innerHTML = matches.map(m =>
+      '<div class="item"><span class="sku">' + m.id + '</span><span>' +
+      (m.data.description||'(no description)').slice(0,90) + '</span><span>$' +
+      (parseFloat(m.data.price)||0).toFixed(0) + '</span></div>'
+    ).join('');
+    document.getElementById('delBtn').disabled = false;
+  }catch(e){
+    st.textContent = '❌ ' + e.message; st.className='err';
+  }
+}
+
+async function deleteAll(){
+  if (!matches.length) return;
+  if (!confirm('Permanently delete ' + matches.length + ' salvage items from the inventory database?\n\nA backup file will download first. salvage.html is not affected.')) return;
+  // backup first
+  const blob = new Blob([JSON.stringify(matches, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'salvage_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+
+  const st = document.getElementById('status');
+  const btn = document.getElementById('delBtn');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+  for (const m of matches){
+    try{ await db.collection('norwood').doc(m.id).delete(); done++; }
+    catch(e){ failed++; }
+    st.textContent = 'Deleting... ' + done + '/' + matches.length;
+  }
+  st.textContent = '✅ Deleted ' + done + ' item(s)' + (failed ? ', ' + failed + ' failed' : '') + '. You can now delete remove-salvage.html from GitHub.';
+  st.className = failed ? 'err' : 'ok';
+  matches = [];
+  document.getElementById('list').innerHTML = '';
+}
+</script>
+</body>
+</html>

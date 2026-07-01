@@ -458,7 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
           '<button class="invChip" data-cat="MW" onclick="setInvCat(\'MW\',this)">Millwork</button>',
           '<button class="invChip" data-cat="LB" onclick="setInvCat(\'LB\',this)">Lumber</button>',
           '<button class="invChip" data-cat="HW" onclick="setInvCat(\'HW\',this)">Hardware</button>',
-          '<button class="invChip" data-cat="SAL" onclick="setInvCat(\'SAL\',this)">🏷️ Salvage</button>',
         '</div>',
       '</div>',
       '<div id="invList" style="overflow-y:auto;padding:12px 14px;flex:1;"></div>',
@@ -496,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var listEl = document.getElementById('invList');
     if (!listEl) return;
     var filtered = _inv.filter(function(item) {
-      if (_invCat === 'SAL') return item.isSalvage || item.type === 'salvage';
       if (_invCat !== 'ALL' && item.category !== _invCat) return false;
       if (!q) return true;
       return (item.description || '').toLowerCase().indexOf(q) > -1 ||
@@ -525,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         photoEl = document.createElement('div');
         photoEl.style.cssText = 'width:48px;height:48px;border-radius:6px;background:#f0f3f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;';
-        photoEl.textContent = item.isSalvage || item.type === 'salvage' ? '🏷️' : '📦';
+        photoEl.textContent = '📦';
       }
       var info = document.createElement('div');
       info.style.cssText = 'flex:1;min-width:0;';
@@ -536,12 +534,6 @@ document.addEventListener('DOMContentLoaded', function() {
         noTag.style.cssText = 'background:#1E70B8;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;';
         noTag.textContent = '#' + item.itemNo;
         skuLine.appendChild(noTag);
-      }
-      if (item.isSalvage || item.type === 'salvage') {
-        var salvTag = document.createElement('span');
-        salvTag.style.cssText = 'background:#fff3e0;color:#e65100;border:1px solid #e65100;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;';
-        salvTag.textContent = '🏷️ SALVAGE';
-        skuLine.appendChild(salvTag);
       }
       skuLine.appendChild(document.createTextNode(item.sku || ''));
       var descLine = document.createElement('div');
@@ -614,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
         .filter(function(d) {
           if (d.id.indexOf('__') === 0) return false;
-          if (d.isSalvage || d.type === 'salvage') return true;
+          if (d.isSalvage || d.type === 'salvage' || d.salvageType || String(d.sku||'').indexOf('SALVAGE-') === 0) return false;
           return valid.indexOf(d.category) > -1 || (d.sku && d.description);
         })
         .sort(function(a, b) {
