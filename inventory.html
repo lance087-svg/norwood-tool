@@ -884,10 +884,6 @@
     <label>Initial QOH (Quantity on Hand)</label>
     <input type="number" id="itemQOH" placeholder="0" min="0" step="1" value="0"/>
 
-    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;">
-      <input type="checkbox" id="itemIsSalvage" style="width:18px;height:18px;cursor:pointer;accent-color:#e65100;"/>
-      <label for="itemIsSalvage" style="margin:0;font-weight:700;color:#e65100;cursor:pointer;font-size:0.9rem;">🏷️ Salvage / Used Item</label>
-    </div>
   </div>
 
   <!-- ACTIONS -->
@@ -921,16 +917,9 @@
     <div class="chip" data-cat="HW" onclick="filterCat(this)">Hardware</div>
   </div>
 
-  <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-    <span style="font-size:0.78rem;font-weight:700;color:#888;text-transform:uppercase;white-space:nowrap;">Show:</span>
-    <div class="chip salvage-chip active" data-sv="ALL" onclick="filterSalvage(this)" style="font-size:0.8rem;padding:5px 12px;">All Items</div>
-    <div class="chip salvage-chip" data-sv="REGULAR" onclick="filterSalvage(this)" style="font-size:0.8rem;padding:5px 12px;">Regular Only</div>
-    <div class="chip salvage-chip" data-sv="SALVAGE" onclick="filterSalvage(this)" style="font-size:0.8rem;padding:5px 12px;background:#fff3e0;color:#e65100;border-color:#e65100;">🏷️ Salvage Only</div>
-  </div>
 
   <!-- Utility links (minimized) -->
   <div style="display:flex;gap:16px;margin-bottom:10px;padding:4px 2px;">
-    <span onclick="importSalvageItems()" style="font-size:0.68rem;color:#bbb;cursor:pointer;text-decoration:underline;white-space:nowrap;">Import Salvage Items</span>
     <span onclick="assignAllItemNumbers()" style="font-size:0.68rem;color:#bbb;cursor:pointer;text-decoration:underline;white-space:nowrap;">Assign Item Numbers</span>
   </div>
 
@@ -1251,7 +1240,6 @@ let currentPhoto = null;
 let currentPhotoBase64 = null;
 let allItems = [];
 let activeCatFilter = 'ALL';
-let activeSalvageFilter = 'ALL'; // ALL | SALVAGE | REGULAR
 let countItem = null;
 let currentQty = 0;
 let recentCountsList = [];
@@ -1448,96 +1436,6 @@ async function getNextItemNo() {
 }
 
 // ── ASSIGN ITEM NUMBERS TO EXISTING ITEMS ──
-async function importSalvageItems() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
-  if (!confirm('Import 38 salvage items from salvage.html into inventory? Each will be marked as a Salvage item. This should only be done once.')) return;
-
-  const salvageData = [
-    { cat:'HW',  desc:'Lomanco OmniRidge Pro 4ft Shingle Over Ridge Vent Model PR04-N, 10 pieces per box', price:25 },
-    { cat:'DR',  desc:'32" x 80" White interior bifold door slabs - various styles including 2-panel and arched top, primed/painted white', price:25 },
-    { cat:'DR',  desc:'36" x 80" White 2-Panel Arch Top Interior Door (Bifold/Narrow Panel)', price:35 },
-    { cat:'DR',  desc:'30" x 80" Masonite Louvered Bifold Door Unit, Natural Pine, Full Louver', price:55 },
-    { cat:'DR',  desc:'32" x 80" Masonite Bifold Door Unit Louvered Pine', price:55 },
-    { cat:'DR',  desc:'36" x 80" Masonite Bifold Door Unit Louvered Pine - 2 Panel', price:65 },
-    { cat:'DR',  desc:'32" x 80" Full Louvre Bifold Closet Door Unit White', price:45 },
-    { cat:'DR',  desc:'36" x 80" Masonite Primed White Full Louvered 2-Door Bifold Door Unit', price:75 },
-    { cat:'DR',  desc:'28" x 80" 6-Panel Interior Wood Door, Unfinished', price:125 },
-    { cat:'DR',  desc:'Fiberglass exterior door slab only 36" x 80" with decorative leaded glass insert', price:225 },
-    { cat:'DR',  desc:'Fiberglass door only 36" x 80" with full glass panel insert, white frame', price:125 },
-    { cat:'DR',  desc:'White exterior door with decorative glass insert and grid pattern 36" x 80"', price:180 },
-    { cat:'DR',  desc:'Fiberglass exterior door slab 36" x 80" with decorative leaded glass panel and black metal grid', price:180 },
-    { cat:'DR',  desc:'White exterior door with full-length mini blind 36" x 80"', price:225 },
-    { cat:'DR',  desc:'Fiberglass exterior door with full-length decorative glass panel 36" x 80"', price:200 },
-    { cat:'DR',  desc:'30" x 80" 1-lite exterior door slab with light wood frame', price:175 },
-    { cat:'DR',  desc:'24" x 80" wood 1-lite clear glass panel door fir', price:175 },
-    { cat:'DR',  desc:'36" x 80" wood exterior door with 9-lite glass panel upper section and solid wood lower panel', price:225 },
-    { cat:'DR',  desc:'32" x 80" 15-lite glass panel exterior fir door slab only', price:75 },
-    { cat:'DR',  desc:'32" x 80" fir fanlight door with 4-panel design', price:175 },
-    { cat:'DR',  desc:'30" x 80" fiberglass insert slab only one light', price:45 },
-    { cat:'DR',  desc:'34" x 80" modern design slab only Fiberglass', price:175 },
-    { cat:'DR',  desc:'36" x 80" craftsman style, one light slab only', price:125 },
-    { cat:'DR',  desc:'36" x 80" fiberglass slab with decorative insert', price:100 },
-    { cat:'DR',  desc:'36" x 80" pantry style, half glass', price:150 },
-    { cat:'HW',  desc:'Butyl tape / flashing tape rolls', price:20 },
-    { cat:'DR',  desc:'33.5" x 78" fan lite slab', price:100 },
-    { cat:'DR',  desc:'36" x 80" pantry design 1/2 glass', price:100 },
-    { cat:'DR',  desc:'36" x 80" fiberglass slab', price:250 },
-    { cat:'DR',  desc:'32" x 80" decorative glass silver grids full light', price:150 },
-    { cat:'DR',  desc:'30" x 80" Pembrook decorative style', price:150 },
-    { cat:'DR',  desc:'36" x 80" fiberglass 6-lite gbg', price:100 },
-    { cat:'DR',  desc:'32" x 80" frosted impact glass slabs only', price:250 },
-    { cat:'DR',  desc:'28" x 80" reeded glass door slab only', price:200 },
-    { cat:'DR',  desc:'32" x 80" reeded glass door slab only', price:200 },
-    { cat:'DR',  desc:'30" x 80" reeded glass door slab only', price:200 },
-    { cat:'DR',  desc:'24" x 80" reeded glass door slab only', price:200 },
-    { cat:'DR',  desc:'36" x 80" two-panel fiberglass glass slab only exterior', price:125 }
-  ];
-
-  let imported = 0, failed = 0, updated = 0;
-  const btn = document.querySelector('#salvageImportTool button');
-  btn.textContent = 'Importing...';
-  btn.disabled = true;
-
-  for (let i = 0; i < salvageData.length; i++) {
-    const d = salvageData[i];
-    const sku = 'SALVAGE-' + String(i + 1).padStart(3, '0');
-    try {
-      const existing = await db.collection('norwood').doc(sku).get();
-      if (existing.exists) {
-        // Already imported — make sure cost is set to $50
-        if ((existing.data().cost || 0) !== 50) {
-          await db.collection('norwood').doc(sku).update({ cost: 50, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-          updated++;
-        }
-        imported++;
-        continue;
-      }
-      await db.collection('norwood').doc(sku).set({
-        sku,
-        description: d.desc,
-        category: d.cat,
-        price: d.price,
-        cost: 50,
-        qoh: 1,
-        isSalvage: true,
-        vendor: 'Salvage',
-        notes: 'Imported from salvage.html',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      imported++;
-    } catch(e) {
-      console.error('Failed to import', sku, e);
-      failed++;
-    }
-  }
-
-  btn.textContent = 'Import Salvage Items';
-  btn.disabled = false;
-  alert(`Done! ${imported} salvage items processed${updated ? ' (' + updated + ' updated to $50 cost)' : ''}${failed ? ', ' + failed + ' failed' : ''}. Refreshing inventory...`);
-  document.getElementById('salvageImportTool').style.display = 'none';
-  loadInventory();
-}
 
 async function assignAllItemNumbers() {
   if (!firebaseReady) { showToast('Firebase not connected', 'error'); return; }
@@ -1715,7 +1613,6 @@ async function saveItem(andPrint = false) {
     price,
     gm: cost > 0 && price > 0 ? parseFloat(((price - cost) / price * 100).toFixed(1)) : currentGM,
     qoh,
-    isSalvage: document.getElementById('itemIsSalvage').checked,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     hasPhoto: !!currentPhotoBase64
@@ -1779,7 +1676,6 @@ function resetForm() {
     if (el) el.value = '';
   });
   document.getElementById('itemQOH').value = '0';
-  document.getElementById('itemIsSalvage').checked = false;
   document.getElementById('skuDisplay').textContent = '—';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('photoPlaceholder').style.display = 'block';
@@ -1995,8 +1891,8 @@ async function loadInventory() {
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(d => {
         if (d.id.startsWith('__')) return false;
-        // Include salvage items always
-        if (d.type === 'salvage' || d.isSalvage || d.salvageType) return true;
+        // Exclude salvage items — managed in the standalone salvage tool
+        if (d.type === 'salvage' || d.isSalvage || d.salvageType || String(d.sku||'').indexOf('SALVAGE-') === 0) return false;
         // Include regular items with valid category or sku+description
         return validCats.includes(d.category) || (d.sku && d.description);
       })
@@ -2015,9 +1911,6 @@ function renderItems() {
   const search = (document.getElementById('searchInput').value || '').toLowerCase();
   let items = allItems;
   if (activeCatFilter !== 'ALL') items = items.filter(i => i.category === activeCatFilter);
-  // Salvage filter
-  if (activeSalvageFilter === 'SALVAGE') items = items.filter(i => i.isSalvage || i.type === 'salvage' || i.salvageType);
-  if (activeSalvageFilter === 'REGULAR') items = items.filter(i => !i.isSalvage && i.type !== 'salvage' && !i.salvageType);
   if (search) items = items.filter(i =>
     i.sku?.toLowerCase().includes(search) ||
     i.description?.toLowerCase().includes(search) ||
@@ -2037,18 +1930,16 @@ function renderItems() {
   list.innerHTML = items.map(item => {
     const qoh = item.qoh ?? 0;
     const qohClass = qoh === 0 ? 'zero' : qoh < 3 ? 'low' : 'good';
-    const isSalvage = item.isSalvage || item.type === 'salvage' || item.salvageType;
     const photoSrc = item.photoBase64 || item.thumbnail || null;
     const photoHTML = photoSrc
       ? `<img src="data:image/jpeg;base64,${photoSrc}" alt="photo" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #ddd;">`
       : `<div style="width:56px;height:56px;border-radius:6px;background:#f0f0f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;">📦</div>`;
     const itemNoDisplay = item.itemNo ? `<span style="background:#1E70B8;color:#fff;font-size:0.78rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-right:6px;">No. ${item.itemNo}</span>` : '';
-    const salvageBadge = isSalvage ? `<span style="background:#fff3e0;color:#e65100;border:1px solid #e65100;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:4px;margin-right:6px;letter-spacing:0.03em;">🏷️ SALVAGE</span>` : '';
     return `<div class="inv-item" style="display:flex;gap:10px;align-items:center;">
       <div onclick="openItem('${item.sku}')" style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;cursor:pointer;">
         ${photoHTML}
         <div style="flex:1;min-width:0;">
-          <div class="inv-item-sku">${itemNoDisplay}${salvageBadge}${item.sku}</div>
+          <div class="inv-item-sku">${itemNoDisplay}${item.sku}</div>
           <div class="inv-item-desc">${item.description || '—'}</div>
           <div class="inv-item-meta" style="flex-wrap:wrap;gap:8px;align-items:center;">
             <span>Cost: <strong>$${(item.cost||0).toFixed(2)}</strong></span>
@@ -2098,22 +1989,12 @@ function renderItems() {
 function filterItems() { renderItems(); }
 
 function filterCat(el) {
-  document.querySelectorAll('.chip:not(.salvage-chip)').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   activeCatFilter = el.dataset.cat;
   renderItems();
 }
 
-function filterSalvage(el) {
-  document.querySelectorAll('.salvage-chip').forEach(c => {
-    c.classList.remove('active');
-    if (c.dataset.sv === 'SALVAGE') { c.style.background='#fff3e0'; c.style.color='#e65100'; }
-    else { c.style.background=''; c.style.color=''; }
-  });
-  el.classList.add('active');
-  activeSalvageFilter = el.dataset.sv;
-  renderItems();
-}
 
 let detailItem = null;
 
@@ -2677,7 +2558,6 @@ function editItem(sku) {
   document.getElementById('itemCost').value     = item.cost || '';
   document.getElementById('itemPrice').value    = item.price || '';
   document.getElementById('itemQOH').value      = item.qoh || 0;
-  document.getElementById('itemIsSalvage').checked = !!(item.isSalvage || item.type === 'salvage' || item.salvageType);
   if (item.gm) setGM(item.gm);
   if (item.photoBase64) {
     const preview = document.getElementById('photoPreview');
