@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Norwood Supply — Live Inventory Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ══════════════════════════════════════════════════
+     NORWOOD SUPPLY — LIVE INVENTORY BOARD
+     Customer-facing display for showroom TV.
+     Shows: Item #, Description, Location, Stock, Price
+     Never shows: cost, GM, vendor, notes
+     ══════════════════════════════════════════════════ */
+  :root {
+    --board-bg: #0d1b2a;          /* deep navy, easy on eyes across a room */
+    --board-bg2: #10233a;
+    --panel: #14283f;
+    --line: rgba(255,255,255,0.08);
+    --norwood-blue: #1E70B8;
+    --norwood-blue-bright: #4da3e8;
+    --text: #f2f6fa;
+    --text-dim: #9db2c7;
+    --green: #35c46a;
+    --green-dark: rgba(53,196,106,0.16);
+    --amber: #ffb84d;
+    --amber-dark: rgba(255,184,77,0.16);
+    --price: #ffffff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background: linear-gradient(180deg, var(--board-bg) 0%, var(--board-bg2) 100%);
+    color: var(--text);
+    font-family: 'Barlow', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── HEADER BAR ── */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 1.2vh 2.5vw;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 3px solid var(--norwood-blue);
+  }
+  .brand { display:flex; align-items:baseline; gap:1.2vw; }
+  .brand .name {
+    font-family:'Barlow Condensed', Arial, sans-serif;
+    font-weight:700; font-size:3.4vh; letter-spacing:0.04em;
+    text-transform:uppercase; color:#fff;
+  }
+  .brand .live {
+    display:flex; align-items:center; gap:0.5vw;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:2.2vh; letter-spacing:0.14em;
+    text-transform:uppercase; color: var(--norwood-blue-bright);
+  }
+  .dot {
+    width:1.3vh; height:1.3vh; border-radius:50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(53,196,106,0.55); }
+    70% { box-shadow: 0 0 0 1.2vh rgba(53,196,106,0); }
+    100% { box-shadow: 0 0 0 0 rgba(53,196,106,0); }
+  }
+  .meta { text-align:right; }
+  /* ── SEARCH ── */
+  .search-wrap {
+    position:relative; display:flex; align-items:center;
+    width: 26vw; min-width: 220px;
+  }
+  #search {
+    width:100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 100px;
+    color:#fff;
+    font-family:'Barlow', sans-serif;
+    font-size:2.3vh; font-weight:500;
+    padding: 1.1vh 4.5vh 1.1vh 2vw;
+    outline:none;
+  }
+  #search::placeholder { color: var(--text-dim); }
+  #search:focus { border-color: var(--norwood-blue-bright); background: rgba(255,255,255,0.12); }
+  #searchClear {
+    position:absolute; right:1vh;
+    width:3.2vh; height:3.2vh; border-radius:50%;
+    border:none; cursor:pointer;
+    background: rgba(255,255,255,0.15); color:#fff;
+    font-size:1.8vh; line-height:1;
+    display:none;
+  }
+  #searchClear.show { display:block; }
+  .search-count {
+    position:absolute; right:-0.5vw; top: calc(100% + 0.5vh);
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:1.8vh; letter-spacing:0.08em; text-transform:uppercase;
+    color: var(--norwood-blue-bright); white-space:nowrap;
+  }
+  .meta .clock {
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:3vh; color:#fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .meta .contact { font-size:1.7vh; color: var(--text-dim); margin-top:0.3vh; }
+
+  /* ── COLUMN HEADINGS (fixed) ── */
+  .colhead {
+    display:grid;
+    grid-template-columns: 9vw 1fr 14vw 15vw 13vw;
+    gap: 1.5vw;
+    padding: 1vh 2.5vw 0.8vh;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:2.2vh; letter-spacing:0.12em;
+    text-transform:uppercase; color: var(--text-dim);
+    border-bottom: 1px solid var(--line);
+  }
+  .colhead .r { text-align:right; }
+  .colhead .c { text-align:center; }
+
+  /* ── SCROLLING BOARD ── */
+  #board {
+    height: calc(100vh - 15vh);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #board::-webkit-scrollbar { display:none; }
+
+  .cat-band {
+    display:flex; align-items:center; gap:1.5vw;
+    padding: 1.6vh 2.5vw 1vh;
+    margin-top: 1vh;
+  }
+  .cat-band .label {
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700; font-size:3.7vh; letter-spacing:0.1em;
+    text-transform:uppercase; color: var(--norwood-blue-bright);
+    white-space:nowrap;
+  }
+  .cat-band .rule { flex:1; height:2px; background: linear-gradient(90deg, var(--norwood-blue), transparent); }
+  .cat-band.salvage .label { color: var(--amber); }
+  .cat-band.salvage .rule { background: linear-gradient(90deg, var(--amber), transparent); }
+  .tag-salvage {
+    display:inline-block; margin-left:0.8vw; vertical-align:middle;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700; font-size:2vh; letter-spacing:0.12em;
+    color: var(--amber); border:1px solid rgba(255,184,77,0.5);
+    border-radius:4px; padding:0.2vh 0.6vw; text-transform:uppercase;
+  }
+  .cat-band .count {
+    font-size:1.9vh; color: var(--text-dim); white-space:nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .row {
+    display:grid;
+    grid-template-columns: 9vw 1fr 14vw 15vw 13vw;
+    gap: 1.5vw;
+    align-items:center;
+    padding: 1.8vh 2.5vw;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .row:hover { background: rgba(77,163,232,0.10); }
+  .row:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+  .itemno {
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:2.9vh;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .desc-wrap { display:flex; align-items:center; gap:1.2vw; min-width:0; }
+  .thumb {
+    width:8.5vh; height:8.5vh; border-radius:6px;
+    object-fit:cover; background: var(--panel);
+    flex-shrink:0; border:1px solid var(--line);
+  }
+  .thumb.empty { display:flex; align-items:center; justify-content:center;
+    font-size:3.6vh; color: rgba(255,255,255,0.15); }
+  .desc {
+    font-weight:600; font-size:3.1vh; line-height:1.25;
+    overflow:hidden; display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
+  .loc {
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:2.9vh; letter-spacing:0.05em;
+    color: var(--text); text-align:center;
+    text-transform:uppercase;
+  }
+  .loc.none { color: rgba(255,255,255,0.2); }
+
+  .stock { text-align:center; }
+  .pill {
+    display:inline-block;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700; font-size:2.6vh; letter-spacing:0.06em;
+    padding: 0.7vh 1.3vw; border-radius: 100px;
+    font-variant-numeric: tabular-nums;
+    white-space:nowrap;
+  }
+  .pill.in { background: var(--green-dark); color: var(--green); border:1px solid rgba(53,196,106,0.4); }
+  .pill.low { background: var(--amber-dark); color: var(--amber); border:1px solid rgba(255,184,77,0.4); }
+
+  .price {
+    text-align:right;
+    font-weight:700; font-size:3.9vh; color: var(--price);
+    font-variant-numeric: tabular-nums;
+  }
+  .price .cents { font-size:2.4vh; vertical-align:super; }
+
+  /* ── FOOTER TICKER ── */
+  footer {
+    position:fixed; bottom:0; left:0; right:0;
+    height: 4.6vh;
+    display:flex; align-items:center; justify-content:center; gap:2vw;
+    background: rgba(0,0,0,0.4);
+    border-top: 1px solid var(--line);
+    font-size:1.9vh; color: var(--text-dim);
+  }
+  footer b { color:#fff; font-weight:600; }
+
+  /* ── ITEM DETAIL OVERLAY ── */
+  #detail {
+    position:fixed; inset:0; z-index:40;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(4,10,18,0.82);
+  }
+  #detail.open { display:flex; }
+  .detail-card {
+    width: 72vw; max-height: 84vh;
+    background: var(--panel);
+    border: 1px solid rgba(77,163,232,0.35);
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display:grid; grid-template-columns: 42% 1fr;
+    overflow:hidden;
+  }
+  .detail-photo {
+    background:#0a1522; display:flex; align-items:center; justify-content:center;
+    min-height: 46vh;
+  }
+  .detail-photo img { width:100%; height:100%; max-height:84vh; object-fit:cover; }
+  .detail-photo .nopic { color: rgba(255,255,255,0.15); font-size:8vh; }
+  .detail-info { padding: 4vh 2.5vw; display:flex; flex-direction:column; gap:1.8vh; min-width:0; }
+  .detail-eyebrow {
+    font-family:'Barlow Condensed', sans-serif; font-weight:600;
+    font-size:2vh; letter-spacing:0.14em; text-transform:uppercase;
+    color: var(--norwood-blue-bright);
+  }
+  .detail-eyebrow.salv { color: var(--amber); }
+  .detail-title { font-weight:700; font-size:4vh; line-height:1.2; }
+  .detail-meta { display:flex; flex-wrap:wrap; gap:1.2vh 2.5vw; margin-top:0.5vh; }
+  .detail-meta .m .k {
+    font-family:'Barlow Condensed', sans-serif; font-weight:600;
+    font-size:1.8vh; letter-spacing:0.12em; text-transform:uppercase;
+    color: var(--text-dim); margin-bottom:0.4vh;
+  }
+  .detail-meta .m .v { font-size:2.8vh; font-weight:600; }
+  .detail-price {
+    margin-top:auto; font-weight:700; font-size:6.5vh; color:#fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .detail-price .cents { font-size:3.4vh; vertical-align:super; }
+  .detail-tax { font-size:1.9vh; color: var(--text-dim); margin-top:-1vh; }
+  .detail-close {
+    position:absolute; top:3vh; right:3vw;
+    width:6.5vh; height:6.5vh; border-radius:50%;
+    background: rgba(255,255,255,0.1); color:#fff;
+    border: 1px solid rgba(255,255,255,0.25);
+    font-size:3vh; cursor:pointer; line-height:1;
+  }
+  .detail-close:hover { background: rgba(255,255,255,0.22); }
+
+  /* ── PAUSED INDICATOR ── */
+  #pausedBadge {
+    position:fixed; bottom:6.5vh; right:2.5vw; z-index:30;
+    display:none; align-items:center; gap:0.8vw;
+    background: rgba(0,0,0,0.55); border:1px solid var(--line);
+    border-radius:100px; padding: 0.9vh 1.5vw;
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:600; font-size:2vh; letter-spacing:0.08em;
+    text-transform:uppercase; color: var(--text-dim);
+  }
+  #pausedBadge.show { display:flex; }
+
+  /* ── STATES ── */
+  #status {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:2vh;
+    background: var(--board-bg); z-index:50;
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:3.5vh; letter-spacing:0.08em; text-transform:uppercase;
+    color: var(--text-dim);
+  }
+  #status.hidden { display:none; }
+  .spinner {
+    width:6vh; height:6vh; border-radius:50%;
+    border: 0.6vh solid var(--line);
+    border-top-color: var(--norwood-blue-bright);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="name">Norwood Supply</span>
+    <span class="live"><span class="dot"></span>Live Inventory</span>
+  </div>
+  <div class="search-wrap">
+    <input id="search" type="text" placeholder="Search doors, item #, location…" autocomplete="off">
+    <button id="searchClear" aria-label="Clear search" onclick="clearSearch()">✕</button>
+    <span class="search-count" id="searchCount"></span>
+  </div>
+  <div class="meta">
+    <div class="clock" id="clock">—</div>
+    <div class="contact">6200 Norwood Ave, Jacksonville &nbsp;·&nbsp; (904) 768-6818</div>
+  </div>
+</header>
+
+<div class="colhead">
+  <div>Item #</div>
+  <div>Description</div>
+  <div class="c">Location</div>
+  <div class="c">Stock</div>
+  <div class="r">Price</div>
+</div>
+
+<div id="board"></div>
+
+<footer>
+  <span><b>Doors · Millwork · Building Materials</b></span>
+  <span>Mon–Fri 7:30–5 &nbsp;·&nbsp; Sat 8:30–12</span>
+  <span>norwoodsupply.com</span>
+  <span id="itemCount"></span>
+  <span style="opacity:0.35;font-variant-numeric:tabular-nums;">v7</span>
+</footer>
+
+<div id="detail" onclick="if(event.target===this)closeDetail()">
+  <button class="detail-close" onclick="closeDetail()" aria-label="Close">✕</button>
+  <div class="detail-card" id="detailCard"></div>
+</div>
+
+<div id="pausedBadge">⏸ Paused — auto-scroll resumes shortly</div>
+
+<div id="status">
+  <div class="spinner"></div>
+  <div>Loading live inventory…</div>
+</div>
+
+<!-- Firebase v8 (same as inventory.html) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script>
+// ════════════════════════════════════════════
+//  FIRESTORE CONFIG (same project as the tool)
+// ════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+  authDomain: "norwood-supply.firebaseapp.com",
+  projectId: "norwood-supply",
+  storageBucket: "norwood-supply.firebasestorage.app",
+  messagingSenderId: "933963197210",
+  appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3",
+  measurementId: "G-6QWRWPECGH"
+};
+
+let db;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch(e) {
+  document.getElementById('status').innerHTML = '<div>Could not connect — check WiFi</div>';
+}
+
+// ── CATEGORY LABELS & ORDER ──
+const CATS = { DR:'Doors', MW:'Millwork', LB:'Lumber', HW:'Hardware' };
+const CAT_ORDER = ['DR','MW','LB','HW'];
+
+// ── OPTIONS (tweak via URL if ever needed) ──
+const params = new URLSearchParams(location.search);
+const SHOW_PHOTOS = params.get('photos') !== 'off';   // display.html?photos=off to disable
+const LOW_STOCK_AT = 5;                               // qoh below this shows amber LOW pill
+const SCROLL_SPEED = parseFloat(params.get('speed')) || 0.33;  // px per frame (~20px/sec, calm drift)
+const IDLE_RESUME_MS = 30000;                         // resume auto-scroll 30s after the last touch
+const END_PAUSE_MS = 5000;                            // pause at top/bottom of list
+
+// ── LIVE DATA ──
+function fmtPrice(p) {
+  const n = parseFloat(p) || 0;
+  const dollars = Math.floor(n);
+  const cents = Math.round((n - dollars) * 100);
+  return '$' + dollars.toLocaleString() + '<span class="cents">' + String(cents).padStart(2,'0') + '</span>';
+}
+
+// Regular inventory photos are raw base64 (no prefix); salvage photos are full data URLs.
+function thumbHTML(src, isDataUrl) {
+  if (!SHOW_PHOTOS) return '';
+  if (!src) return '<div class="thumb empty">▢</div>';
+  const full = isDataUrl ? src : 'data:image/jpeg;base64,' + src;
+  return '<img class="thumb" src="' + full.replace(/"/g,'&quot;') + '" alt="">';
+}
+
+function stockPill(n) {
+  const low = n < LOW_STOCK_AT;
+  return '<span class="pill ' + (low?'low':'in') + '">' + (low ? 'Low Stock · ' + n : 'In Stock · ' + n) + '</span>';
+}
+
+function render(items, salvage) {
+  const board = document.getElementById('board');
+  let html = '';
+  DETAILS = [];
+
+  // ── REGULAR INVENTORY BY CATEGORY ──
+  const groups = {};
+  items.forEach(it => {
+    const c = CATS[it.category] ? it.category : 'ZZ';
+    (groups[c] = groups[c] || []).push(it);
+  });
+  const order = CAT_ORDER.concat(Object.keys(groups).filter(c => CAT_ORDER.indexOf(c) < 0).sort());
+  order.forEach(cat => {
+    const list = groups[cat];
+    if (!list || !list.length) return;
+    list.sort((a,b) => (a.description||'').localeCompare(b.description||''));
+    const label = CATS[cat] || 'More Items';
+    html += '<div class="cat-band"><span class="label">' + label + '</span><span class="rule"></span><span class="count">' + list.length + ' item' + (list.length===1?'':'s') + '</span></div>';
+    list.forEach(it => {
+      const loc = (it.location||'').trim();
+      const qoh = parseInt(it.qoh) || 0;
+      const raw = it.photoBase64 || it.thumbnail || '';
+      const di = DETAILS.push({
+        photo: raw ? 'data:image/jpeg;base64,' + raw : '',
+        eyebrow: label + (it.itemNo ? ' · No. ' + it.itemNo : ''),
+        salv: false,
+        title: it.description || '',
+        meta: [ ['Location', loc || '—'], ['Stock', qoh + ' on hand'] ],
+        price: it.price
+      }) - 1;
+      html += '<div class="row" data-d="' + di + '">'
+        + '<div class="itemno">' + (it.itemNo || '—') + '</div>'
+        + '<div class="desc-wrap">' + thumbHTML(it.photoBase64 || it.thumbnail, false) + '<div class="desc">' + escapeHtml(it.description||'') + '</div></div>'
+        + '<div class="loc' + (loc?'':' none') + '">' + (escapeHtml(loc) || '—') + '</div>'
+        + '<div class="stock">' + stockPill(qoh) + '</div>'
+        + '<div class="price">' + fmtPrice(it.price) + '</div>'
+        + '</div>';
+    });
+  });
+
+  // ── SALVAGE & B-GRADE DEALS (closes out the board) ──
+  if (salvage.length) {
+    html += '<div class="cat-band salvage"><span class="label">Salvage &amp; B-Grade Deals</span><span class="rule"></span><span class="count">' + salvage.length + ' deal' + (salvage.length===1?'':'s') + '</span></div>';
+    salvage.forEach(it => {
+      const qty = parseInt(it.qty) || 0;
+      const cond = (it.condition||'').trim();
+      const di = DETAILS.push({
+        photo: it.photo || '',
+        eyebrow: 'Salvage & B-Grade' + (it.salvNo ? ' · #' + it.salvNo : ''),
+        salv: true,
+        title: it.title || it.description || '',
+        meta: [ ['Condition', cond || '—'], ['Available', qty + ' in stock'] ],
+        price: it.price
+      }) - 1;
+      html += '<div class="row" data-d="' + di + '">'
+        + '<div class="itemno">' + escapeHtml(it.salvNo ? '#' + it.salvNo : '—') + '</div>'
+        + '<div class="desc-wrap">' + thumbHTML(it.photo, true) + '<div class="desc">' + escapeHtml(it.title||it.description||'') + '<span class="tag-salvage">Salvage</span></div></div>'
+        + '<div class="loc' + (cond?'':' none') + '">' + (escapeHtml(cond) || '—') + '</div>'
+        + '<div class="stock">' + stockPill(qty) + '</div>'
+        + '<div class="price">' + fmtPrice(it.price) + '</div>'
+        + '</div>';
+    });
+  }
+
+
+  board.innerHTML = html || '<div style="padding:6vh;text-align:center;color:var(--text-dim);font-size:3vh;">No items in stock right now — check back soon.</div>';
+  document.getElementById('itemCount').textContent = (items.length + salvage.length) + ' items live';
+  document.getElementById('status').classList.add('hidden');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function isSalvageDoc(d) {
+  return d.type === 'salvage' || d.isSalvage === true || !!d.salvageType ||
+         String(d.sku||'').indexOf('SALVAGE-') === 0;
+}
+
+let ALL_ITEMS = [], ALL_SALVAGE = [];
+let searchQuery = '';
+
+function itemHaystack(it) {
+  return [it.description, it.title, it.itemNo, it.salvNo, it.sku, it.location,
+          it.condition, CATS[it.category] || it.category]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+function applyFilter() {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) {
+    render(ALL_ITEMS, ALL_SALVAGE);
+    document.getElementById('searchCount').textContent = '';
+    return;
+  }
+  const terms = q.split(/\s+/);
+  const match = it => { const h = itemHaystack(it); return terms.every(t => h.indexOf(t) >= 0); };
+  const fi = ALL_ITEMS.filter(match);
+  const fs = ALL_SALVAGE.filter(match);
+  render(fi, fs);
+  const n = fi.length + fs.length;
+  document.getElementById('searchCount').textContent = n ? n + ' match' + (n===1?'':'es') : 'No matches';
+  document.getElementById('board').scrollTop = 0;
+}
+
+if (db) {
+  db.collection('norwood').onSnapshot(snap => {
+    const items = [], salvage = [];
+    snap.forEach(doc => {
+      if (doc.id.indexOf('__') === 0) return;        // skip metadata docs
+      const d = doc.data();
+      if (isSalvageDoc(d)) {
+        if (d.sold) return;                          // sold deals come off the board
+        if ((parseInt(d.qty) || 0) <= 0) return;
+        salvage.push(d);
+      } else {
+        if ((parseInt(d.qoh) || 0) <= 0) return;     // customer-facing: only in-stock items
+        items.push(d);
+      }
+    });
+    // newest salvage deals first, same as the salvage page
+    salvage.sort((a,b) => (Number(b.salvNo)||0) - (Number(a.salvNo)||0));
+    ALL_ITEMS = items;
+    ALL_SALVAGE = salvage;
+    applyFilter();
+  }, err => {
+    document.getElementById('status').classList.remove('hidden');
+    document.getElementById('status').innerHTML = '<div>Connection lost — retrying…</div>';
+  });
+}
+
+// ── ITEM DETAIL OVERLAY ──
+let DETAILS = [];
+let detailTimer = null;
+
+document.getElementById('board').addEventListener('click', e => {
+  const row = e.target.closest('.row');
+  if (!row || row.dataset.d === undefined) return;
+  showDetail(DETAILS[Number(row.dataset.d)]);
+});
+
+function showDetail(d) {
+  if (!d) return;
+  const photo = d.photo
+    ? '<img src="' + d.photo.replace(/"/g,'&quot;') + '" alt="">'
+    : '<div class="nopic">▢</div>';
+  const meta = d.meta.map(m =>
+    '<div class="m"><div class="k">' + escapeHtml(m[0]) + '</div><div class="v">' + escapeHtml(m[1]) + '</div></div>'
+  ).join('');
+  document.getElementById('detailCard').innerHTML =
+    '<div class="detail-photo">' + photo + '</div>'
+    + '<div class="detail-info">'
+    + '<div class="detail-eyebrow' + (d.salv ? ' salv' : '') + '">' + escapeHtml(d.eyebrow) + '</div>'
+    + '<div class="detail-title">' + escapeHtml(d.title) + '</div>'
+    + '<div class="detail-meta">' + meta + '</div>'
+    + '<div class="detail-price">' + fmtPrice(d.price) + '</div>'
+    + '<div class="detail-tax">Plus tax · Delivery available · Ask an associate</div>'
+    + '</div>';
+  document.getElementById('detail').classList.add('open');
+  pauseAuto();
+  clearTimeout(detailTimer);
+  detailTimer = setTimeout(closeDetail, 60000);   // auto-close after 60s so the board never gets stuck
+}
+
+function closeDetail() {
+  document.getElementById('detail').classList.remove('open');
+  clearTimeout(detailTimer);
+  resumeAuto();   // board picks right back up when the card closes
+}
+window.addEventListener('keydown', e => { if (e.key === 'Escape') setTimeout(closeDetail, 0); });
+
+// ── SEARCH WIRING ──
+const searchInput = document.getElementById('search');
+let searchDebounce = null;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    searchQuery = searchInput.value;
+    document.getElementById('searchClear').classList.toggle('show', !!searchQuery.trim());
+    applyFilter();
+  }, 150);
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { clearSearch(); searchInput.blur(); }
+  e.stopPropagation();   // typing shouldn't trigger the global pause handler twice
+});
+function clearSearch() {
+  searchInput.value = '';
+  searchQuery = '';
+  document.getElementById('searchClear').classList.remove('show');
+  applyFilter();
+  document.getElementById('board').scrollTop = 0;
+}
+
+// ── CLOCK ──
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'}) +
+    ' · ' +
+    now.toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'});
+}
+tick(); setInterval(tick, 15000);
+
+// ── AUTO-SCROLL (pauses when someone uses it) ──
+const board = document.getElementById('board');
+let paused = false;
+let lastInteraction = 0;
+let endPauseUntil = 0;
+
+function pauseAuto() {
+  paused = true;
+  lastInteraction = Date.now();
+  document.getElementById('pausedBadge').classList.add('show');
+}
+function resumeAuto() {
+  paused = false;
+  document.getElementById('pausedBadge').classList.remove('show');
+}
+['wheel','touchstart','touchmove','mousedown','keydown','pointerdown'].forEach(ev =>
+  window.addEventListener(ev, pauseAuto, { passive:true })
+);
+
+let scrollAcc = 0;   // fractional pixels bank up here until we have a whole one to move
+function autoScroll() {
+  // resume check lives in the loop itself — runs every frame, can never be lost
+  if (paused && Date.now() - lastInteraction >= IDLE_RESUME_MS) {
+    resumeAuto();
+    closeDetail();
+    if (searchQuery.trim()) clearSearch();   // abandoned search? back to the full board
+  }
+  if (!paused && !searchQuery.trim() && Date.now() > endPauseUntil) {
+    const max = board.scrollHeight - board.clientHeight;
+    if (max > 10) {
+      if (board.scrollTop >= max - 1) {
+        endPauseUntil = Date.now() + END_PAUSE_MS;
+        setTimeout(() => { if (!paused) { board.scrollTop = 0; scrollAcc = 0; } }, END_PAUSE_MS);
+      } else {
+        scrollAcc += SCROLL_SPEED;
+        if (scrollAcc >= 1) {
+          const step = Math.floor(scrollAcc);
+          board.scrollTop += step;
+          scrollAcc -= step;
+        }
+      }
+    }
+  }
+  requestAnimationFrame(autoScroll);
+}
+requestAnimationFrame(autoScroll);
+
+// ── NIGHTLY REFRESH (keeps the TV browser from getting stale) ──
+setTimeout(() => location.reload(), 12 * 60 * 60 * 1000);
+</script>
+</body>
+</html>
