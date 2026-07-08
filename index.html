@@ -144,6 +144,9 @@ tr:hover td{background:#fdf9f3}
 .inv-addr-name{font-size:15px;font-weight:700;color:#1a1008}
 .inv-addr-detail{font-size:12px;color:#4a3a22;line-height:1.7}
 .inv-table{width:100%;border-collapse:collapse;font-size:12px}
+.inv-table td{padding:4px 8px;vertical-align:top}
+.inv-table td:last-child,.inv-table td:nth-last-child(2){text-align:right;white-space:nowrap}
+.inv-table td span[style*="font-size:11px"]{font-size:10px!important;line-height:1.35}
 .inv-table th{padding:8px 10px;background:#1565C0;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-family:system-ui,sans-serif}
 .inv-table th:first-child{width:50px;text-align:center}
 .inv-table th:nth-child(2){width:55px;text-align:center}
@@ -166,13 +169,13 @@ tr:hover td{background:#fdf9f3}
 
 .inv-banner{display:flex;justify-content:space-between;align-items:stretch;background:#1565C0;color:#fff;padding:18px 22px;margin-bottom:16px}
 .inv-banner-left{flex:1}
-.inv-banner-logo{font-size:24px;font-weight:800;letter-spacing:1px;color:#fff}
-.inv-banner-tag{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#90CAF9;margin-top:2px}
-.inv-banner-contact{font-size:10px;color:#90CAF9;line-height:1.7;margin-top:6px}
+.inv-banner-logo{font-size:28px;font-weight:800;letter-spacing:1px;color:#fff}
+.inv-banner-tag{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#90CAF9;margin-top:2px}
+.inv-banner-contact{font-size:11px;color:#90CAF9;line-height:1.7;margin-top:6px}
 .inv-banner-right{text-align:right;display:flex;flex-direction:column;justify-content:center}
-.inv-banner-title{font-size:36px;font-weight:800;letter-spacing:3px;color:#fff}
-.inv-banner-num{font-size:12px;color:#90CAF9;margin-top:2px}
-.inv-banner-meta{font-size:11px;color:#90CAF9;line-height:1.8;margin-top:4px}
+.inv-banner-title{font-size:42px;font-weight:800;letter-spacing:3px;color:#fff}
+.inv-banner-num{font-size:13px;color:#90CAF9;margin-top:2px}
+.inv-banner-meta{font-size:13px;color:#90CAF9;line-height:1.8;margin-top:4px}
 .inv-info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-bottom:16px;border:1px solid #e0d5c0}
 .inv-info-box{padding:12px 14px;border-right:1px solid #e0d5c0}
 .inv-info-box:last-child{border-right:none}
@@ -883,6 +886,8 @@ tr:hover td{background:#fdf9f3}
         <span>Balance Due</span><span id="pm-balance" style="color:#c04040"></span>
       </div>
     </div>
+
+    <div id="pm-history"></div>
 
     <div class="fg" style="margin-bottom:12px">
       <label class="lbl">Payment Type</label>
@@ -2893,6 +2898,12 @@ function showInvoice(existingInvNum) {
   const deliv=c.delivery||0;
   const disc=c.discount||0;
   const grand=sub+tax+deliv-disc;
+  // Payment info pulled from the saved record so the printed invoice always reflects deposits/balance
+  var payRec=(getSavedQuotes().find(function(x){return x.quoteNum===invNum;})||{});
+  var amtPaid=payRec.amountPaid||0;
+  var payHist=payRec.paymentHistory||[];
+  if(amtPaid===0 && c.payment==='PAID IN FULL'){amtPaid=grand;}
+  var balDue=Math.max(0,grand-amtPaid);
   const LINES_PER_P1=18, LINES_PER_P=25;
   let pages=[];
   if(lines.length<=LINES_PER_P1){pages=[lines];}
@@ -2910,12 +2921,17 @@ function showInvoice(existingInvNum) {
     allPages+='<div class="inv-banner"><div class="inv-banner-left"><div class="inv-banner-logo">NORWOOD SUPPLY</div><div class="inv-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="inv-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com<br>Mon\u2013Fri 7:30 AM\u20135:00 PM | Sat 8:30 AM\u201312:00 PM</div></div><div class="inv-banner-right"><div class="inv-banner-title">INVOICE</div><div class="inv-banner-num">#'+invNum+'</div><div class="inv-banner-meta"><strong>Date:</strong> '+today+'<br><strong>Rep:</strong> '+c.rep+(c.etaDate?'<br><strong>ETA:</strong> '+c.etaDate:'')+(totalPages>1?'<br><strong>Page:</strong> '+pageNum+' of '+totalPages:'')+'</div></div></div>';
     if(pageNum===1){allPages+='<div class="inv-addr-grid"><div><div class="inv-addr-label">Sold To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+[c.co,c.phone,c.email,c.addr].filter(Boolean).join('<br>')+'</div></div><div><div class="inv-addr-label">Ship To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+(c.shipto||c.addr||'—')+'</div></div></div><hr class="inv-divider-thin">';}
     else{allPages+='<div style="font-size:11px;color:#8B6914;margin-bottom:10px;font-family:system-ui">Continued from page '+(pageNum-1)+'</div>';}
-    allPages+='<table class="inv-table"><thead><tr><th>QTY</th><th>SHIP</th><th>DESCRIPTION</th><th>UNIT PRICE</th><th>TOTAL</th></tr></thead><tbody>';
-    allPages+=pageLines.map(l=>'<tr><td>'+l.qty+'</td><td style="color:#aaa">___</td><td style="line-height:1.5"><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></td><td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td></tr>').join('');
+    allPages+='<table class="inv-table"><thead><tr><th style="text-align:center;width:62px">QTY<br>ORDERED</th><th style="text-align:center;width:62px">QTY<br>SHIPPED</th><th>DESCRIPTION</th><th style="text-align:right">UNIT PRICE</th><th style="text-align:right">TOTAL</th></tr></thead><tbody>';
+    allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></td><td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td></tr>').join('');
     if(isLast){
       allPages+='</tbody></table>';
-      allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div></div>';
+      allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div>'+(amtPaid>0?'<div class="inv-tot-row" style="color:#2d6a30;font-weight:700"><span>Payments Received</span><span>-$'+amtPaid.toFixed(2)+'</span></div><div class="inv-tot-row" style="color:'+(balDue<=0.01?'#2d6a30':'#c04040')+';font-weight:800;font-size:15px;background:'+(balDue<=0.01?'#eaf3de':'#fcebeb')+';border-radius:4px;padding:8px;border-bottom:none;margin-top:4px"><span>'+(balDue<=0.01?'PAID IN FULL':'BALANCE DUE')+'</span><span>$'+balDue.toFixed(2)+'</span></div>':'')+'</div>';
       allPages+='<div class="inv-stamp '+stampClass+'">'+c.payment+'</div>';
+      if(payHist.length){
+        allPages+='<div style="margin-top:16px;font-size:11px;font-family:system-ui,sans-serif;border:1px solid #e0d5c0;border-radius:5px;overflow:hidden"><div style="font-weight:700;color:#fff;background:#1565C0;text-transform:uppercase;letter-spacing:1px;font-size:10px;padding:6px 12px">Payment History</div><div style="padding:6px 12px">';
+        payHist.forEach(function(p){allPages+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0e8d8;color:#4a3a22"><span>'+p.date+' &middot; '+p.method+(p.notes?' &middot; '+p.notes:'')+'</span><span style="font-weight:700;color:#2d6a30">$'+(p.amount||0).toFixed(2)+'</span></div>';});
+        allPages+='</div></div>';
+      }
       allPages+=(c.notes?'<div class="inv-terms"><strong>Notes:</strong> '+c.notes+'</div>':'');
       allPages+='<div class="inv-terms-box"><div class="inv-terms-label">TERMS &amp; CONDITIONS</div><div class="inv-terms-content">Materials remain the property of Norwood Supply until paid in full. Special order items are non-returnable. Approved returns may be subject to restocking fees. Customer is responsible for verifying quantities, measurements, and specifications prior to installation. Claims must be made before installation.</div></div>';
       allPages+='<div class="inv-footer">Norwood Supply · 6200 Norwood Ave, Jacksonville, FL 32208 · (904) 768-6818 · Mon–Fri 7:30AM–5PM · Sat 8:30AM–12PM</div>';
@@ -3771,6 +3787,24 @@ function openPaymentModal(id) {
   }
 
   document.getElementById('pm-notes').value = '';
+
+  // Show already-recorded payments with an Undo option on each
+  var histEl = document.getElementById('pm-history');
+  if(histEl){
+    if(q.paymentHistory && q.paymentHistory.length){
+      histEl.innerHTML = '<div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin:2px 0 6px">Recorded Payments</div>' +
+        q.paymentHistory.map(function(p,i){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid #f0e8d8">' +
+            '<span>'+p.date+' &middot; '+p.method+' &middot; <strong>$'+(p.amount||0).toFixed(2)+'</strong>'+(p.notes?' &middot; '+p.notes:'')+'</span>' +
+            '<button onclick="removePaymentEntry('+i+')" style="background:transparent;border:1px solid #e08080;color:#c04040;font-size:10px;border-radius:4px;padding:2px 9px;cursor:pointer;margin-left:8px;white-space:nowrap">Undo</button>' +
+          '</div>';
+        }).join('') +
+        '<div style="height:10px"></div>';
+    } else {
+      histEl.innerHTML = '';
+    }
+  }
+
   updatePaymentPreview();
   document.getElementById('payment-modal').classList.remove('hidden');
 }
@@ -3846,89 +3880,56 @@ function recordPayment() {
     notes: notes
   });
 
-  // Update totals
-  if(type === 'net30') {
-    q.paymentStatus = 'NET 30';
-    q.payment = 'NET 30';
-    q.dueDate = getNet30Date();
-  } else {
-    q.amountPaid = (q.amountPaid || 0) + amount;
-    q.balanceDue = Math.max(0, grand - q.amountPaid);
-    if(q.balanceDue <= 0.01) {
-      q.paymentStatus = 'PAID IN FULL';
-      q.payment = 'PAID IN FULL';
-      q.balanceDue = 0;
-    } else if(q.amountPaid > 0) {
-      q.paymentStatus = 'BALANCE DUE';
-      q.payment = 'BALANCE DUE';
-    }
-  }
+  // Recalculate from the full payment history (single source of truth)
+  if(type === 'net30') { q.dueDate = getNet30Date(); }
+  recomputePayment(q);
 
   saveQuotesToStorage(quotes);
   var wasInvoiceOnScreen = (currentInvoiceRecordId && currentInvoiceRecordId === currentPaymentId);
   closePaymentModal();
   renderHistory();
   showSaveBadge('payment');
-  // Re-render invoice view if the paid invoice is currently on screen
-  if(wasInvoiceOnScreen) {
-    // Update status badge
-    var badge = document.getElementById('inv-status-badge');
-    if(badge) {
-      badge.textContent = q.paymentStatus;
-      badge.style.background = q.paymentStatus==='PAID IN FULL'?'#eaf3de':q.paymentStatus.includes('BALANCE')?'#fcebeb':'#fdf5e0';
-      badge.style.color = q.paymentStatus==='PAID IN FULL'?'#2d6a30':q.paymentStatus.includes('BALANCE')?'#c04040':'#8B6914';
-      badge.style.border = '2px solid '+(q.paymentStatus==='PAID IN FULL'?'#2d6a30':q.paymentStatus.includes('BALANCE')?'#c04040':'#c8952a');
-    }
-    // Re-render totals block and stamp inside the last invoice page
-    var grand2 = q.grand || 0;
-    var paid2 = q.amountPaid || 0;
-    var balance2 = Math.max(0, grand2 - paid2);
-    var sub2 = q.sub || 0;
-    var disc2 = q.discount || 0;
-    var deliv2 = q.delivery || 0;
-    var taxExempt2 = q.customer && q.customer.taxExempt;
-    var taxExemptCert2 = q.customer && q.customer.taxExemptCert || '';
-    var tax2 = taxExempt2 ? 0 : (q.tax || 0);
-    var stampClass2 = q.paymentStatus==='PAID IN FULL'?'paid':q.paymentStatus.includes('BALANCE')?'balance':'';
-    // Build payment history rows
-    var histRows = '';
-    if(q.paymentHistory && q.paymentHistory.length) {
-      histRows = '<div style="margin-top:8px;font-size:11px;color:#4a3a22;font-family:system-ui">';
-      q.paymentHistory.forEach(function(p){
-        histRows += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0e8d8"><span>'+p.date+' · '+p.method+(p.notes?' · '+p.notes:'')+'</span><span style="font-weight:600">$'+p.amount.toFixed(2)+'</span></div>';
-      });
-      if(balance2 > 0.01) histRows += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:#c04040"><span>Balance Remaining</span><span>$'+balance2.toFixed(2)+'</span></div>';
-      histRows += '</div>';
-    }
-    var newTotalsHTML =
-      '<div class="inv-totals">' +
-      '<div class="inv-tot-row"><span>Subtotal</span><span>$'+sub2.toFixed(2)+'</span></div>' +
-      (disc2>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc2.toFixed(2)+'</span></div>':'') +
-      '<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(taxExempt2?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(taxExemptCert2?' <span style="font-size:10px;color:#6b5a3a">Cert# '+taxExemptCert2+'</span>':''):'$'+tax2.toFixed(2))+'</span></div>' +
-      (deliv2>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv2.toFixed(2)+'</span></div>':'') +
-      '<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand2.toFixed(2)+'</span></div>' +
-      '</div>' +
-      '<div class="inv-stamp '+stampClass2+'">'+q.paymentStatus+'</div>' +
-      histRows;
-    // Find and replace the existing totals+stamp block in the rendered invoice
-    var invContent = document.getElementById('invoice-content');
-    if(invContent) {
-      var existing = invContent.querySelector('.inv-totals');
-      if(existing) {
-        // Remove old stamp and history if present right after totals
-        var parent = existing.parentNode;
-        var next = existing.nextSibling;
-        // Remove nodes until we hit inv-terms or inv-footer
-        while(next && next.classList && !next.classList.contains('inv-terms') && !next.classList.contains('inv-footer') && !next.classList.contains('inv-terms-box')) {
-          var toRemove = next;
-          next = next.nextSibling;
-          parent.removeChild(toRemove);
-        }
-        existing.outerHTML = newTotalsHTML;
-      }
-    }
-    if(currentInvNum) updateInvFulfillmentStrip(currentInvNum);
+  // Re-render the invoice from scratch so deposits, balance, and history always render consistently
+  if(wasInvoiceOnScreen && currentInvNum) {
+    showInvoice(currentInvNum);
+    if(typeof updateInvFulfillmentStrip==='function') updateInvFulfillmentStrip(currentInvNum);
   }
+}
+
+// Recalculate payment totals/status from the full payment history — one source of truth
+function recomputePayment(q){
+  var grand = q.grand || 0;
+  var hist = q.paymentHistory || [];
+  var paid = hist.filter(function(p){return p.type!=='net30';}).reduce(function(s,p){return s+(p.amount||0);},0);
+  var hasNet30 = hist.some(function(p){return p.type==='net30';});
+  q.amountPaid = paid;
+  q.balanceDue = Math.max(0, grand - paid);
+  if(q.balanceDue <= 0.01 && paid > 0){
+    q.paymentStatus = 'PAID IN FULL'; q.payment = 'PAID IN FULL'; q.balanceDue = 0;
+  } else if(paid > 0){
+    q.paymentStatus = 'BALANCE DUE'; q.payment = 'BALANCE DUE';
+  } else if(hasNet30){
+    q.paymentStatus = 'NET 30'; q.payment = 'NET 30';
+  } else {
+    q.paymentStatus = '50% DEPOSIT REQUIRED'; q.payment = '50% DEPOSIT REQUIRED';
+  }
+}
+
+// Undo / correct a recorded payment by removing one history entry, then recalculating
+function removePaymentEntry(idx){
+  if(currentPaymentId===null) return;
+  var quotes = getSavedQuotes();
+  var q = quotes.find(function(x){return x.id===currentPaymentId;});
+  if(!q || !q.paymentHistory || !q.paymentHistory[idx]) return;
+  var p = q.paymentHistory[idx];
+  if(!confirm('Remove this payment of $'+(p.amount||0).toFixed(2)+' ('+p.date+')? The balance will be recalculated.')) return;
+  q.paymentHistory.splice(idx,1);
+  recomputePayment(q);
+  saveQuotesToStorage(quotes);
+  renderHistory();
+  showSaveBadge('payment');
+  openPaymentModal(currentPaymentId);
+  if(currentInvoiceRecordId===currentPaymentId && currentInvNum) showInvoice(currentInvNum);
 }
 
 // ── SALES REPORTS ─────────────────────────────────────────────────────────────
