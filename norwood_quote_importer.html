@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Norwood — Vendor Quote Importer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{--orange:#E65100;--blue:#1E70B8;--green:#2d6a30;--ink:#1a1008;--tan:#e0d5c0;--paper:#fdf9f3}
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef1f5;font-family:system-ui,-apple-system,sans-serif;color:var(--ink);padding:18px 12px 60px}
+  .wrap{max-width:960px;margin:0 auto}
+  .head{background:var(--orange);color:#fff;border-radius:10px 10px 0 0;padding:16px 20px}
+  .head h1{margin:0;font-size:19px;letter-spacing:.5px}
+  .head p{margin:4px 0 0;font-size:12.5px;color:#ffe0cc}
+  .card{background:#fff;border:1px solid var(--tan);border-top:none;border-radius:0 0 10px 10px;padding:18px 20px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+  .step{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--orange);margin:0 0 8px}
+  textarea{width:100%;min-height:150px;border:1.5px solid var(--tan);border-radius:8px;padding:12px;font-size:13px;font-family:ui-monospace,Menlo,monospace;resize:vertical;outline:none;background:var(--paper)}
+  textarea:focus{border-color:var(--orange)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .btn{border:none;border-radius:7px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .btn-o{background:var(--orange);color:#fff}
+  .btn-b{background:var(--blue);color:#fff}
+  .btn-g{background:var(--green);color:#fff}
+  .btn-gh{background:#fff;color:#555;border:1.5px solid var(--tan)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .or{color:#9baab8;font-size:12px;font-weight:600}
+  .hidden{display:none}
+  .vbadge{display:inline-block;background:#eaf4fd;color:var(--blue);border:1.5px solid #bcdcf7;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;margin-bottom:12px}
+  .vbadge.warn{background:#fff8e8;color:#8B6914;border-color:#e8c850}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+  th{background:var(--blue);color:#fff;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:7px 8px;text-align:left;white-space:nowrap}
+  th.r{text-align:right}th.c{text-align:center}
+  td{border-bottom:1px solid #eee4d2;padding:3px 4px;vertical-align:middle}
+  td.c{text-align:center}
+  td input{width:100%;border:1px solid transparent;border-radius:4px;padding:5px 6px;font-size:12.5px;font-family:inherit;background:transparent;outline:none}
+  td input:hover{border-color:#e5dcc8;background:#fff}
+  td input:focus{border-color:var(--orange);background:#fff}
+  td input.qty{width:52px;text-align:center}
+  td input.money{width:82px;text-align:right}
+  td input.retail{width:88px;text-align:right;color:var(--green);font-weight:600}
+  .del{background:none;border:none;color:#c04040;cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px}
+  .del:hover{background:#fcebeb}
+  .totbar{display:flex;justify-content:flex-end;gap:26px;margin-top:12px;padding:12px 4px;border-top:2px solid var(--blue);flex-wrap:wrap}
+  .tot{text-align:right}.tot .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#8a7a5a}
+  .tot .val{font-size:17px;font-weight:800}
+  .tot.cost .val{color:var(--ink)}.tot.retail .val{color:var(--blue)}.tot.gm .val{color:var(--green)}
+  .marginbox{display:flex;align-items:center;gap:8px;background:var(--paper);border:1.5px solid var(--tan);border-radius:8px;padding:8px 12px}
+  .marginbox input{width:60px;border:1.5px solid var(--tan);border-radius:5px;padding:5px 8px;font-size:14px;font-weight:700;text-align:right;font-family:inherit;outline:none}
+  .hint{font-size:11.5px;color:#8a7a5a;line-height:1.6;margin-top:10px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.25);opacity:0;transition:opacity .2s;z-index:100}
+  .toast.show{opacity:1}
+  .foot{text-align:center;font-size:11px;color:#9baab8;margin-top:14px}
+  .addrow{background:#fff;border:1.5px dashed var(--tan);color:#8a7a5a;border-radius:7px;padding:8px 14px;font-size:12.5px;cursor:pointer;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>📄 Vendor Quote Importer</h1>
+    <p>Paste a TLC email or a vendor quote, or upload a quote PDF. Reads TLC, Dyke, Woodgrain, Weyerhaeuser, BlueLinx, Logan, Millwork Sales &amp; U.S. Lumber.</p>
+  </div>
+  <div class="card">
+    <p class="step">Step 1 — Drop in the quote</p>
+    <textarea id="src" placeholder="Paste the vendor's email or the copied quote text here…
+
+Example (TLC email): 
+Lance — here's your pricing:
+(2) 3/0 6-panel prehung primed  $187.50 ea
+(1) 2/8 slab flush hollow  $41.00"></textarea>
+    <div class="row">
+      <button class="btn btn-o" onclick="readText()">Read Quote</button>
+      <span class="or">or</span>
+      <button class="btn btn-gh" onclick="document.getElementById('pdf').click()">⬆ Upload Quote PDF</button>
+      <input type="file" id="pdf" accept="application/pdf" class="hidden" onchange="readPDF(event)">
+      <button class="btn btn-gh" onclick="clearAll()">Clear</button>
+    </div>
+    <div class="hint">Tip: for the PDF vendors (Dyke, BlueLinx, etc.) either upload the PDF or open it, select all, copy, and paste above. For TLC, just paste the email — it reads plain pricing lines too.</div>
+  </div>
+
+  <div id="results" class="card hidden" style="margin-top:16px">
+    <p class="step">Step 2 — Review &amp; set your margin</p>
+    <div id="vbadge" class="vbadge">—</div>
+    <div class="row" style="margin:0 0 10px">
+      <div class="marginbox">
+        <span style="font-size:12px;font-weight:600">Target margin</span>
+        <input type="number" id="margin" value="30" min="0" max="90" step="1" oninput="recalc()"><span style="font-weight:700">%</span>
+      </div>
+      <span class="hint" style="margin:0">Retail = cost ÷ (1 − margin). Your plan target is 28–30%.</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table id="tbl">
+      <thead><tr>
+        <th class="c" style="width:30px"></th>
+        <th class="c">Qty</th><th>UOM</th><th>Vendor Code</th><th>Description</th>
+        <th class="r">Unit Cost</th><th class="r">Line Cost</th><th class="r">Your Retail</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    </div>
+    <div class="addrow" onclick="addRow()">+ Add a line manually</div>
+    <div class="totbar">
+      <div class="tot cost"><div class="lbl">Total Cost</div><div class="val" id="tCost">$0.00</div></div>
+      <div class="tot retail"><div class="lbl">Total Retail</div><div class="val" id="tRetail">$0.00</div></div>
+      <div class="tot gm"><div class="lbl">Gross Margin</div><div class="val" id="tGM">$0.00</div></div>
+    </div>
+    <div class="row">
+      <button class="btn btn-g" onclick="copyTSV()">📋 Copy Lines (for tool / Excel)</button>
+      <button class="btn btn-b" onclick="downloadCSV()">⬇ Download CSV</button>
+      <button class="btn btn-gh" onclick="copyPO()">📋 Copy as PO Block</button>
+    </div>
+    <div class="hint">Copy Lines gives you tab-separated rows (Qty, Code, Description, UOM, Unit Cost, Retail) — paste straight into a spreadsheet or a custom line. Every cell above is editable, so fix anything the reader got slightly off before you copy.</div>
+  </div>
+  <div class="foot">Norwood Supply · Vendor Quote Importer · runs entirely in your browser — nothing is uploaded anywhere</div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+
+// ── PARSER (validated against real Norwood vendor quotes) ────────────────────
+function detectVendor(t){
+  var s=t.toLowerCase();
+  if(s.includes('dyke industries'))return['dyke','Dyke Industries'];
+  if(s.includes('woodgrain'))return['woodgrain','Woodgrain'];
+  if(s.includes('weyerhaeuser'))return['weyerhaeuser','Weyerhaeuser'];
+  if(s.includes('bluelinx'))return['bluelinx','BlueLinx'];
+  if(s.includes('logan lumber'))return['logan','Logan Lumber'];
+  if(s.includes('millwork sales'))return['millworksales','Millwork Sales'];
+  if(s.includes('u.s. lumber')||s.includes('us lumber')||s.includes('uslumber'))return['uslumber','U.S. Lumber'];
+  if(s.includes('tlc'))return['tlc','TLC Millwork'];
+  return['generic','Unknown vendor'];
+}
+var PRICE=/(\d[\d,]*\.\d{2,4})/g;
+function num(x){return parseFloat(String(x).replace(/,/g,''))||0;}
+function cleanLines(t){return t.replace(/\r/g,'').split('\n').map(function(l){return l.replace(/\s+/g,' ').trim();}).filter(function(l){return l.length;});}
+function isStop(l){return /^(sub ?total|total|invoice total|qty shipped total|lines total|notes?|special\/production|all orders|all eligible|thank you|for all special|fuel surcharge)/i.test(l);}
+
+function parseGeneric(text){
+  var lines=cleanLines(text), items=[], cur=null;
+  var startRe=/^(\d+(?:\.\d+)?)\s+([A-Za-z]{1,4}\b)?\s*(.*)$/;
+  var codeRe=/\b(zz_[A-Za-z]+_\d+|[A-Z]{2,}[A-Z0-9]{3,}|\d{6,})\b/;
+  function push(){ if(cur&&(cur.qty||cur.amount||cur.code)) items.push(cur); cur=null; }
+  for(var i=0;i<lines.length;i++){
+    var l=lines[i];
+    if(isStop(l)){ push(); continue; }
+    var prices=l.match(PRICE);
+    var m=l.match(startRe);
+    if(m && (prices||codeRe.test(l))){
+      push();
+      var qty=num(m[1]), uom=(m[2]||'').toUpperCase(), rest=m[3]||'';
+      var code=''; var cm=l.match(codeRe); if(cm)code=cm[1];
+      var unit=0, amount=0;
+      if(prices&&prices.length){
+        amount=num(prices[prices.length-1]);
+        var upm=l.match(/(\d[\d,]*\.\d{2,4})\s*\/\s*[A-Za-z]/);
+        if(upm)unit=num(upm[1]); else if(prices.length>=2)unit=num(prices[0]); else if(qty)unit=+(amount/qty).toFixed(4);
+      }
+      var desc=rest.replace(codeRe,'').replace(PRICE,'').replace(/\/\s*[A-Za-z]{1,4}/g,'').replace(/\s{2,}/g,' ').trim();
+      cur={qty:qty,uom:uom,code:code,unit:unit,amount:amount,desc:desc};
+    } else if(cur){
+      if(!/^(weight:|cubes?:|vendor prod:|cust#|sign for|lead time|page \d)/i.test(l)){ cur.desc=(cur.desc?cur.desc+' ':'')+l; }
+      else { var vp=l.match(/vendor prod:\s*(\S+)/i); if(vp&&!cur.code)cur.code=vp[1]; }
+    }
+  }
+  push();
+  return items;
+}
+function parseDyke(text){
+  var lines=cleanLines(text), items=[], cur=null;
+  function push(){ if(cur)items.push(cur); cur=null; }
+  for(var i=0;i<lines.length;i++){ var l=lines[i];
+    var m=l.match(/^\d+\s+(zz_\S+)\s+(.*?)\s+(\d+)\s+ea\s+([\d,]+\.\d+)\s+\w+\s+([\d,]+\.\d+)\s*$/i);
+    if(m){ push(); cur={code:m[1],desc:m[2],qty:num(m[3]),uom:'EA',unit:num(m[4]),amount:num(m[5])}; continue; }
+    if(/^\d+\s+(special|production|verify)/i.test(l)){ push(); continue; }
+    if(cur && !isStop(l) && !/^\d+\s/.test(l)) cur.desc+=' '+l;
+  }
+  push(); return items;
+}
+function parseWoodgrain(text){
+  var lines=cleanLines(text), items=[], cur=null;
+  function push(){ if(cur)items.push(cur); cur=null; }
+  for(var i=0;i<lines.length;i++){ var l=lines[i];
+    if(/lines? total|qty shipped total/i.test(l)){ push(); continue; }
+    var m=l.match(/^\d+\s+(\S+)\s+(\d+)\s+.*?\s+([A-Z]{2})\s+([\d,]+\.\d+)\s+([\d,]+\.\d+)\s*$/);
+    if(m){ push(); cur={code:m[1],qty:num(m[2]),uom:m[3],unit:num(m[4]),amount:num(m[5]),desc:''}; continue; }
+    if(cur){ var vp=l.match(/vendor prod:\s*(\S+)/i); if(vp){cur.code=cur.code||vp[1];continue;}
+      if(/^(weight:|cubes?:|page \d)/i.test(l))continue;
+      if(!isStop(l)) cur.desc=(cur.desc?cur.desc+' ':'')+l; }
+  }
+  push(); return items;
+}
+function parseWeyerhaeuser(text){
+  var lines=cleanLines(text), items=[];
+  for(var i=0;i<lines.length;i++){ var l=lines[i];
+    var m=l.match(/^\d+\s+(\d{6,8})\s+(.*?)\s+(\d+)\s+(EA|PC|BOX|LF|MBF|PCS)\s+.*?([\d,]+\.\d+)\s*\/\s*[A-Za-z]+\s+([\d,]+\.\d+)\s+\d{1,2}\/\d{1,2}\/\d{2,4}\s*$/);
+    if(m) items.push({code:m[1],desc:m[2],qty:num(m[3]),uom:m[4],unit:num(m[5]),amount:num(m[6])});
+  }
+  return items;
+}
+function parseQuote(text){
+  var d=detectVendor(text), v=d[0], items;
+  if(v==='dyke')items=parseDyke(text);
+  else if(v==='woodgrain')items=parseWoodgrain(text);
+  else if(v==='weyerhaeuser')items=parseWeyerhaeuser(text);
+  else items=parseGeneric(text);
+  if(!items.length) items=parseGeneric(text);
+  items.forEach(function(it){ it.desc=(it.desc||'').replace(/\s{2,}/g,' ').trim(); if(!it.unit&&it.qty&&it.amount)it.unit=+(it.amount/it.qty).toFixed(4); if(!it.amount&&it.unit&&it.qty)it.amount=+(it.unit*it.qty).toFixed(2); });
+  return {vendor:v,label:d[1],items:items};
+}
+
+// ── UI ───────────────────────────────────────────────────────────────────────
+var ROWS=[];
+function readText(){ var t=document.getElementById('src').value.trim(); if(!t){toast('Paste a quote first');return;} render(parseQuote(t)); }
+function clearAll(){ document.getElementById('src').value=''; document.getElementById('results').classList.add('hidden'); ROWS=[]; }
+
+async function readPDF(ev){
+  var f=ev.target.files[0]; if(!f)return;
+  if(!window.pdfjsLib){toast('PDF reader still loading — try again in a second');return;}
+  toast('Reading '+f.name+'…');
+  try{
+    var buf=await f.arrayBuffer();
+    var pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    var out=[];
+    for(var p=1;p<=pdf.numPages;p++){
+      var page=await pdf.getPage(p), tc=await page.getTextContent();
+      var its=tc.items.map(function(i){return {s:i.str,x:i.transform[4],y:i.transform[5]};});
+      its.sort(function(a,b){return b.y-a.y || a.x-b.x;});
+      var rows=[],cy=null,cur=[];
+      its.forEach(function(i){ if(cy===null||Math.abs(i.y-cy)>3){ if(cur.length)rows.push(cur); cur=[]; cy=i.y;} cur.push(i);});
+      if(cur.length)rows.push(cur);
+      out.push(rows.map(function(r){return r.sort(function(a,b){return a.x-b.x;}).map(function(i){return i.s;}).join(' ').replace(/\s+/g,' ').trim();}).filter(Boolean).join('\n'));
+    }
+    var text=out.join('\n');
+    document.getElementById('src').value=text;
+    render(parseQuote(text));
+  }catch(e){ toast('Could not read that PDF — try copy/paste instead'); }
+}
+
+function render(res){
+  ROWS=res.items.map(function(it){return {inc:true,qty:it.qty||1,uom:it.uom||'EA',code:it.code||'',desc:it.desc||'',cost:it.unit||0};});
+  var vb=document.getElementById('vbadge');
+  if(!ROWS.length){ vb.className='vbadge warn'; vb.textContent='Couldn\u2019t find line items automatically — add them manually below'; ROWS=[]; }
+  else { vb.className='vbadge'; vb.textContent='Detected: '+res.label+'  ·  '+ROWS.length+' line'+(ROWS.length>1?'s':''); }
+  document.getElementById('results').classList.remove('hidden');
+  drawRows();
+}
+function drawRows(){
+  var tb=document.getElementById('tbody');
+  tb.innerHTML=ROWS.map(function(r,i){
+    return '<tr>'+
+      '<td class="c"><button class="del" onclick="delRow('+i+')" title="Remove">\u2715</button></td>'+
+      '<td class="c"><input class="qty" value="'+esc(r.qty)+'" onchange="upd('+i+',\'qty\',this.value)"></td>'+
+      '<td><input style="width:56px" value="'+esc(r.uom)+'" onchange="upd('+i+',\'uom\',this.value)"></td>'+
+      '<td><input style="width:120px" value="'+esc(r.code)+'" onchange="upd('+i+',\'code\',this.value)"></td>'+
+      '<td><input value="'+esc(r.desc)+'" onchange="upd('+i+',\'desc\',this.value)"></td>'+
+      '<td class="r"><input class="money" value="'+Number(r.cost).toFixed(2)+'" onchange="upd('+i+',\'cost\',this.value)"></td>'+
+      '<td class="r" id="lc'+i+'"></td>'+
+      '<td class="r"><input class="retail" id="rt'+i+'" value="" onchange="upd('+i+',\'retail\',this.value)"></td>'+
+    '</tr>';
+  }).join('');
+  recalc();
+}
+function esc(s){return String(s).replace(/"/g,'&quot;');}
+function upd(i,k,v){ if(k==='qty'||k==='cost')ROWS[i][k]=num(v); else if(k==='retail'){ROWS[i].retailOverride=num(v);} else ROWS[i][k]=v; recalc(); }
+function delRow(i){ ROWS.splice(i,1); drawRows(); }
+function addRow(){ ROWS.push({inc:true,qty:1,uom:'EA',code:'',desc:'',cost:0}); drawRows(); }
+
+function retailOf(r){ if(r.retailOverride)return r.retailOverride; var m=marginPct(); return m<100?+(r.cost/(1-m/100)).toFixed(2):r.cost; }
+function marginPct(){ return Math.min(90,Math.max(0,num(document.getElementById('margin').value))); }
+function recalc(){
+  var tc=0,tr=0;
+  ROWS.forEach(function(r,i){
+    var lineCost=r.cost*r.qty, ret=retailOf(r), lineRet=ret*r.qty;
+    tc+=lineCost; tr+=lineRet;
+    var lc=document.getElementById('lc'+i); if(lc)lc.textContent='$'+lineCost.toFixed(2);
+    var rt=document.getElementById('rt'+i); if(rt&&document.activeElement!==rt)rt.value=ret.toFixed(2);
+  });
+  document.getElementById('tCost').textContent='$'+tc.toFixed(2);
+  document.getElementById('tRetail').textContent='$'+tr.toFixed(2);
+  var gm=tr-tc, pct=tr?(gm/tr*100):0;
+  document.getElementById('tGM').textContent='$'+gm.toFixed(2)+'  ('+pct.toFixed(1)+'%)';
+}
+function rowsForExport(){ return ROWS.map(function(r){return [r.qty,r.code,r.desc,r.uom,r.cost.toFixed(2),retailOf(r).toFixed(2)];}); }
+function copyTSV(){
+  var header=['Qty','Vendor Code','Description','UOM','Unit Cost','Retail'];
+  var txt=[header].concat(rowsForExport()).map(function(r){return r.join('\t');}).join('\n');
+  copy(txt,'Lines copied — paste into a sheet or custom line');
+}
+function copyPO(){
+  var lines=ROWS.map(function(r){return r.qty+' x  '+(r.code?r.code+'  ':'')+r.desc+'   @ $'+r.cost.toFixed(2)+'  = $'+(r.cost*r.qty).toFixed(2);});
+  var tot=ROWS.reduce(function(s,r){return s+r.cost*r.qty;},0);
+  copy(lines.join('\n')+'\n\nTotal Cost: $'+tot.toFixed(2),'PO block copied');
+}
+function downloadCSV(){
+  var header=['Qty','Vendor Code','Description','UOM','Unit Cost','Retail'];
+  var rows=[header].concat(rowsForExport());
+  var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'}), url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download='vendor_quote_lines.csv'; a.click(); URL.revokeObjectURL(url);
+  toast('CSV downloaded');
+}
+function copy(txt,msg){ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast(msg);},function(){fallbackCopy(txt,msg);});}else fallbackCopy(txt,msg); }
+function fallbackCopy(txt,msg){ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');toast(msg);}catch(e){toast('Copy failed');} document.body.removeChild(ta); }
+var toastT;
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove('show');},2200); }
+</script>
+</body>
+</html>
