@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#1a2438">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norwood Supply — Pricing Tool</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f0ece4;color:#111827;font-size:15px}
@@ -447,11 +449,11 @@ tr:hover td{background:#fdf9f3}
     </div>
   </div>
   <nav class="nav" style="overflow-x:auto;padding-bottom:0;justify-content:flex-start">
-    <button class="tab" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
+    <button class="tab active" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
     <button class="tab" onclick="window.open('inventory.html','_blank')" title="Open Inventory Manager in new tab">📦 Inventory</button>
     <button class="tab" id="tab-history" onclick="showPage(&#39;history&#39;,this)">🗂️ Saved Quotes</button>
     <button class="tab" id="tab-orders" onclick="showPage(&#39;orders&#39;,this)">📦 Order Tracker</button>
-    <button class="tab active" id="tab-catalog" onclick="showPage(&#39;catalog&#39;,this)">🚪 Catalog</button>
+    <button class="tab" id="tab-catalog" onclick="showPage(&#39;catalog&#39;,this)">🚪 Catalog</button>
     <button class="tab" id="tab-admin" onclick="showPage(&#39;admin&#39;,this)">⚙️ Manage</button>
     <button class="tab" id="tab-lumber" onclick="showPage(&#39;lumber&#39;,this)">🪵 Lumber</button>
     <button class="tab" id="tab-inquiries" onclick="showPage(&#39;inquiries&#39;,this)">📬 Vendor Inquiries</button>
@@ -468,7 +470,7 @@ tr:hover td{background:#fdf9f3}
 <div class="main">
 
 <!-- QUOTE PAGE -->
-<div id="page-quote" class="page">
+<div id="page-quote" class="page active">
   <div id="quote-view" class="">
     <div class="qgrid">
       <div>
@@ -501,7 +503,8 @@ tr:hover td{background:#fdf9f3}
                 <select id="sel-config" onchange="onConfig()"><option value="">— Select —</option><option value="339">4/0 x 6/8 — RH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="340">4/0 x 6/8 — LH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="341">4/0 x 6/8 — RH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="342">4/0 x 6/8 — LH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="343">5/0 x 6/8 — RH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="344">5/0 x 6/8 — LH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="345">5/0 x 6/8 — RH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="346">5/0 x 6/8 — LH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="347">5/4 x 6/8 — RH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="348">5/4 x 6/8 — LH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="349">5/4 x 6/8 — RH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="350">5/4 x 6/8 — LH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="351">6/0 x 6/8 — RH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="352">6/0 x 6/8 — LH I/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="353">6/0 x 6/8 — RH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option><option value="354">6/0 x 6/8 — LH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15</option></select>
               </div>
             </div>
-            <div id="product-preview" class="preview hidden">
+            <div id="product-preview" class="preview hidden" style="position:relative">
+              <button onclick="clearProductSelection()" title="Clear this selection" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:1.5px solid #e08080;background:#fff0f0;color:#c04040;font-size:13px;font-weight:800;cursor:pointer;line-height:1;z-index:2">✕</button>
               <div class="dimg" id="prev-img"><svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%"><rect x="1" y="1" width="58" height="88" rx="2" fill="#c8a882" stroke="#8B6914" stroke-width="1.5"></rect><rect x="5" y="5" width="50" height="80" rx="1" fill="#b8946e" stroke="#9a7020" stroke-width="1"></rect><rect x="9" y="9" width="18" height="18" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><rect x="33" y="9" width="18" height="18" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><rect x="9" y="32" width="18" height="18" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><rect x="33" y="32" width="18" height="18" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><rect x="9" y="55" width="18" height="22" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><rect x="33" y="55" width="18" height="22" rx="1" fill="none" stroke="#9a7020" stroke-width="1.5"></rect><circle cx="46" cy="47" r="2.5" fill="#8B6914"></circle></svg></div>
               <div class="pinfo">
                 <div class="pname" id="prev-name">Full 1-Lite Double PH (5/0 x 6/8)</div>
@@ -540,7 +543,7 @@ tr:hover td{background:#fdf9f3}
                 <th style="width:80px;text-align:center">Qty</th>
                 <th style="width:110px;text-align:right">Unit Price</th>
                 <th style="width:90px;text-align:right">Extended</th>
-                <th style="width:32px"></th>
+                <th style="width:44px"></th>
               </tr></thead>
               <tbody id="lines-tbody"></tbody>
             </table>
@@ -692,7 +695,7 @@ tr:hover td{background:#fdf9f3}
 </div>
 
 <!-- CATALOG PAGE -->
-<div id="page-catalog" class="page active">
+<div id="page-catalog" class="page">
   <div style="margin-bottom:16px">
     <h2 style="font-size:20px;font-weight:700;margin-bottom:3px">Product Catalog</h2>
     <p style="color:#6b5a3a;font-size:13px" id="cat-count">1204 products · Click to add to quote</p>
@@ -2686,6 +2689,17 @@ function hidePreview() {
   document.getElementById('add-btn').disabled=true;
   document.getElementById('ext-preview').textContent='';
 }
+function clearProductSelection() {
+  selProd = null;
+  document.getElementById('sel-cat').value = '';
+  document.getElementById('sel-grp').innerHTML = '<option value="">— Select —</option>';
+  document.getElementById('sel-grp').disabled = true;
+  document.getElementById('sel-item').innerHTML = '<option value="">— Select —</option>';
+  document.getElementById('sel-item').disabled = true;
+  document.getElementById('config-row').classList.add('hidden');
+  document.getElementById('qty-in').value = 1;
+  hidePreview();
+}
 function showPreview() {
   if(!selProd) return;
   const qty=parseInt(document.getElementById('qty-in').value)||1;
@@ -2780,7 +2794,7 @@ function renderLines() {
     h += '</td>';
     // Extended
     h += '<td style="text-align:right;font-weight:700">$' + (l.retail * l.qty) + '</td>';
-    h += '<td><button class="btn btn-d" onclick="removeLine(' + l.lineId + ')">✕</button></td>';
+    h += '<td><button class="btn btn-d" onclick="removeLine(' + l.lineId + ')" title="Remove this item from the quote" style="font-size:15px;font-weight:800;padding:6px 10px;line-height:1">✕</button></td>';
     h += '</tr>';
   });
   document.getElementById('lines-tbody').innerHTML = h;
@@ -3318,6 +3332,59 @@ function doNewQuote() {
 
 // ── START ─────────────────────────────────────────────────────────────────────
 init();
+
+// ── LIVE INVENTORY SYNC (reads the same Firestore 'norwood' collection that
+//    inventory.html writes to, so Catalog stock reflects real live counts) ────
+const firebaseConfig = {
+  apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
+  authDomain: "norwood-supply.firebaseapp.com",
+  projectId: "norwood-supply",
+  storageBucket: "norwood-supply.firebasestorage.app",
+  messagingSenderId: "933963197210",
+  appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3",
+  measurementId: "G-6QWRWPECGH"
+};
+let liveInvDb = null;
+let liveInvReady = false;
+function initLiveInventory() {
+  try {
+    if (typeof firebase === 'undefined') { setTimeout(initLiveInventory, 200); return; }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    liveInvDb = firebase.firestore();
+    loadLiveInventory();
+  } catch (e) { console.warn('Live inventory init failed:', e); }
+}
+function loadLiveInventory() {
+  if (!liveInvDb) return;
+  liveInvDb.collection('norwood').limit(500).get().then(function (snap) {
+    const bySku = {};
+    snap.docs.forEach(function (d) {
+      const data = d.data();
+      if (data && data.sku && typeof data.qoh === 'number') bySku[String(data.sku)] = data.qoh;
+    });
+    let updated = 0;
+    products.forEach(function (p) {
+      if (p.sku && bySku.hasOwnProperty(String(p.sku))) {
+        p.onHand = bySku[String(p.sku)];
+        updated++;
+      }
+    });
+    liveInvReady = true;
+    console.log('Live inventory synced: ' + updated + ' item(s) updated from Firestore');
+    // Refresh whatever is currently on screen so the new counts show up
+    const catalogPage = document.getElementById('page-catalog');
+    if (catalogPage && catalogPage.classList.contains('active')) renderCatalog();
+    if (selProd) showPreview();
+  }).catch(function (e) {
+    console.warn('Live inventory load failed:', e);
+  });
+}
+initLiveInventory();
+// Re-sync every time the Catalog tab is opened so counts stay fresh during the day
+document.addEventListener('DOMContentLoaded', function () {
+  const catTab = document.getElementById('tab-catalog');
+  if (catTab) catTab.addEventListener('click', function () { if (liveInvDb) loadLiveInventory(); });
+});
 
 // LUMBER PRICES LAST UPDATED: 3/23/2026 (Wholesale Building Products)
 // ── SAVED QUOTES SYSTEM ───────────────────────────────────────────────────────
