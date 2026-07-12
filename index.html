@@ -10,6 +10,7 @@
 <title>Norwood Supply — Pricing Tool</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f0ece4;color:#111827;font-size:15px}
@@ -846,6 +847,15 @@ tr:hover td{background:#fdf9f3}
     <div class="panel"><div class="ph">Sales by Category</div><div class="pb" id="cat-chart"></div></div>
   </div>
 
+  <!-- Sales Trend by Rep & Period -->
+  <div class="panel" style="margin-bottom:20px">
+    <div class="ph" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span>Sales Trend by Rep</span>
+      <div id="period-tabs" style="display:flex;gap:4px"></div>
+    </div>
+    <div class="pb" id="period-sales-table" style="overflow-x:auto"></div>
+  </div>
+
   <!-- Top Products + Receivables -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
     <div class="panel"><div class="ph">Top Selling Products</div><div class="pb" id="top-products"></div></div>
@@ -854,22 +864,6 @@ tr:hover td{background:#fdf9f3}
 
   <!-- Transaction Log (Phase 2) -->
   <div id="sales-log-content" style="margin-bottom:20px"></div>
-
-  <!-- BARCODE LABEL PRINTING (Phase 2) -->
-  <div class="panel">
-    <div class="ph">🏷️ Barcode Label Printing <small>Opens print window — use 1.5"×1" or 2"×1" label stock</small></div>
-    <div class="pb">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn btn-g" onclick="printLumberBarcodes()" style="font-size:13px;padding:10px 20px">🌲 Lumber Labels</button>
-        <button class="btn btn-p" onclick="printDoorBarcodes()" style="font-size:13px;padding:10px 20px">🚪 Door Labels</button>
-        <button class="btn" onclick="printAllBarcodes()" style="background:#5c3a8a;color:#fff;font-size:13px;padding:10px 20px;border-radius:5px;border:none;cursor:pointer;font-family:inherit;font-weight:600">📋 All Labels</button>
-      </div>
-      <div style="font-size:12px;color:#8B6914;background:#fdf0d0;border:1px solid #e8c850;border-radius:5px;padding:8px 12px;line-height:1.6">
-        <strong>Each label includes:</strong> Product name · SKU barcode · Retail price · Coded cost (not readable by customers)<br>
-        <strong>To print a single item:</strong> Go to Manage tab, find the item, and click the 🏷️ button.
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- PAYMENT MODAL -->
@@ -1008,6 +1002,72 @@ Subject:
   </div>
 </div>
 
+<!-- RECEIVING MODAL -->
+<div id="receiving-modal" class="modal-bg hidden" onclick="if(event.target===this)closeReceivingModal()">
+  <div class="modal" style="max-width:680px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#1a1008" id="recv-title">Receive Delivery</div>
+        <div style="font-size:12px;color:#8B6914;margin-top:2px" id="recv-subtitle"></div>
+      </div>
+      <button onclick="closeReceivingModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b5a3a;padding:0 4px">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="fg"><label class="lbl">Received Date</label><input type="date" id="recv-date"></div>
+      <div class="fg"><label class="lbl">Received By</label>
+        <input type="text" id="recv-by" list="recv-by-list" placeholder="e.g. John Jones">
+        <datalist id="recv-by-list"><option value="John Jones"><option value="Frank"><option value="Lance Hopper"></datalist>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#6b5a3a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      Line Item Check — mark what actually arrived
+    </div>
+    <div style="border:1px solid #e0d5c0;border-radius:6px;overflow:hidden;margin-bottom:14px;max-height:280px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#1a2438;color:#fff">
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase">Item</th>
+            <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:60px">Ordered</th>
+            <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:70px">Received</th>
+            <th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;width:120px">Status</th>
+          </tr>
+        </thead>
+        <tbody id="recv-items-tbody"></tbody>
+      </table>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label class="lbl">Receiving Ticket Photo(s)</label>
+      <div id="recv-cam-zone" style="border:2px dashed #d5c8a8;border-radius:8px;padding:16px 12px;text-align:center;cursor:pointer;background:#fff" onclick="document.getElementById('recv-cam-input').click()">
+        <div style="font-size:13px;color:#8B6914;font-weight:600">📷 Tap to photograph the delivery ticket</div>
+        <div style="font-size:11px;color:#a89060;margin-top:2px">Add as many as needed — texting Lance still works too</div>
+      </div>
+      <input type="file" id="recv-cam-input" accept="image/*" capture="environment" style="display:none" onchange="onReceivingPhoto(this)">
+      <div id="recv-photo-list" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+    </div>
+    <div class="fg" style="margin-bottom:16px"><label class="lbl">Issue? (shortage, damage, wrong item)</label>
+      <textarea id="recv-notes" rows="2" placeholder="e.g. 2 doors short, one damaged corner..." style="width:100%;padding:8px;border:1.5px solid #d5c8a8;border-radius:5px;font-size:13px;font-family:inherit;outline:none;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-gh" onclick="closeReceivingModal()">Cancel</button>
+      <button class="btn" onclick="saveReceiving()" style="background:#2d6a30;color:#fff;padding:8px 20px">Save Receiving</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- PO VIEW MODAL -->
+<div id="po-view-modal" class="modal-bg hidden" onclick="if(event.target===this)closePOViewModal()">
+  <div class="modal" style="max-width:860px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:17px;font-weight:700;color:#1a1008" id="po-view-title">Purchase Order</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" onclick="printPOView()" style="background:#1a2438;color:#fff;padding:6px 14px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit">🖨️ Print</button>
+        <button onclick="closePOViewModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b5a3a;padding:0 4px">✕</button>
+      </div>
+    </div>
+    <div id="po-view-body" style="border:1px solid #e0d5c0;border-radius:8px;overflow:hidden"></div>
+  </div>
+</div>
 
 
 <!-- STOCK COUNTER MODAL -->
@@ -2938,6 +2998,7 @@ function showInvoice(existingInvNum) {
   } else {
     invCounter++;
     localStorage.setItem('ns_inv_counter', invCounter);
+    nsSyncBumpCounter('inv', invCounter);
     invNum = 'INV-' + String(invCounter).padStart(5,'0');
   }
   currentInvNum = invNum;
@@ -3061,6 +3122,7 @@ function generatePO() {
   }
   poCounter++;
   localStorage.setItem('ns_po_counter', poCounter);
+  nsSyncBumpCounter('po', poCounter);
   const poNum='PO-'+String(poCounter).padStart(5,'0');
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const c=getCustomer();
@@ -3386,6 +3448,132 @@ document.addEventListener('DOMContentLoaded', function () {
   if (catTab) catTab.addEventListener('click', function () { if (liveInvDb) loadLiveInventory(); });
 });
 
+// ── LIVE CLOUD SYNC ─────────────────────────────────────────────────────────
+// Mirrors quotes/invoices, PO log (with receiving), order tracker, and vendor
+// inquiries to Firestore (same project as live inventory) so every device that
+// opens this tool sees the same data, updating live without a page refresh.
+const NS_SYNC_KEYS = ['ns_po_log', 'ns_orders', 'ns_order_meta', 'ns_inquiries'];
+// NOTE: ns_quotes is intentionally NOT synced here. norwood-patch.js already
+// syncs quotes/invoices to Firestore on its own (per-record docs in the
+// 'ns_quotes' collection, auto-loaded on startup). Adding a second sync
+// system for the same localStorage key caused a race that wiped real data
+// on 2026-07-12 — don't re-add 'ns_quotes' to this list.
+let nsSyncApplying = {};
+function nsSyncDb() { return liveInvDb; }
+function nsDeviceLabel() {
+  try {
+    let id = localStorage.getItem('ns_device_id');
+    if (!id) { id = 'device-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('ns_device_id', id); }
+    return id;
+  } catch (e) { return 'unknown'; }
+}
+function nsSyncPush(key, value) {
+  const db = nsSyncDb();
+  if (!db) return; // will catch up once nsSyncInit's per-key retry connects
+  nsSyncApplying[key] = true;
+  db.collection('ns_sync').doc(key).set({
+    data: value,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    device: nsDeviceLabel()
+  }).catch(function (e) { console.warn('Cloud sync push failed for ' + key, e); })
+    .then(function () { setTimeout(function () { nsSyncApplying[key] = false; }, 400); });
+}
+function nsIsEmptyValue(v) {
+  if (v == null) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === 'object') return Object.keys(v).length === 0;
+  return false;
+}
+function nsSyncApplyRemote(key, remoteValue) {
+  // Safety guard: never let an empty cloud result silently erase real local
+  // data (this is exactly what happened to PO Log on 2026-07-12). If the
+  // cloud is empty but this device already has real data, treat the local
+  // copy as authoritative and push it back up instead of wiping it.
+  let local;
+  try { local = JSON.parse(localStorage.getItem(key) || (key === 'ns_order_meta' ? '{}' : '[]')); }
+  catch (e) { local = (key === 'ns_order_meta' ? {} : []); }
+  if (nsIsEmptyValue(remoteValue) && !nsIsEmptyValue(local)) {
+    console.warn('[SYNC GUARD] Refused to overwrite non-empty local "' + key + '" with empty cloud data — re-pushing local instead.');
+    nsSyncPush(key, local);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify(remoteValue));
+  function active(id) { const el = document.getElementById(id); return el && el.classList.contains('active'); }
+  if (key === 'ns_po_log') {
+    if (active('page-polog')) renderPOLog();
+  } else if (key === 'ns_orders' || key === 'ns_order_meta') {
+    if (active('page-orders')) renderOrderTracker();
+  } else if (key === 'ns_inquiries') {
+    if (active('page-inquiries') && typeof renderInquiries === 'function') renderInquiries();
+  }
+}
+function nsSyncInit() {
+  const db = nsSyncDb();
+  if (!db) { setTimeout(nsSyncInit, 300); return; }
+  NS_SYNC_KEYS.forEach(function (key) {
+    const ref = db.collection('ns_sync').doc(key);
+    ref.get().then(function (snap) {
+      if (snap.exists) {
+        nsSyncApplyRemote(key, snap.data().data);
+      } else {
+        // First device to connect to the cloud for this key — seed it from
+        // whatever's already local (e.g. this file's bundled bootstrap data).
+        let local;
+        try { local = JSON.parse(localStorage.getItem(key) || (key === 'ns_order_meta' ? '{}' : '[]')); }
+        catch (e) { local = (key === 'ns_order_meta' ? {} : []); }
+        nsSyncPush(key, local);
+      }
+      ref.onSnapshot(function (snap2) {
+        if (!snap2.exists || nsSyncApplying[key]) return;
+        nsSyncApplyRemote(key, snap2.data().data);
+      });
+    }).catch(function (e) { console.warn('Cloud sync init failed for ' + key, e); });
+  });
+}
+nsSyncInit();
+
+// ── COUNTER SYNC (invoice # / PO #) ──────────────────────────────────────────
+// Keeps invCounter/poCounter converged across devices so two people generating
+// an invoice or PO around the same time don't land on the same number.
+function nsSyncBumpCounter(name, value) {
+  const db = nsSyncDb();
+  if (!db) return;
+  const ref = db.collection('ns_sync').doc('ns_counters');
+  db.runTransaction(function (tx) {
+    return tx.get(ref).then(function (snap) {
+      const cur = (snap.exists && snap.data()[name]) || 0;
+      if (value > cur) { const upd = {}; upd[name] = value; tx.set(ref, upd, { merge: true }); }
+    });
+  }).catch(function (e) { console.warn('Counter sync failed', e); });
+}
+function nsSyncWatchCounters() {
+  const db = nsSyncDb();
+  if (!db) { setTimeout(nsSyncWatchCounters, 300); return; }
+  db.collection('ns_sync').doc('ns_counters').onSnapshot(function (snap) {
+    if (!snap.exists) return;
+    const d = snap.data();
+    if (typeof d.inv === 'number' && d.inv > invCounter) { invCounter = d.inv; localStorage.setItem('ns_inv_counter', invCounter); }
+    if (typeof d.po === 'number' && d.po > poCounter) { poCounter = d.po; localStorage.setItem('ns_po_counter', poCounter); }
+  });
+}
+nsSyncWatchCounters();
+
+// ── RECEIVING PHOTO UPLOAD (Firebase Storage) ────────────────────────────────
+// PO log docs are shared across all devices via nsSyncPush, so receiving
+// photos are uploaded to Storage (not embedded as base64) and only the
+// download URL is stored, keeping the synced doc small.
+function nsUploadReceivingPhotos(poId, photos) {
+  if (typeof firebase === 'undefined' || !firebase.storage) return Promise.resolve(photos);
+  const storage = firebase.storage();
+  const uploads = photos.map(function (src, i) {
+    if (!src || src.indexOf('data:') !== 0) return Promise.resolve(src); // already an uploaded URL
+    const path = 'po-receiving/' + poId + '/' + Date.now() + '-' + i + '.jpg';
+    const ref = storage.ref().child(path);
+    return ref.putString(src, 'data_url').then(function () { return ref.getDownloadURL(); });
+  });
+  return Promise.all(uploads);
+}
+
 // LUMBER PRICES LAST UPDATED: 3/23/2026 (Wholesale Building Products)
 // ── SAVED QUOTES SYSTEM ───────────────────────────────────────────────────────
 function getSavedQuotes() {
@@ -3394,6 +3582,8 @@ function getSavedQuotes() {
 }
 function saveQuotesToStorage(quotes) {
   localStorage.setItem('ns_quotes', JSON.stringify(quotes));
+  // Cloud sync for quotes/invoices is handled by norwood-patch.js — do not
+  // also push here. See NS_SYNC_KEYS note above for why.
 }
 
 function saveCurrentQuote(type) {
@@ -4059,6 +4249,78 @@ function getFilteredQuotes(range) {
   return invoices.filter(function(q){ return q.timestamp >= cutoff.getTime(); });
 }
 
+// ── SALES TREND BY REP (Daily / Weekly / Monthly / Yearly) ──────────────────
+let salesPeriod = 'week'; // weekly is the default — most useful cadence day-to-day
+function setSalesPeriod(p) { salesPeriod = p; renderPeriodSales(); }
+function periodKeyLabel(ts, period) {
+  var d = new Date(ts);
+  if (period === 'day') {
+    return { key: d.toISOString().slice(0,10), label: d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) };
+  }
+  if (period === 'week') {
+    var sow = new Date(d); sow.setDate(d.getDate() - d.getDay()); sow.setHours(0,0,0,0);
+    return { key: sow.toISOString().slice(0,10), label: 'Wk of ' + sow.toLocaleDateString('en-US',{month:'short',day:'numeric'}) };
+  }
+  if (period === 'month') {
+    return { key: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'), label: d.toLocaleDateString('en-US',{month:'short',year:'numeric'}) };
+  }
+  return { key: String(d.getFullYear()), label: String(d.getFullYear()) };
+}
+function renderPeriodSales() {
+  var labels = {day:'Daily',week:'Weekly',month:'Monthly',year:'Yearly'};
+  var tabsEl = document.getElementById('period-tabs');
+  if (tabsEl) {
+    tabsEl.innerHTML = Object.keys(labels).map(function(p) {
+      var active = p === salesPeriod;
+      return '<button onclick="setSalesPeriod(\''+p+'\')" style="padding:5px 12px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid '+(active?'#2980d4':'#d5c8a8')+';background:'+(active?'#2980d4':'#fff')+';color:'+(active?'#fff':'#6b5a3a')+'">'+labels[p]+'</button>';
+    }).join('');
+  }
+
+  var invoices = getSavedQuotes().filter(function(q){ return q.type === 'invoice'; });
+  var numBuckets = {day:14, week:12, month:12, year:5}[salesPeriod];
+  var now = new Date();
+  var buckets = [];
+  for (var i = numBuckets - 1; i >= 0; i--) {
+    var d = new Date(now);
+    if (salesPeriod==='day') d.setDate(now.getDate() - i);
+    else if (salesPeriod==='week') d.setDate(now.getDate() - i*7);
+    else if (salesPeriod==='month') d.setMonth(now.getMonth() - i);
+    else d.setFullYear(now.getFullYear() - i);
+    buckets.push(periodKeyLabel(d.getTime(), salesPeriod));
+  }
+  var seen = {}; buckets = buckets.filter(function(b){ if(seen[b.key]) return false; seen[b.key]=true; return true; });
+
+  var repSet = {};
+  var data = {};
+  buckets.forEach(function(b){ data[b.key] = {}; });
+  invoices.forEach(function(q) {
+    var kl = periodKeyLabel(q.timestamp, salesPeriod);
+    if (!data.hasOwnProperty(kl.key)) return;
+    var rep = q.rep || (q.customer && q.customer.rep) || 'Unknown';
+    repSet[rep] = true;
+    data[kl.key][rep] = (data[kl.key][rep]||0) + (q.grand||0);
+  });
+  var reps = Object.keys(repSet).sort();
+  if (!reps.length) reps = ['Lance'];
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:'+(320+reps.length*90)+'px">';
+  html += '<tr style="background:#1a2438;color:#fff"><th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase">Period</th>';
+  reps.forEach(function(r){ html += '<th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase">'+r+'</th>'; });
+  html += '<th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;background:#E65100">Total</th></tr>';
+  buckets.slice().reverse().forEach(function(b, idx) {
+    var rowTotal = 0;
+    var cells = reps.map(function(r) {
+      var v = (data[b.key] && data[b.key][r]) || 0;
+      rowTotal += v;
+      return '<td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0e8d8">'+(v>0?'$'+fmt(v):'—')+'</td>';
+    }).join('');
+    html += '<tr style="'+(idx===0?'background:#fdf9f3':'')+'"><td style="padding:7px 10px;border-bottom:1px solid #f0e8d8;font-weight:600">'+b.label+'</td>'+cells+'<td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0e8d8;font-weight:700;color:#E65100">$'+fmt(rowTotal)+'</td></tr>';
+  });
+  html += '</table>';
+  var el = document.getElementById('period-sales-table');
+  if (el) el.innerHTML = invoices.length ? html : '<div style="color:#a89060;font-size:13px;padding:10px 0">No data yet</div>';
+}
+
 function renderReports() {
   var range = document.getElementById('report-range').value;
   var quotes = getFilteredQuotes(range);
@@ -4176,6 +4438,7 @@ function renderReports() {
       }).join('')
     : '<div style="color:#a89060;font-size:13px;padding:16px">No invoices yet — generate your first invoice to see it here</div>';
 
+  renderPeriodSales();
   renderSalesLog();
 }
 
@@ -4838,9 +5101,9 @@ var OT_COLORS = {
   'On Hold':    {bg:'#fcebeb',color:'#c04040',border:'#f08080'}
 };
 function getOrderMeta(){try{return JSON.parse(localStorage.getItem('ns_order_meta')||'{}');}catch(e){return{};}}
-function saveOrderMeta(d){localStorage.setItem('ns_order_meta',JSON.stringify(d));}
+function saveOrderMeta(d){localStorage.setItem('ns_order_meta',JSON.stringify(d));nsSyncPush('ns_order_meta',d);}
 function getOrders(){try{return JSON.parse(localStorage.getItem('ns_orders')||'[]');}catch(e){return[];}}
-function saveOrders(d){localStorage.setItem('ns_orders',JSON.stringify(d));}
+function saveOrders(d){localStorage.setItem('ns_orders',JSON.stringify(d));nsSyncPush('ns_orders',d);}
 
 function buildOrderList(){
   var quotes=[];
@@ -4975,7 +5238,7 @@ function exportOrdersCSV(){
 
 // ── VENDOR INQUIRIES ─────────────────────────────────────────────────────────
 var INQ_VENDORS = [
-  {name:'TLC Millwork',           email:'kstalvey@tlcmillwork.com',    rep:'K. Stalvey',   specialty:'Doors, Millwork'},
+  {name:'TLC Millwork',           email:'jjackson@tlcmillwork.com',    rep:'J. Jackson',   specialty:'Doors, Millwork'},
   {name:'BlueLinx',               email:'Mike.Kisner@bluelinxco.com',  rep:'Mike Kisner',  specialty:'Lumber, LVL'},
   {name:'US Lumber',              email:'cooperbraet@uslumber.com',    rep:'Cooper Braet',  specialty:'Lumber, Building Materials'},
   {name:'Logan Lumber',           email:'doug.reagan@loganlumber.com', rep:'Doug Reagan',  specialty:'Cedar, Trex, Lumber'},
@@ -4993,7 +5256,7 @@ var INQ_COL = {
   'Passed':  {bg:'#fcebeb',color:'#c04040',border:'#f08080'}
 };
 function getInquiries(){try{return JSON.parse(localStorage.getItem('ns_inquiries')||'[]');}catch(e){return[];}}
-function saveInquiries(d){localStorage.setItem('ns_inquiries',JSON.stringify(d));}
+function saveInquiries(d){localStorage.setItem('ns_inquiries',JSON.stringify(d));nsSyncPush('ns_inquiries',d);}
 function openNewInquiry(){
   ['inq-product','inq-qty','inq-customer','inq-need-by','inq-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var vl=document.getElementById('inq-vendor-list');
@@ -5175,6 +5438,7 @@ function createPOFromInquiry(inqId, vendorName) {
   // Auto-increment PO number
   poCounter++;
   localStorage.setItem('ns_po_counter', poCounter);
+  nsSyncBumpCounter('po', poCounter);
   var poNum = 'PO-'+String(poCounter).padStart(5,'0');
   var today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var reqBy = inq.needBy || 'TBD';
@@ -5387,6 +5651,8 @@ function refreshInvFulfillmentStrip() {
   if (currentInvNum) updateInvFulfillmentStrip(currentInvNum);
 }
 let poAckEditId = null;    // PO being acknowledged
+let recvEditId = null;     // PO being received
+let recvPhotos = [];       // photo data-URLs staged for the receiving being edited
 
 function getPOLog() {
   try { return JSON.parse(localStorage.getItem('ns_po_log') || '[]'); }
@@ -5394,6 +5660,7 @@ function getPOLog() {
 }
 function savePOLog(log) {
   localStorage.setItem('ns_po_log', JSON.stringify(log));
+  nsSyncPush('ns_po_log', log);
 }
 
 // Called after generatePO() — stash the PO data for email/save buttons
@@ -5402,11 +5669,7 @@ function stashPOData(data) {
 }
 
 // ── EMAIL PO ─────────────────────────────────────────────────────────────────
-function emailPO() {
-  if (!currentPOData) { alert('No PO generated yet.'); return; }
-  var d = currentPOData;
-
-  // Build styled HTML email body matching the PO layout
+function buildPOHtml(d) {
   var itemRows = '';
   (d.items || []).forEach(function(it, i) {
     var bg = i % 2 === 1 ? '#f5f9ff' : '#ffffff';
@@ -5416,7 +5679,7 @@ function emailPO() {
     itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+(it.qty*it.unitCost).toFixed(2)+'</td></tr>';
   });
 
-  var htmlBody = '<div style="max-width:780px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1a1008">' +
+  return '<div style="max-width:780px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1a1008">' +
     '<div style="padding:28px 32px;background:#ffffff">' +
       '<div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:3px solid #E65100">' +
         '<div>' +
@@ -5461,6 +5724,32 @@ function emailPO() {
       '<div style="font-size:11px;color:#6b5a3a;margin-top:14px;padding:10px 14px;background:#fff8f0;border-left:3px solid #E65100;line-height:1.7">Please confirm receipt of this PO and estimated delivery date. Contact Lance Hopper at (904) 768-6818 or lance087@gmail.com with questions.</div>' +
       '<div style="text-align:center;font-size:10px;color:#a89060;margin-top:20px;padding-top:14px;border-top:1px solid #e0d5c0">Norwood Supply &middot; 6200 Norwood Ave, Jacksonville, FL 32208 &middot; (904) 768-6818</div>' +
     '</div></div>';
+}
+
+function openPOViewModal(id) {
+  var log = getPOLog();
+  var po = log.find(function(p){ return p.id == id; });
+  if (!po) return;
+  document.getElementById('po-view-title').textContent = 'Purchase Order — ' + po.poNum;
+  document.getElementById('po-view-body').innerHTML = buildPOHtml(po);
+  document.getElementById('po-view-modal').classList.remove('hidden');
+}
+function closePOViewModal() {
+  document.getElementById('po-view-modal').classList.add('hidden');
+}
+function printPOView() {
+  var w = window.open('', '_blank');
+  if (!w) { alert('Please allow popups to print.'); return; }
+  w.document.write('<html><head><title>' + document.getElementById('po-view-title').textContent + '</title></head><body>' + document.getElementById('po-view-body').innerHTML + '</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){ w.print(); }, 300);
+}
+
+function emailPO() {
+  if (!currentPOData) { alert('No PO generated yet.'); return; }
+  var d = currentPOData;
+  var htmlBody = buildPOHtml(d);
 
   // Build the clipboard text for pasting into Claude
   var clipText = 'Create a Gmail draft with HTML body for this PO:\n';
@@ -5725,6 +6014,13 @@ function renderPOLog() {
     var hasDis = po.ack && po.ack.discrepancies && po.ack.discrepancies.length > 0;
     var ackBadge = po.ack ? '<span style="font-size:10px;background:#eaf3de;color:#2d6a30;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:6px">Ack ' + (po.ack.date||'') + '</span>' : '';
     var disBadge = hasDis ? '<span style="font-size:10px;background:#fcebeb;color:#c04040;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:4px">! ' + po.ack.discrepancies.length + ' issue' + (po.ack.discrepancies.length>1?'s':'') + '</span>' : '';
+    var recvColors = {'Complete':{bg:'#eaf3de',color:'#2d6a30'},'Partial':{bg:'#fdf0d0',color:'#8B6914'},'Not Received':{bg:'#f5f0e8',color:'#6b5a3a'}};
+    var recvBadge = '';
+    if (po.receiving) {
+      var rc = recvColors[po.receiving.overallStatus] || recvColors['Not Received'];
+      var photoTag = (po.receiving.photos && po.receiving.photos.length) ? ' 📷' + po.receiving.photos.length : '';
+      recvBadge = '<span style="font-size:10px;background:' + rc.bg + ';color:' + rc.color + ';padding:2px 8px;border-radius:10px;font-weight:600;margin-left:4px">' + po.receiving.overallStatus + photoTag + '</span>';
+    }
     var itemsHtml = (po.items||[]).map(function(it) {
       return '<div style="font-size:11px;color:#6b5a3a;padding:2px 0">- ' + it.qty + 'x ' + it.item + (it.size?' ('+it.size+')':'') + '  $' + (it.unitCost*it.qty).toFixed(2) + '</div>';
     }).join('');
@@ -5740,7 +6036,7 @@ function renderPOLog() {
     html2 += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
     html2 += '<span style="font-size:15px;font-weight:700;color:#1a1008">' + po.poNum + '</span>';
     html2 += '<span style="font-size:10px;font-weight:700;color:' + sc + ';background:' + sc + '18;padding:2px 8px;border-radius:10px">' + po.status + '</span>';
-    html2 += ackBadge + disBadge + '</div>';
+    html2 += ackBadge + disBadge + recvBadge + '</div>';
     html2 += '<div style="font-size:12px;color:#4a3a22;margin-bottom:2px"><strong>' + po.vendorName + '</strong> &middot; ' + po.date + ' &middot; Req By: ' + (po.reqBy||'TBD') + '</div>';
     html2 += '<div style="font-size:12px;color:#6b5a3a">Customer: ' + po.customerName + '</div>';
     if (po.refInv) {
@@ -5752,9 +6048,17 @@ function renderPOLog() {
     html2 += '</div>';
     html2 += '<div style="margin-top:10px;padding:10px;background:#faf8f4;border-radius:6px">' + itemsHtml + '</div>';
     html2 += ackHtml;
+    if (po.receiving) {
+      var recvPhotosHtml = (po.receiving.photos || []).map(function(src) {
+        return '<img src="' + src + '" style="width:44px;height:44px;object-fit:cover;border-radius:4px;border:1.5px solid #b7dfc4;cursor:pointer" onclick="window.open(this.src,\'_blank\')">';
+      }).join('');
+      html2 += '<div style="margin-top:8px;padding:10px;background:#f0fff4;border-radius:6px;border:1px solid #b7dfc4;font-size:12px"><strong>Received:</strong> ' + (po.receiving.date||'') + (po.receiving.receivedBy?' by ' + po.receiving.receivedBy:'') + (po.receiving.notes?'<br><span style="color:#c04040">Issue: ' + po.receiving.notes + '</span>':'') + (recvPhotosHtml ? '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' + recvPhotosHtml + '</div>' : '') + '</div>';
+    }
     html2 += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">';
     html2 += '<select data-poid="' + po.id + '" onchange="updatePOStatus(this.dataset.poid,this.value)" style="padding:5px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:12px;font-family:inherit;background:#fff">' + statusOpts + '</select>';
+    html2 += '<button data-poid="' + po.id + '" onclick="openPOViewModal(this.dataset.poid)" style="padding:5px 12px;border-radius:5px;border:1px solid #1a2438;background:#1a2438;color:#fff;font-size:12px;font-weight:600;cursor:pointer">📄 View PO</button>';
     html2 += '<button data-poid="' + po.id + '" onclick="openPOAckModal(this.dataset.poid)" style="padding:5px 12px;border-radius:5px;border:1px solid #2980d4;background:#fff;color:#2980d4;font-size:12px;font-weight:600;cursor:pointer">' + (po.ack ? 'Edit Ack' : 'Log Ack') + '</button>';
+    html2 += '<button data-poid="' + po.id + '" onclick="openReceivingModal(this.dataset.poid)" style="padding:5px 12px;border-radius:5px;border:1px solid #2d6a30;background:' + (po.receiving?'#fff':'#2d6a30') + ';color:' + (po.receiving?'#2d6a30':'#fff') + ';font-size:12px;font-weight:600;cursor:pointer">' + (po.receiving ? '📷 Edit Receiving' : '📷 Receive') + '</button>';
     html2 += '<button data-poid="' + po.id + '" onclick="emailPOFromLog(this.dataset.poid)" style="padding:5px 12px;border-radius:5px;border:1px solid #e65100;background:#fff;color:#e65100;font-size:12px;font-weight:600;cursor:pointer">Email Draft</button>';
     html2 += '<button data-scan-poid="' + po.id + '" onclick="scanGmailForAck(this.dataset.scanPoid)" style="padding:5px 12px;border-radius:5px;border:1px solid #2980d4;background:#2980d4;color:#fff;font-size:12px;font-weight:600;cursor:pointer">🔍 Scan Gmail</button>';
     html2 += '<button data-poid="' + po.id + '" onclick="deletePOFromLog(this.dataset.poid)" style="padding:5px 12px;border-radius:5px;border:1px solid #e0d5c0;background:#fff;color:#c04040;font-size:12px;font-weight:600;cursor:pointer">Delete</button>';
@@ -5876,6 +6180,139 @@ function savePOAck() {
   savePOLog(log);
   closePOAckModal();
   renderPOLog();
+}
+
+// ── RECEIVING (dock check-in) ──────────────────────────────────────────────────
+function openReceivingModal(id) {
+  var log = getPOLog();
+  var po = log.find(function(p){ return p.id == id; });
+  if (!po) return;
+  recvEditId = id;
+  document.getElementById('recv-title').textContent = 'Receive Delivery - ' + po.poNum;
+  document.getElementById('recv-subtitle').textContent = po.vendorName + ' - ' + po.date;
+  var rec = po.receiving || {};
+  document.getElementById('recv-date').value = rec.date || new Date().toISOString().split('T')[0];
+  document.getElementById('recv-by').value = rec.receivedBy || '';
+  document.getElementById('recv-notes').value = rec.notes || '';
+  recvPhotos = (rec.photos || []).slice();
+  renderReceivingPhotos();
+  buildReceivingItemRows(po);
+  document.getElementById('recv-cam-input').value = '';
+  document.getElementById('receiving-modal').classList.remove('hidden');
+}
+
+function closeReceivingModal() {
+  document.getElementById('receiving-modal').classList.add('hidden');
+  recvEditId = null;
+  recvPhotos = [];
+}
+
+function buildReceivingItemRows(po) {
+  var rec = po.receiving || {};
+  var savedItems = rec.items || {};
+  var rows = '';
+  (po.items || []).forEach(function(item, i) {
+    var saved = savedItems[i] || {};
+    var qtyRecv = saved.qtyReceived != null ? saved.qtyReceived : item.qty;
+    var status = saved.status || 'Not Received';
+    var statusOpts = ['Not Received','Partial','Complete'].map(function(s) {
+      return '<option' + (status===s?' selected':'') + '>' + s + '</option>';
+    }).join('');
+    rows += '<tr>';
+    rows += '<td style="padding:8px 10px;border-bottom:1px solid #f0e8d8">' + item.item + (item.size?' ('+item.size+')':'') + '</td>';
+    rows += '<td style="padding:8px 6px;border-bottom:1px solid #f0e8d8;text-align:center">' + item.qty + '</td>';
+    rows += '<td style="padding:8px 6px;border-bottom:1px solid #f0e8d8;text-align:center"><input type="number" min="0" data-recv-qty="' + i + '" value="' + qtyRecv + '" style="width:56px;padding:4px 6px;border:1.5px solid #d5c8a8;border-radius:4px;font-size:12px;text-align:center"></td>';
+    rows += '<td style="padding:8px 6px;border-bottom:1px solid #f0e8d8;text-align:center"><select data-recv-status="' + i + '" style="width:100%;padding:4px 6px;border:1.5px solid #d5c8a8;border-radius:4px;font-size:11px;font-family:inherit">' + statusOpts + '</select></td>';
+    rows += '</tr>';
+  });
+  document.getElementById('recv-items-tbody').innerHTML = rows;
+}
+
+function onReceivingPhoto(input) {
+  if (!input.files || !input.files.length) return;
+  var files = Array.prototype.slice.call(input.files);
+  var remaining = files.length;
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      recvPhotos.push(e.target.result);
+      remaining--;
+      if (remaining === 0) { renderReceivingPhotos(); input.value = ''; }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeReceivingPhoto(idx) {
+  recvPhotos.splice(idx, 1);
+  renderReceivingPhotos();
+}
+
+function renderReceivingPhotos() {
+  var el = document.getElementById('recv-photo-list');
+  if (!el) return;
+  el.innerHTML = recvPhotos.map(function(src, i) {
+    return '<div style="position:relative;width:72px;height:72px"><img src="' + src + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;border:1.5px solid #d5c8a8">' +
+      '<button onclick="removeReceivingPhoto(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#c04040;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1">✕</button></div>';
+  }).join('');
+}
+
+function saveReceiving() {
+  var log = getPOLog();
+  var po = log.find(function(p){ return p.id == recvEditId; });
+  if (!po) return;
+  var items = {};
+  var allComplete = true, anyReceived = false;
+  (po.items || []).forEach(function(item, i) {
+    var qtyInput = document.querySelector('[data-recv-qty="'+i+'"]');
+    var statusInput = document.querySelector('[data-recv-status="'+i+'"]');
+    if (!qtyInput || !statusInput) return;
+    var qtyReceived = parseInt(qtyInput.value) || 0;
+    var status = statusInput.value;
+    items[i] = { qtyReceived: qtyReceived, status: status };
+    if (status !== 'Complete') allComplete = false;
+    if (status !== 'Not Received') anyReceived = true;
+  });
+  var recvDate = document.getElementById('recv-date').value;
+  var recvBy = document.getElementById('recv-by').value;
+  var recvNotes = document.getElementById('recv-notes').value;
+  var saveBtn = document.querySelector('#receiving-modal button[onclick="saveReceiving()"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Uploading photos...'; }
+  nsUploadReceivingPhotos(po.id, recvPhotos).then(function(photoUrls) {
+    po.receiving = {
+      date: recvDate,
+      receivedBy: recvBy,
+      notes: recvNotes,
+      photos: photoUrls,
+      items: items,
+      overallStatus: allComplete ? 'Complete' : (anyReceived ? 'Partial' : 'Not Received'),
+      savedAt: new Date().toISOString()
+    };
+    finishSaveReceiving(po, log, allComplete, anyReceived);
+  }).catch(function(e) {
+    console.warn('Receiving photo upload failed, saving with local photos only', e);
+    po.receiving = {
+      date: recvDate, receivedBy: recvBy, notes: recvNotes, photos: recvPhotos.slice(), items: items,
+      overallStatus: allComplete ? 'Complete' : (anyReceived ? 'Partial' : 'Not Received'),
+      savedAt: new Date().toISOString()
+    };
+    finishSaveReceiving(po, log, allComplete, anyReceived);
+    showToast('Saved, but photo upload failed — try again on wifi to sync photos', '#c04040');
+  }).then(function() {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Receiving'; }
+  });
+}
+function finishSaveReceiving(po, log, allComplete, anyReceived) {
+  // Auto-advance the PO status when fully received
+  if (allComplete && (po.status === 'Acknowledged' || po.status === 'Sent' || po.status === 'Resolved')) {
+    po.status = 'Complete';
+  } else if (anyReceived && !allComplete && po.status !== 'Issues') {
+    po.status = 'Resolved';
+  }
+  savePOLog(log);
+  closeReceivingModal();
+  renderPOLog();
+  showToast(po.poNum + ' receiving saved (' + po.receiving.overallStatus + ')', allComplete ? '#2d6a30' : '#8B6914');
 }
 
 
