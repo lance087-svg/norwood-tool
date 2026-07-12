@@ -3452,7 +3452,12 @@ document.addEventListener('DOMContentLoaded', function () {
 // Mirrors quotes/invoices, PO log (with receiving), order tracker, and vendor
 // inquiries to Firestore (same project as live inventory) so every device that
 // opens this tool sees the same data, updating live without a page refresh.
-const NS_SYNC_KEYS = ['ns_quotes', 'ns_po_log', 'ns_orders', 'ns_order_meta', 'ns_inquiries'];
+const NS_SYNC_KEYS = ['ns_po_log', 'ns_orders', 'ns_order_meta', 'ns_inquiries'];
+// NOTE: ns_quotes is intentionally NOT synced here. norwood-patch.js already
+// syncs quotes/invoices to Firestore on its own (per-record docs in the
+// 'ns_quotes' collection, auto-loaded on startup). Adding a second sync
+// system for the same localStorage key caused a race that wiped real data
+// on 2026-07-12 — don't re-add 'ns_quotes' to this list.
 let nsSyncApplying = {};
 function nsSyncDb() { return liveInvDb; }
 function nsDeviceLabel() {
@@ -3473,13 +3478,28 @@ function nsSyncPush(key, value) {
   }).catch(function (e) { console.warn('Cloud sync push failed for ' + key, e); })
     .then(function () { setTimeout(function () { nsSyncApplying[key] = false; }, 400); });
 }
+function nsIsEmptyValue(v) {
+  if (v == null) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === 'object') return Object.keys(v).length === 0;
+  return false;
+}
 function nsSyncApplyRemote(key, remoteValue) {
+  // Safety guard: never let an empty cloud result silently erase real local
+  // data (this is exactly what happened to PO Log on 2026-07-12). If the
+  // cloud is empty but this device already has real data, treat the local
+  // copy as authoritative and push it back up instead of wiping it.
+  let local;
+  try { local = JSON.parse(localStorage.getItem(key) || (key === 'ns_order_meta' ? '{}' : '[]')); }
+  catch (e) { local = (key === 'ns_order_meta' ? {} : []); }
+  if (nsIsEmptyValue(remoteValue) && !nsIsEmptyValue(local)) {
+    console.warn('[SYNC GUARD] Refused to overwrite non-empty local "' + key + '" with empty cloud data — re-pushing local instead.');
+    nsSyncPush(key, local);
+    return;
+  }
   localStorage.setItem(key, JSON.stringify(remoteValue));
   function active(id) { const el = document.getElementById(id); return el && el.classList.contains('active'); }
-  if (key === 'ns_quotes') {
-    if (active('page-history') && typeof renderHistory === 'function') renderHistory();
-    if (active('page-orders')) renderOrderTracker();
-  } else if (key === 'ns_po_log') {
+  if (key === 'ns_po_log') {
     if (active('page-polog')) renderPOLog();
   } else if (key === 'ns_orders' || key === 'ns_order_meta') {
     if (active('page-orders')) renderOrderTracker();
@@ -3562,7 +3582,8 @@ function getSavedQuotes() {
 }
 function saveQuotesToStorage(quotes) {
   localStorage.setItem('ns_quotes', JSON.stringify(quotes));
-  nsSyncPush('ns_quotes', quotes);
+  // Cloud sync for quotes/invoices is handled by norwood-patch.js — do not
+  // also push here. See NS_SYNC_KEYS note above for why.
 }
 
 function saveCurrentQuote(type) {
