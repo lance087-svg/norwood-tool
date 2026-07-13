@@ -718,6 +718,10 @@ tr:hover td{background:#fdf9f3}
   </div>
   </div>
   <input class="srch" id="admin-search" placeholder="Search products..." oninput="renderAdmin()">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+    <button type="button" id="missing-photo-toggle" class="btn btn-gh" style="font-size:12px;padding:6px 12px" onclick="toggleMissingPhotos()">📷 Missing Photos Only</button>
+    <span id="missing-photo-count" style="font-size:11px;color:#8B6914"></span>
+  </div>
   <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="admin-pills"><button class="pill on">All</button><button class="pill off">Composite Decking</button><button class="pill off">Exterior</button><button class="pill off">Exterior Doors</button><button class="pill off">Hardware</button><button class="pill off">Interior</button><button class="pill off">Interior Doors</button><button class="pill off">Lumber</button><button class="pill off">Millwork</button><button class="pill off">Siding</button><button class="pill off">TLC Exterior Doors</button><button class="pill off">Windows</button></div>
   <div class="panel">
     <table class="rtable">
@@ -1163,7 +1167,13 @@ Subject:
       <div style="flex:1">
         <div style="font-weight:700;font-size:15px;margin-bottom:3px" id="modal-title-text"></div>
         <div style="font-size:11px;color:#6b5a3a;margin-bottom:10px" id="modal-sub-text"></div>
-        <div class="fg"><label class="lbl">Photo URL <span id="modal-img-group-note" style="font-size:10px;color:#2d6a30;font-weight:400"></span></label><input type="text" id="modal-img-url" placeholder="https://i.imgur.com/photo.jpg" oninput="previewModalImg()"></div>
+        <div class="fg"><label class="lbl">Photo URL <span id="modal-img-group-note" style="font-size:10px;color:#2d6a30;font-weight:400"></span></label><input type="text" id="modal-img-url" placeholder="https://i.imgur.com/photo.jpg" oninput="previewModalImg()">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <input type="file" id="modal-img-file" accept="image/*" capture="environment" style="display:none" onchange="handleModalPhotoUpload(this)">
+            <button type="button" class="btn btn-gh" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('modal-img-file').click()">📷 Take / Upload Photo</button>
+            <span id="modal-photo-status" style="font-size:10px;color:#2d6a30"></span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="cg">
@@ -1223,16 +1233,28 @@ Subject:
         <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">GM</div><div id="ci-gm-pct" style="font-size:16px;font-weight:700;color:#2d6a30">35%</div></div>
       </div>
     </div>
+    <div class="fg" style="margin-bottom:12px">
+      <label class="lbl">Photo <span style="font-size:10px;color:#8B6914;font-weight:400">(shows on the quote/invoice and lets you text the customer a picture of exactly what they're getting)</span></label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="ci-img-prev" style="width:44px;height:64px;background:#f0e8d8;border-radius:4px;border:1.5px solid #d5c0a0;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#a89060;text-align:center;line-height:1.2">No photo</div>
+        <input type="file" id="ci-img-file" accept="image/*" capture="environment" style="display:none" onchange="handleCIPhotoUpload(this)">
+        <button type="button" class="btn btn-gh" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('ci-img-file').click()">📷 Take / Upload Photo</button>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f5f0e8;border-radius:6px;margin-bottom:4px">
       <input type="checkbox" id="ci-save-catalog" style="width:16px;height:16px;cursor:pointer">
       <label for="ci-save-catalog" style="font-size:12px;color:#6b5a3a;cursor:pointer;font-weight:600">Save this item to catalog for future quotes</label>
     </div>
     <div id="ci-catalog-fields" class="hidden" style="padding:10px;background:#f9f6f1;border-radius:6px;margin-bottom:12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="fg"><label class="lbl">Category</label>
           <select id="ci-cat"><option>Interior Doors</option><option>Doorworx</option><option>Lumber</option><option>Millwork</option><option>Special Orders</option><option>Other</option></select>
         </div>
         <div class="fg"><label class="lbl">Group</label><input type="text" id="ci-group" placeholder="e.g. Fiberglass..."></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ci-one-time" style="width:16px;height:16px;cursor:pointer">
+        <label for="ci-one-time" style="font-size:12px;color:#6b5a3a;cursor:pointer">One-time item (won't restock — flagged so a future restock under this name gets its own fresh photo instead of reusing this one)</label>
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -2605,6 +2627,49 @@ function imgHTML(p) {
   }
   return getProductSVG(p);
 }
+// ── PHOTO CAPTURE (Manage Products edit + Custom/one-time items) ────────────
+// Resizes and compresses a photo client-side to a small JPEG data URI before
+// it's stored, so phone photos taken on the floor don't bloat storage.
+function compressImageFile(file, maxDim, quality, callback) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height;
+      if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else if (h >= w && h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function handleModalPhotoUpload(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var statusEl = document.getElementById('modal-photo-status');
+  if (statusEl) statusEl.textContent = 'Processing photo...';
+  compressImageFile(file, 900, 0.72, function (dataUrl) {
+    document.getElementById('modal-img-url').value = dataUrl;
+    previewModalImg();
+    if (statusEl) statusEl.textContent = 'Photo attached — click Save Changes to keep it';
+  });
+  input.value = '';
+}
+let ciPhotoData = '';
+function handleCIPhotoUpload(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  compressImageFile(file, 900, 0.72, function (dataUrl) {
+    ciPhotoData = dataUrl;
+    document.getElementById('ci-img-prev').innerHTML = '<img src="' + dataUrl + '" style="width:100%;height:100%;object-fit:cover">';
+  });
+  input.value = '';
+}
 function saveEdits() {
   const edits = {};
   products.forEach(p => {
@@ -3240,13 +3305,30 @@ function quickAdd(id) {
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
+let adminMissingPhotosOnly = false;
+function toggleMissingPhotos() {
+  adminMissingPhotosOnly = !adminMissingPhotosOnly;
+  const btn = document.getElementById('missing-photo-toggle');
+  if (btn) btn.className = 'btn ' + (adminMissingPhotosOnly ? 'btn-p' : 'btn-gh');
+  renderAdmin();
+}
 function renderAdmin() {
   const s=(document.getElementById('admin-search').value||'').toLowerCase();
-  const filtered=products.filter(p=>(adminCatFilter==='All'||p.category===adminCatFilter)&&(!s||[p.item,p.description||'',p.group,p.category,p.sku||''].join(' ').toLowerCase().includes(s)));
+  let filtered=products.filter(p=>(adminCatFilter==='All'||p.category===adminCatFilter)&&(!s||[p.item,p.description||'',p.group,p.category,p.sku||''].join(' ').toLowerCase().includes(s)));
+  const missingCountEl=document.getElementById('missing-photo-count');
+  if (missingCountEl) {
+    const totalMissing = products.filter(p=>!p.imageUrl).length;
+    missingCountEl.textContent = totalMissing + ' item(s) have no photo';
+  }
+  if (adminMissingPhotosOnly) {
+    // Work through the backlog highest-stock (most likely to sell) first
+    filtered = filtered.filter(p=>!p.imageUrl).sort((a,b)=>(b.onHand||0)-(a.onHand||0));
+  }
   document.getElementById('admin-tbody').innerHTML=filtered.map(p=>{
     const img=p.imageUrl?'<img src="'+p.imageUrl+'" style="width:100%;height:100%;object-fit:cover">':doorSVG(p.category==='Doorworx'||p.category==='Exterior',false);
     const r40=calcRetail(p.cost,0.40,p.fixedRetail), r35=calcRetail(p.cost,0.35,p.fixedRetail), r30=calcRetail(p.cost,0.30,p.fixedRetail);
-    return '<tr><td><div style="width:32px;height:48px;background:#f0e8d8;border-radius:3px;border:1px solid #d5c0a0;overflow:hidden;display:flex;align-items:center;justify-content:center">'+img+'</div></td><td><div class="ldesc">'+p.item+(p.size?' — '+p.size:'')+'</div><div class="lsize">'+p.category+' · '+p.group+'</div><div class="lsize" style="color:#aaa">'+p.description+'</div></td><td style="text-align:right;font-weight:600">$'+p.cost+'</td><td style="text-align:right;color:#2d6a30;font-weight:600">$'+r40+'</td><td style="text-align:right;color:#c8952a;font-weight:600">$'+r35+'</td><td style="text-align:right;color:#c04040;font-weight:600">$'+r30+'</td><td><button class="btn btn-gh" style="font-size:11px;padding:3px 8px" onclick="openModal('+p.id+')">Edit</button></td></tr>';
+    const oneTimeBadge=p.isOneTime?'<span style="display:inline-block;margin-left:6px;font-size:9px;font-weight:700;color:#a06a2a;background:#fdf0dc;border:1px solid #e8cb96;border-radius:3px;padding:1px 5px;vertical-align:middle">ONE-TIME</span>':'';
+    return '<tr><td><div style="width:32px;height:48px;background:#f0e8d8;border-radius:3px;border:1px solid #d5c0a0;overflow:hidden;display:flex;align-items:center;justify-content:center">'+img+'</div></td><td><div class="ldesc">'+p.item+(p.size?' — '+p.size:'')+oneTimeBadge+'</div><div class="lsize">'+p.category+' · '+p.group+'</div><div class="lsize" style="color:#aaa">'+p.description+'</div></td><td style="text-align:right;font-weight:600">$'+p.cost+'</td><td style="text-align:right;color:#2d6a30;font-weight:600">$'+r40+'</td><td style="text-align:right;color:#c8952a;font-weight:600">$'+r35+'</td><td style="text-align:right;color:#c04040;font-weight:600">$'+r30+'</td><td><button class="btn btn-gh" style="font-size:11px;padding:3px 8px" onclick="openModal('+p.id+')">Edit</button></td></tr>';
   }).join('');
 }
 
@@ -3319,6 +3401,9 @@ function showCustomItem() {
   document.getElementById('ci-save-catalog').checked=false;
   document.getElementById('ci-catalog-fields').classList.add('hidden');
   document.getElementById('ci-custom-gm-row').classList.add('hidden');
+  ciPhotoData='';
+  document.getElementById('ci-img-prev').innerHTML='No photo';
+  document.getElementById('ci-one-time').checked=false;
   const total=lines.reduce((s,l)=>s+l.qty,0);
   const gm=manualGM!==null?manualGM:getGM(total);
   const gmSel=document.getElementById('ci-gm');
@@ -3353,12 +3438,13 @@ function addCustomItem() {
   if(!cost||cost<=0){document.getElementById('ci-cost').style.borderColor='#c04040';document.getElementById('ci-cost').focus();return;}
   if(!gm){return;}
   const unit=Math.round(cost/(1-gm));
-  lines.push({id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,imageUrl:'',qty,retail:unit,gm,lineId:Date.now()});
+  lines.push({id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()});
   if(document.getElementById('ci-save-catalog').checked){
     const cat=document.getElementById('ci-cat').value;
     const grp=document.getElementById('ci-group').value||'Special Orders';
+    const isOneTime=document.getElementById('ci-one-time').checked;
     const newId=Math.max(...products.map(p=>p.id))+1;
-    products.push({id:newId,sku:'SO-'+newId,item:desc,category:cat,group:grp,size:'',description:desc,cost,onHand:0,uom:'EA',isLumber:false,notes:'Custom item',imageUrl:''});
+    products.push({id:newId,sku:'SO-'+newId,item:desc,category:cat,group:grp,size:'',description:desc,cost,onHand:0,uom:'EA',isLumber:false,notes:isOneTime?'Custom item (one-time)':'Custom item',imageUrl:ciPhotoData||'',isOneTime:isOneTime});
     saveEdits();
   }
   closeCustomItem();
