@@ -2033,6 +2033,27 @@ function init() {
     return p;
   });
 
+  // ── CATEGORY NORMALIZATION ────────────────────────────────────────────────
+  // Collapses near-duplicate categories on the Catalog/quote-builder page:
+  //  - "Exterior" folds into "Exterior Doors"
+  //  - "Interior" folds into "Interior Doors"
+  //  - "TLC Exterior Doors" folds into "Exterior Doors" as a labeled
+  //    "TLC ..." subcategory (group), so TLC items stay easy to spot
+  //    while living under the single Exterior Doors category.
+  products = products.map(p => {
+    if (p.category === 'Exterior') {
+      return {...p, category: 'Exterior Doors'};
+    }
+    if (p.category === 'Interior') {
+      return {...p, category: 'Interior Doors'};
+    }
+    if (p.category === 'TLC Exterior Doors') {
+      const grp = p.group ? 'TLC ' + p.group : 'TLC';
+      return {...p, category: 'Exterior Doors', group: grp};
+    }
+    return p;
+  });
+
   // ── FIX CATEGORIES: runs every load, overrides any localStorage cache ──────
   var _catFixes = [
     {skus:['7000','7001','7002','7003','7004','7005','7006','7007','7008','7009','7010'], cat:'Siding',         grp:'Pine Siding'},
