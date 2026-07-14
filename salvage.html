@@ -189,6 +189,7 @@ body.admin .admin-ctrl{display:flex}
 .qty-step button{border:none;border-radius:0;width:34px;height:30px;font-size:16px;font-weight:700;background:#1E70B8;color:#fff;padding:0}
 .qty-step .qv{min-width:38px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;background:#fff;height:30px;line-height:30px}
 .ac-edit{}
+.ac-print{background:#eaf2fa !important;color:#0a3560 !important;border-color:#a9cdea !important}
 .ac-sold{background:#f3e4c8 !important}
 .ac-del{background:#fbe9e9 !important;color:#a22c2c !important;border-color:#e0b7b7 !important}
 .modal-veil{position:fixed;inset:0;background:rgba(20,16,10,.72);z-index:200;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 14px}
@@ -359,13 +360,40 @@ body.admin .admin-ctrl{display:flex}
     <div class="mf"><label>Notes (optional)</label><textarea id="fNotes" placeholder="Details customers should know…"></textarea></div>
     <div class="mbtns">
       <button class="mb-cancel" onclick="closeEdit()">Cancel</button>
-      <button class="mb-save" id="btnSave" onclick="saveItem()">Save Item</button>
+      <button class="mb-save" id="btnSave" onclick="saveItem(false)">Save Item</button>
+    </div>
+    <button class="mb-save" id="btnSavePrint" onclick="saveItem(true)" style="width:100%;margin-top:8px;background:#0a3560;">🖨️ Save &amp; Print Label</button>
+  </div>
+</div>
+
+<!-- Print Label modal -->
+<div class="modal-veil" id="printVeil">
+  <div class="modal-box">
+    <h2>Print Label</h2>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="sizeBtn4x6" onclick="setLabelSize('4x6')"
+        style="flex:1;padding:10px;border-radius:6px;border:2px solid #1E70B8;background:#1E70B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+        4" x 6"<br><span style="font-size:10px;font-weight:400;">Rollo / Full Label</span>
+      </button>
+      <button id="sizeBtn1x2" onclick="setLabelSize('1x2')"
+        style="flex:1;padding:10px;border-radius:6px;border:2px solid #ccc;background:#fff;color:#333;font-size:13px;font-weight:600;cursor:pointer;">
+        1" x 2"<br><span style="font-size:10px;font-weight:400;">Small / Narrow</span>
+      </button>
+    </div>
+    <div style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:14px;text-align:center;min-height:80px;">
+      <svg id="barcodeSvg"></svg>
+      <div id="barcodeText"></div>
+    </div>
+    <div class="mbtns">
+      <button class="mb-cancel" onclick="closePrint()">Close</button>
+      <button class="mb-save" onclick="printLabel()">🖨️ Print to Rollo</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
@@ -396,6 +424,8 @@ var lbIdx = 0;
 
 var ADMIN_KEY = 'ns_salv_admin';
 var PIN = '1971';
+var currentLabelSize = '4x6';
+var printItem = null;
 
 /* ============ LIVE LISTENER ============ */
 db.collection('norwood').where('isSalvage', '==', true)
@@ -494,6 +524,7 @@ function render() {
     h += '<div class="admin-ctrl">';
     h += '<div class="qty-step"><button onclick="bumpQty(\'' + it._id + '\',-1)" aria-label="Subtract one">−</button><span class="qv">' + qty + '</span><button onclick="bumpQty(\'' + it._id + '\',1)" aria-label="Add one">+</button></div>';
     h += '<button class="ac-edit" onclick="openEdit(\'' + it._id + '\')">Edit</button>';
+    h += '<button class="ac-print" onclick="openPrint(\'' + it._id + '\')">Print</button>';
     h += it.sold
       ? '<button class="ac-sold" onclick="markSold(\'' + it._id + '\',false)">Restore</button>'
       : '<button class="ac-sold" onclick="markSold(\'' + it._id + '\',true)">Mark Sold</button>';
@@ -765,7 +796,7 @@ Analyze this photo and respond ONLY with a JSON object (no markdown, no extra te
     btn.disabled = false;
   });
 }
-function saveItem() {
+function saveItem(andPrint) {
   var title = document.getElementById('fTitle').value.trim();
   var price = parseFloat(document.getElementById('fPrice').value);
   var qty = parseInt(document.getElementById('fQty').value, 10);
@@ -773,8 +804,12 @@ function saveItem() {
   if (isNaN(price) || price < 0) { toast('Enter a price'); return; }
   if (isNaN(qty) || qty < 0) qty = 1;
 
-  var btn = document.getElementById('btnSave');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  var btnSave = document.getElementById('btnSave');
+  var btnPrint = document.getElementById('btnSavePrint');
+  btnSave.disabled = true; btnPrint.disabled = true;
+  var activeBtn = andPrint ? btnPrint : btnSave;
+  var origText = activeBtn.textContent;
+  activeBtn.textContent = 'Saving…';
 
   var data = {
     title: title,
@@ -787,23 +822,117 @@ function saveItem() {
     isSalvage: true,
     updatedAt: Date.now()
   };
+  var docId, salvNo;
   var p;
   if (editingId) {
+    docId = editingId;
+    var existing = ITEMS.find(function(i) { return i._id === editingId; });
+    salvNo = existing ? existing.salvNo : editingId;
     p = db.collection('norwood').doc(editingId).update(data);
   } else {
-    var salvNo = Date.now();
+    salvNo = Date.now();
     data.salvNo = salvNo;
     data.sold = false;
     data.listed = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    p = db.collection('norwood').doc('SALV-' + salvNo).set(data);
+    docId = 'SALV-' + salvNo;
+    p = db.collection('norwood').doc(docId).set(data);
   }
   p.then(function() {
-    btn.disabled = false; btn.textContent = 'Save Item';
+    btnSave.disabled = false; btnPrint.disabled = false; activeBtn.textContent = origText;
     closeEdit(); toast(editingId ? 'Item updated' : 'Item added');
+    if (andPrint) {
+      printItem = Object.assign({ _id: docId, salvNo: salvNo }, data);
+      document.getElementById('printVeil').classList.add('on');
+      setLabelSize(currentLabelSize);
+    }
   }).catch(function(e) {
-    btn.disabled = false; btn.textContent = 'Save Item';
+    btnSave.disabled = false; btnPrint.disabled = false; activeBtn.textContent = origText;
     toast('Save failed — try again'); console.error(e);
   });
+}
+
+/* ============ PRINT LABEL ============ */
+function openPrint(id) {
+  var it = ITEMS.find(function(i) { return i._id === id; });
+  if (!it) return;
+  printItem = it;
+  document.getElementById('printVeil').classList.add('on');
+  setLabelSize(currentLabelSize);
+}
+function closePrint() { document.getElementById('printVeil').classList.remove('on'); }
+document.getElementById('printVeil').addEventListener('click', function(e){ if(e.target===this) closePrint(); });
+
+function setLabelSize(size) {
+  currentLabelSize = size;
+  var b4 = document.getElementById('sizeBtn4x6'), b1 = document.getElementById('sizeBtn1x2');
+  b4.style.background = size==='4x6' ? '#1E70B8' : '#fff';
+  b4.style.color      = size==='4x6' ? '#fff' : '#333';
+  b4.style.borderColor= size==='4x6' ? '#1E70B8' : '#ccc';
+  b1.style.background = size==='1x2' ? '#1E70B8' : '#fff';
+  b1.style.color      = size==='1x2' ? '#fff' : '#333';
+  b1.style.borderColor= size==='1x2' ? '#1E70B8' : '#ccc';
+  renderBarcodePreview();
+}
+
+function renderBarcodePreview() {
+  if (!printItem) return;
+  var h = currentLabelSize==='4x6' ? 80 : 28;
+  var w = currentLabelSize==='4x6' ? 2.5 : 1.4;
+  var barcodeVal = String(printItem.salvNo || printItem._id);
+  try { JsBarcode('#barcodeSvg', barcodeVal, { format:'CODE128', width:w, height:h, displayValue:false, margin:4 }); }
+  catch(e) { console.warn('Barcode error:', e); }
+  var svg = document.getElementById('barcodeSvg');
+  if (svg && currentLabelSize==='4x6') { svg.style.width='100%'; svg.style.height='auto'; }
+  var title = printItem.title || '';
+  var price = Number(printItem.price) || 0;
+  if (currentLabelSize==='4x6') {
+    document.getElementById('barcodeText').innerHTML =
+      '<div style="text-align:left;margin-bottom:8px;">' +
+        '<div style="font-size:13px;font-weight:800;color:#1E70B8;letter-spacing:1px;margin-bottom:2px;">Item #' + esc(barcodeVal) + '</div>' +
+        '<div style="font-size:22px;font-weight:700;line-height:1.3;">' + esc(title) + '</div>' +
+      '</div>' +
+      '<div style="font-size:52px;font-weight:900;line-height:1;text-align:center;">$' + price.toFixed(2) + '</div>';
+  } else {
+    document.getElementById('barcodeText').innerHTML =
+      '<div style="font-size:8px;line-height:1.3;">#' + esc(barcodeVal) + ' &nbsp; $' + price.toFixed(2) +
+      '<br><span style="font-size:7px;">' + esc(title).substring(0,45) + '</span></div>';
+  }
+}
+
+function printLabel() {
+  if (!printItem) return;
+  var size = currentLabelSize;
+  var w_mm = size==='4x6' ? 152 : 50, h_mm = size==='4x6' ? 101 : 25;
+  var barcodeVal = String(printItem.salvNo || printItem._id);
+  var title = printItem.title || '';
+  var price = (Number(printItem.price) || 0).toFixed(2);
+  var win = window.open('', '_blank');
+
+  if (size === '4x6') {
+    win.document.write('<!DOCTYPE html><html><head><title>Label - ' + esc(barcodeVal) + '</title>' +
+      '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>' +
+      '<style>@page{size:' + w_mm + 'mm ' + h_mm + 'mm;margin:0}' +
+      'body{margin:0;padding:6px 8px;font-family:Arial,sans-serif;width:' + w_mm + 'mm;height:' + h_mm + 'mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;}' +
+      'svg{max-width:100%;display:block;} *{word-wrap:break-word;overflow-wrap:break-word;box-sizing:border-box;}</style></head>' +
+      '<body>' +
+      '<div style="width:100%;text-align:center;"><svg id="printBarcode" style="width:100%;height:auto;display:block;"></svg></div>' +
+      '<div style="margin-top:4px;"><div style="font-size:15px;font-weight:900;color:#1E70B8;letter-spacing:1px;margin-bottom:2px;">Item #' + esc(barcodeVal) + '</div>' +
+      '<div style="font-size:22px;font-weight:700;line-height:1.3;">' + esc(title) + '</div></div>' +
+      '<div style="font-size:46px;font-weight:900;line-height:1;margin-top:4px;text-align:center;">$' + price + '</div>' +
+      '<script>window.onload=function(){JsBarcode("#printBarcode","' + barcodeVal + '",{format:"CODE128",width:3,height:90,displayValue:true,textMargin:4,fontSize:14,margin:4,lineColor:"#000"});window.print();}<\/script>' +
+      '</body></html>');
+  } else {
+    var svgC = document.getElementById('barcodeSvg').outerHTML;
+    var txtC = document.getElementById('barcodeText').innerHTML;
+    win.document.write('<!DOCTYPE html><html><head><title>Label - ' + esc(barcodeVal) + '</title>' +
+      '<style>@page{size:' + w_mm + 'mm ' + h_mm + 'mm;margin:0}' +
+      'body{margin:0;padding:2px;font-family:Arial,sans-serif;width:' + w_mm + 'mm;height:' + h_mm + 'mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}' +
+      'svg{max-width:100%;display:block;} div{word-wrap:break-word;overflow-wrap:break-word;max-width:100%;width:100%;}</style></head>' +
+      '<body>' + svgC + '<div style="width:100%;">' + txtC + '</div>' +
+      '<script>window.onload=function(){window.print()}<\/script></body></html>');
+  }
+  win.document.close();
+  toast('Sending to Rollo…');
 }
 
 /* boot */
