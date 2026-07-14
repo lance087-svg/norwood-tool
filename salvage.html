@@ -204,6 +204,13 @@ body.admin .admin-ctrl{display:flex}
 .photo-drop{border:2px dashed #c9bda3;border-radius:6px;padding:14px;text-align:center;cursor:pointer;background:#fff}
 .photo-drop img{max-width:100%;max-height:180px;border-radius:4px}
 .photo-drop .pd-hint{font-size:13px;color:#8a7d63}
+.ai-btn{width:100%;margin-top:10px;padding:11px;border-radius:6px;border:1.5px solid var(--orange);background:#fff;color:var(--orange-dark);font-size:14px;font-weight:700;cursor:pointer;display:none}
+.ai-btn:disabled{opacity:.65;cursor:default}
+.ai-result{background:#eef5fb;border:1.5px solid #a9cdea;border-radius:7px;padding:12px 14px;font-size:13px;color:#0a3560;margin-top:10px;display:none;line-height:1.5}
+.ai-result.visible{display:block}
+.ai-badge{display:inline-block;background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:6px;letter-spacing:.5px}
+.ai-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(30,112,184,.3);border-top-color:var(--orange);border-radius:50%;animation:ai-spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes ai-spin{to{transform:rotate(360deg)}}
 .mbtns{display:flex;gap:10px;margin-top:18px}
 .mbtns button{flex:1;padding:12px;border-radius:5px;border:none;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .mb-save{background:#1E70B8;color:#fff;font-weight:600}
@@ -318,6 +325,11 @@ body.admin .admin-ctrl{display:flex}
         <div class="pd-hint" id="photoHint">📷 Tap to take a photo or choose one</div>
       </div>
       <input type="file" id="photoFile" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+      <button class="ai-btn" id="aiBtn" onclick="runAI()">✨ Ask AI to Identify Item</button>
+      <div class="ai-result" id="aiResult">
+        <span class="ai-badge">AI SUGGESTION</span>
+        <div id="aiResultText"></div>
+      </div>
     </div>
     <div class="mf"><label>Title / Description</label><input type="text" id="fTitle" placeholder='e.g. 36" x 80" 6-Panel Interior Door'></div>
     <div class="mrow">
@@ -623,6 +635,8 @@ function openAdd() {
   document.getElementById('fCond').value = 'Good';
   document.getElementById('fNotes').value = '';
   setPreview('');
+  document.getElementById('aiBtn').style.display = 'none';
+  document.getElementById('aiResult').classList.remove('visible');
   document.getElementById('editVeil').classList.add('on');
 }
 function openEdit(id) {
@@ -637,6 +651,8 @@ function openEdit(id) {
   document.getElementById('fCond').value = it.condition || 'Good';
   document.getElementById('fNotes').value = it.notes || '';
   setPreview(photoData);
+  document.getElementById('aiBtn').style.display = photoData ? 'block' : 'none';
+  document.getElementById('aiResult').classList.remove('visible');
   document.getElementById('editVeil').classList.add('on');
 }
 function closeEdit() { document.getElementById('editVeil').classList.remove('on'); }
@@ -662,11 +678,92 @@ function handlePhoto(input) {
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       photoData = c.toDataURL('image/jpeg', 0.72);
       setPreview(photoData);
+      document.getElementById('aiBtn').style.display = 'block';
+      document.getElementById('aiResult').classList.remove('visible');
     };
     img.src = r.result;
   };
   r.readAsDataURL(f);
   input.value = '';
+}
+
+/* ============ AI IDENTIFY ============ */
+function saveNsAPIKey() {
+  var key = document.getElementById('ns-apikey-input').value.trim();
+  if (!key) return;
+  localStorage.setItem('ns_inv_apikey', key);
+  document.getElementById('ns-apikey-modal').style.display = 'none';
+  toast('API key saved — tap AI Identify again');
+}
+function runAI() {
+  if (!photoData) { toast('Add a photo first'); return; }
+  var apiKey = localStorage.getItem('ns_inv_apikey');
+  if (!apiKey) { document.getElementById('ns-apikey-modal').style.display = 'flex'; return; }
+
+  var btn = document.getElementById('aiBtn');
+  btn.innerHTML = '<span class="ai-spinner"></span>Identifying…';
+  btn.disabled = true;
+
+  var base64 = photoData.split(',')[1];
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+          { type: 'text', text:
+`You are a salvage-inventory assistant for Norwood Supply, a building materials dealer in Jacksonville FL specializing in doors and millwork. This photo is of a salvage/overstock/scratch-and-dent item going on the public salvage deals board.
+
+Analyze this photo and respond ONLY with a JSON object (no markdown, no extra text):
+{
+  "title": "Short customer-facing title/description, e.g. 3/0 x 6/8 Fiberglass Smooth Exterior Prehung Door (include size, material, style if visible)",
+  "category": "DOORS | MILLWORK | LUMBER | HARDWARE | MISC",
+  "condition": "New | Good | Fair | Scratch & Dent | As-Is (best guess from visible wear/damage)",
+  "notes": "Any details a customer should know — visible damage, missing hardware, color, special-order origin, etc. Leave empty string if nothing notable.",
+  "confidence": "high | medium | low"
+}` }
+        ]
+      }]
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var raw = (data.content && data.content.find(function(b){return b.type==='text';}) || {}).text || '{}';
+    var clean = raw.replace(/```json|```/g, '').trim();
+    var result = JSON.parse(clean);
+
+    if (result.title) document.getElementById('fTitle').value = result.title;
+    if (result.category) document.getElementById('fCat').value = result.category;
+    if (result.condition) document.getElementById('fCond').value = result.condition;
+    if (result.notes) document.getElementById('fNotes').value = result.notes;
+
+    var resDiv = document.getElementById('aiResult');
+    document.getElementById('aiResultText').innerHTML =
+      '<strong>' + (result.title || '') + '</strong><br>' +
+      'Category: ' + (result.category || '—') + ' &nbsp;|&nbsp; Condition: ' + (result.condition || '—') +
+      ' &nbsp;|&nbsp; Confidence: ' + (result.confidence || '—') +
+      (result.notes ? '<br><em>' + result.notes + '</em>' : '');
+    resDiv.classList.add('visible');
+    toast('AI identified item ✓');
+  })
+  .catch(function(err) {
+    console.error(err);
+    toast('AI error — fill in manually');
+  })
+  .finally(function() {
+    btn.innerHTML = '✨ Ask AI to Identify Item';
+    btn.disabled = false;
+  });
 }
 function saveItem() {
   var title = document.getElementById('fTitle').value.trim();
@@ -712,5 +809,18 @@ function saveItem() {
 /* boot */
 applyAdminUI();
 </script>
+
+<!-- API KEY MODAL (shared with inventory.html via localStorage) -->
+<div id="ns-apikey-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)document.getElementById('ns-apikey-modal').style.display='none'">
+  <div style="background:#fff;border-radius:10px;padding:24px;max-width:420px;width:90%;margin:auto;">
+    <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:6px">🔑 AI Setup</div>
+    <div style="font-size:12px;color:#666;margin-bottom:14px;line-height:1.6">Enter your Claude API key to enable AI item identification. Stored only in your browser (shared with the main inventory tool).</div>
+    <input type="password" id="ns-apikey-input" placeholder="sk-ant-..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #ccc;border-radius:6px;font-family:monospace;font-size:13px;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="document.getElementById('ns-apikey-modal').style.display='none'" style="padding:8px 16px;border-radius:5px;border:1px solid #ccc;background:#fff;font-size:13px;cursor:pointer;">Cancel</button>
+      <button onclick="saveNsAPIKey()" style="padding:8px 20px;border-radius:5px;border:none;background:#1E70B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Save Key</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
