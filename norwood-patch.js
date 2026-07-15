@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '<button onclick="document.getElementById(\'invModal\').style.display=\'none\'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:14px;">✕</button>',
       '</div>',
       '<div style="padding:12px 14px;border-bottom:1px solid #f0e8d8;flex-shrink:0;">',
-        '<input id="invSearch" type="text" placeholder="Search by description or SKU…" oninput="filterInv()" style="width:100%;padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">',
+        '<input id="invSearch" type="text" placeholder="Search (e.g. 36 6-lite craftsman)…" oninput="filterInv()" style="width:100%;padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">',
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;" id="invChips">',
           '<button class="invChip active" data-cat="ALL" onclick="setInvCat(\'ALL\',this)">All</button>',
           '<button class="invChip" data-cat="DR" onclick="setInvCat(\'DR\',this)">Doors</button>',
@@ -494,12 +494,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var q = (document.getElementById('invSearch').value || '').toLowerCase();
     var listEl = document.getElementById('invList');
     if (!listEl) return;
+    var terms = q.split(/\s+/).filter(Boolean);
     var filtered = _inv.filter(function(item) {
       if (_invCat !== 'ALL' && item.category !== _invCat) return false;
-      if (!q) return true;
-      return (item.description || '').toLowerCase().indexOf(q) > -1 ||
-             (item.sku || '').toLowerCase().indexOf(q) > -1 ||
-             (String(item.itemNo || '')).indexOf(q) > -1;
+      if (!terms.length) return true;
+      var haystack = [item.description || '', item.sku || '', String(item.itemNo || '')].join(' ').toLowerCase();
+      return terms.every(function(t) { return haystack.indexOf(t) > -1; });
     });
     if (!filtered.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#a89060;font-family:system-ui;font-size:13px;">No items found</div>';

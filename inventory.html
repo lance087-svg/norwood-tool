@@ -905,7 +905,7 @@
 <div class="panel active" id="panel-browse">
 
   <div class="search-row">
-    <input type="text" id="searchInput" placeholder="Search SKU or description..." oninput="filterItems()"/>
+    <input type="text" id="searchInput" placeholder="Search (e.g. 36 6-lite craftsman)..." oninput="filterItems()"/>
     <button class="btn btn-primary" style="width:auto;margin:0;padding:10px 14px;white-space:nowrap;" onclick="loadInventory()">↻</button>
   </div>
 
@@ -1911,12 +1911,18 @@ function renderItems() {
   const search = (document.getElementById('searchInput').value || '').toLowerCase();
   let items = allItems;
   if (activeCatFilter !== 'ALL') items = items.filter(i => i.category === activeCatFilter);
-  if (search) items = items.filter(i =>
-    i.sku?.toLowerCase().includes(search) ||
-    i.description?.toLowerCase().includes(search) ||
-    i.vendor?.toLowerCase().includes(search) ||
-    String(i.itemNo || '').includes(search)
-  );
+  if (search) {
+    const terms = search.split(/\s+/).filter(Boolean);
+    items = items.filter(i => {
+      const haystack = [
+        i.sku || '',
+        i.description || '',
+        i.vendor || '',
+        String(i.itemNo || '')
+      ].join(' ').toLowerCase();
+      return terms.every(term => haystack.includes(term));
+    });
+  }
 
   const list = document.getElementById('inventoryList');
   if (!items.length) {
