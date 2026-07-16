@@ -3012,7 +3012,7 @@ function renderSummary() {
     +(disc>0?'<div class="sl gm" style="color:'+(parseFloat(gm)-discPct<15?'#c04040':'#2d6a30')+'"><span>Effective GM (post-disc)</span><span>'+(parseFloat(gm)-discPct).toFixed(1)+'%</span></div>':'')
     +'<div class="sl gm"><span>Total qty</span><span>'+total+' items</span></div>'
     +'<hr style="border:none;border-top:1px solid #e0d5c0;margin:8px 0">'
-    +'<div style="display:flex;gap:8px"><button class="btn btn-g" onclick="showQuote()" style="flex:1">📄 Quote</button><button class="btn btn-p" onclick="showInvoice()" style="flex:1;background:#1a1008">🧾 Invoice</button></div>';
+    +'<div style="display:flex;gap:8px"><button class="btn btn-g" onclick="showQuote()" style="flex:1">📄 Quote</button><button class="btn btn-p" onclick="showInvoice(currentInvNum)" style="flex:1;background:#1a1008">🧾 Invoice</button></div>';
 }
 
 // ── TIER PRICING ──────────────────────────────────────────────────────────────
@@ -3510,6 +3510,8 @@ function doNewQuote() {
   document.getElementById('lines-tbody').innerHTML='';
   document.getElementById('summary-body').innerHTML='<div style="color:#a89060;font-size:13px;text-align:center;padding:16px 0">Add items to see totals</div>';
   quoteNum='Q-'+Math.floor(10000+Math.random()*90000);
+  currentInvNum=null;
+  currentInvoiceRecordId=null;
   quoteDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   showView('quote-view');
   showPage('quote',document.getElementById('tab-quote'));
