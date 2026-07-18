@@ -559,6 +559,21 @@
   <div class="mode-tab" onclick="switchMode('returns')">↩️ Returns</div>
 </div>
 
+<!-- ════════════════════════════════════════════
+     ACTING AS (who is making changes — audit trail)
+═════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:8px 16px 0;font-size:0.8rem;color:#555;">
+  <span style="color:#888;">Acting as</span>
+  <select id="actingAs" onchange="setActingAs()"
+    style="padding:5px 10px;border:1px solid #ccc;border-radius:7px;font-size:0.85rem;font-weight:700;background:#fff;color:#1E70B8;">
+    <option value="">— pick name —</option>
+    <option>Phil</option>
+    <option>Garon</option>
+    <option>Cleve</option>
+    <option>Lance</option>
+  </select>
+</div>
+
 <!-- CONFIG BANNER (hidden once Firebase is set up) -->
 <div id="configBanner" class="config-banner" style="margin:12px 16px 0;display:none;">
   <span class="icon">⚠️</span>
@@ -620,6 +635,12 @@
 
       <!-- Meta info -->
       <div id="detailMeta" style="background:#f9f9f9;border-radius:8px;padding:12px;font-size:0.83rem;color:#555;line-height:1.9;margin-bottom:16px;"></div>
+
+      <!-- Change history -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:0.72rem;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Change history — who &amp; when</div>
+        <div id="detailHistory" style="background:#f9f9f9;border-radius:8px;padding:12px;font-size:0.8rem;color:#555;line-height:1.8;max-height:180px;overflow-y:auto;"></div>
+      </div>
 
       <!-- Action buttons -->
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -946,6 +967,14 @@
     </div>
   </div>
 
+  <!-- Removed items — recoverable -->
+  <div id="removedWrap" style="display:none;margin-top:20px;">
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.6px;color:#b23a2e;font-weight:800;margin-bottom:8px;">
+      Removed — recoverable (<span id="removedCount">0</span>)
+    </div>
+    <div id="removedList"></div>
+  </div>
+
 </div><!-- /panel-browse -->
 
 
@@ -1239,7 +1268,50 @@ let currentGM = 33;
 let currentPhoto = null;
 let currentPhotoBase64 = null;
 let allItems = [];
+let removedItems = [];
 let activeCatFilter = 'ALL';
+
+// ── WHO IS ACTING (audit trail) ──────────────────────────────
+function currentUser() { return localStorage.getItem('ns_inv_actingAs') || ''; }
+function setActingAs() {
+  localStorage.setItem('ns_inv_actingAs', document.getElementById('actingAs').value);
+}
+function initActingAs() {
+  const sel = document.getElementById('actingAs');
+  if (sel) sel.value = currentUser();
+}
+// Blocks a change until a name is picked — that's how "who" never gets lost
+function requireUser() {
+  const u = currentUser();
+  if (!u) {
+    showToast('Pick who you are (top right) before changing inventory', 'error', 4000);
+    const sel = document.getElementById('actingAs');
+    if (sel) { sel.focus(); sel.style.borderColor = '#c62828'; setTimeout(()=>{ sel.style.borderColor=''; }, 2500); }
+    return null;
+  }
+  return u;
+}
+// Firestore fields to merge into any write so it carries who + when + a history line
+function stampFields(action, by, at) {
+  return {
+    history: firebase.firestore.FieldValue.arrayUnion({ action, by, at }),
+    lastAction: action, lastBy: by, lastAt: at,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+// Keep the local copy in sync so the UI updates without a reload
+function mirrorAudit(item, action, by, at) {
+  if (!item) return;
+  if (!Array.isArray(item.history)) item.history = [];
+  item.history.push({ action, by, at });
+  item.lastAction = action; item.lastBy = by; item.lastAt = at;
+}
+function fmtStamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+}
 let countItem = null;
 let currentQty = 0;
 let recentCountsList = [];
@@ -1601,6 +1673,8 @@ async function saveItem(andPrint = false) {
     itemNo = await getNextItemNo();
   }
 
+  const _who = currentUser() || '—';
+  const _at = new Date().toISOString();
   const item = {
     sku,
     itemNo,
@@ -1615,7 +1689,9 @@ async function saveItem(andPrint = false) {
     qoh,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    hasPhoto: !!currentPhotoBase64
+    hasPhoto: !!currentPhotoBase64,
+    history: firebase.firestore.FieldValue.arrayUnion({ action: isEditing ? 'Edited' : 'Created', by: _who, at: _at }),
+    lastAction: isEditing ? 'Edited' : 'Created', lastBy: _who, lastAt: _at
   };
 
   if (!firebaseReady) {
@@ -1887,7 +1963,7 @@ async function loadInventory() {
   try {
     const snap = await db.collection('norwood').limit(500).get();
     const validCats = ['DR','MW','LB','HW'];
-    allItems = snap.docs
+    const base = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(d => {
         if (d.id.startsWith('__')) return false;
@@ -1895,13 +1971,14 @@ async function loadInventory() {
         if (d.type === 'salvage' || d.isSalvage || d.salvageType || String(d.sku||'').indexOf('SALVAGE-') === 0) return false;
         // Include regular items with valid category or sku+description
         return validCats.includes(d.category) || (d.sku && d.description);
-      })
-      .sort((a,b) => {
-        const ta = a.createdAt?.seconds || 0;
-        const tb = b.createdAt?.seconds || 0;
-        return tb - ta;
       });
+    const byCreated = (a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+    // Active list excludes soft-deleted items; removed ones go to the recoverable list
+    allItems = base.filter(d => !d.removed).sort(byCreated);
+    removedItems = base.filter(d => d.removed)
+      .sort((a,b) => String(b.removedAt||'').localeCompare(String(a.removedAt||'')));
     renderItems();
+    renderRemoved();
   } catch(e) {
     list.innerHTML = '<div class="empty-state"><p>Error loading: ' + e.message + '</p></div>';
   }
@@ -1952,8 +2029,9 @@ function renderItems() {
             <span>Sell: <strong>$${(item.price||0).toFixed(2)}</strong></span>
             <span>${item.location || ''}</span>
           </div>
-          <div style="margin-top:6px;">
+          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="qoh-badge ${qohClass}" style="font-size:0.88rem;padding:4px 14px;font-weight:800;">QOH: ${qoh}</span>
+            ${item.lastBy ? `<span style="font-size:0.7rem;color:#999;">${item.lastAction || 'Updated'} &middot; ${item.lastBy}${item.lastAt ? ' &middot; ' + fmtStamp(item.lastAt) : ''}</span>` : ''}
           </div>
         </div>
       </div>
@@ -2042,6 +2120,12 @@ function openItem(sku) {
     rows.push('<strong>Margin:</strong> ' + realGM + '%');
   }
   document.getElementById('detailMeta').innerHTML = rows.length ? rows.join('<br>') : '<em style="color:#bbb;">No additional details</em>';
+
+  // Change history — newest first
+  const hist = Array.isArray(item.history) ? item.history.slice().reverse() : [];
+  document.getElementById('detailHistory').innerHTML = hist.length
+    ? hist.map(h => `<div><strong>${h.action}</strong> &mdash; ${h.by || '—'}${h.at ? ' &middot; ' + fmtStamp(h.at) : ''}</div>`).join('')
+    : '<em style="color:#bbb;">No changes recorded yet</em>';
 
   document.getElementById('itemDetailModal').style.display = 'flex';
 }
@@ -2189,6 +2273,7 @@ function adjustQty(delta) {
 
 async function saveCount() {
   if (!countItem) return;
+  const by = requireUser(); if (!by) return;
   const manual = parseInt(document.getElementById('qtyManual').value);
   const inputQty = isNaN(manual) ? currentQty : manual;
 
@@ -2203,14 +2288,22 @@ async function saveCount() {
     newQty = inputQty; // 'set' mode — exact count
   }
 
+  const at = new Date().toISOString();
+  const action = (countMode === 'add' ? 'Count +' + inputQty
+                : countMode === 'remove' ? 'Count −' + inputQty
+                : 'Count set =' + inputQty) + ' (now ' + newQty + ')';
+
   showLoading('Saving...');
   try {
-    await db.collection('norwood').doc(countItem.sku).update({
+    await db.collection('norwood').doc(countItem.sku).update(Object.assign({
       qoh: newQty,
       lastCountedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, stampFields(action, by, at)));
     document.getElementById('countCurrentQOH').textContent = newQty;
     countItem.qoh = newQty;
+    // mirror onto the active list so Browse shows the stamp without a reload
+    const li = allItems.find(i => i.sku === countItem.sku);
+    if (li) { li.qoh = newQty; mirrorAudit(li, action, by, at); }
 
     const modeLabel = countMode === 'add' ? '+' + inputQty : countMode === 'remove' ? '-' + inputQty : '=';
     recentCountsList.unshift({
@@ -2427,12 +2520,18 @@ async function loadReturnLog() {
 async function adjustQOH(sku, delta) {
   const item = allItems.find(i => i.sku === sku);
   if (!item) return;
-  const newQOH = Math.max(0, (item.qoh ?? 0) + delta);
+  const by = requireUser(); if (!by) return;
+  const oldQOH = item.qoh ?? 0;
+  const newQOH = Math.max(0, oldQOH + delta);
+  if (newQOH === oldQOH) { showToast('Already at 0', 'info', 1500); return; }
+  const at = new Date().toISOString();
+  const action = (delta < 0 ? 'Qty −' : 'Qty +') + Math.abs(delta) + ' (now ' + newQOH + ')';
   try {
-    await db.collection('norwood').doc(sku).update({ qoh: newQOH });
+    await db.collection('norwood').doc(sku).update(Object.assign({ qoh: newQOH }, stampFields(action, by, at)));
     item.qoh = newQOH;
+    mirrorAudit(item, action, by, at);
     renderItems();
-    showToast((delta > 0 ? '▲' : '▼') + ' QOH updated: ' + sku + ' → ' + newQOH, delta > 0 ? '#2d6a30' : '#b71c1c');
+    showToast((delta > 0 ? '▲' : '▼') + ' ' + sku + ' → ' + newQOH + ' · ' + by, delta > 0 ? '#2d6a30' : '#b71c1c');
   } catch(e) {
     showToast('❌ Failed to update QOH', '#b71c1c');
   }
@@ -2581,28 +2680,87 @@ function editItem(sku) {
   window.scrollTo(0, 0);
 }
 
-// ── DELETE ITEM ──
+// ── REMOVE ITEM (soft delete — recoverable, keeps who/when) ──
 async function deleteItem(evt, sku) {
   evt.stopPropagation();
   const item = allItems.find(i => i.id === sku || i.sku === sku);
   const desc = item ? (item.description || '').substring(0, 40) : sku;
-  if (!confirm('Delete ' + sku + '?\n' + desc + '\n\nThis cannot be undone.')) return;
+  const by = requireUser(); if (!by) return;
+  if (!confirm('Remove ' + sku + '?\n' + desc + '\n\nIt moves to "Removed" and can be restored — nothing is destroyed.')) return;
   if (!firebaseReady) { showToast('Firebase not connected', 'error', 5000); return; }
-  showLoading('Deleting...');
+  showLoading('Removing...');
   try {
-    await db.collection('norwood').doc(sku).delete();
-    showToast(sku + ' deleted', 'info');
+    const at = new Date().toISOString();
+    await db.collection('norwood').doc(sku).update(Object.assign(
+      { removed: true, removedBy: by, removedAt: at },
+      stampFields('Removed', by, at)
+    ));
+    if (item) { item.removed = true; item.removedBy = by; item.removedAt = at; mirrorAudit(item, 'Removed', by, at); removedItems.unshift(item); }
     allItems = allItems.filter(i => i.id !== sku && i.sku !== sku);
     renderItems();
+    renderRemoved();
+    showToast(sku + ' removed by ' + by + ' — restorable', 'info', 3500);
   } catch(e) {
     let msg = e.message || 'Unknown error';
     if (e.code === 'permission-denied') {
       msg = 'Permission denied — go to Firebase Console > Firestore > Rules and set: allow read, write: if true;';
     }
-    showToast('Delete failed: ' + msg, 'error', 8000);
-    console.error('Delete error:', e);
+    showToast('Remove failed: ' + msg, 'error', 8000);
+    console.error('Remove error:', e);
   }
   hideLoading();
+}
+
+// ── RESTORE a removed item ──
+async function restoreItem(sku) {
+  const by = requireUser(); if (!by) return;
+  const item = removedItems.find(i => i.sku === sku);
+  if (!firebaseReady) { showToast('Firebase not connected', 'error', 5000); return; }
+  showLoading('Restoring...');
+  try {
+    const at = new Date().toISOString();
+    await db.collection('norwood').doc(sku).update(Object.assign(
+      { removed: false,
+        removedBy: firebase.firestore.FieldValue.delete(),
+        removedAt: firebase.firestore.FieldValue.delete() },
+      stampFields('Restored', by, at)
+    ));
+    if (item) {
+      item.removed = false; delete item.removedBy; delete item.removedAt;
+      mirrorAudit(item, 'Restored', by, at);
+      removedItems = removedItems.filter(i => i.sku !== sku);
+      allItems.unshift(item);
+    }
+    renderItems();
+    renderRemoved();
+    showToast(sku + ' restored by ' + by, 'success', 2500);
+  } catch(e) {
+    showToast('Restore failed: ' + (e.message || 'Unknown error'), 'error', 6000);
+  }
+  hideLoading();
+}
+
+// ── RENDER removed (recoverable) list ──
+function renderRemoved() {
+  const wrap = document.getElementById('removedWrap');
+  const listEl = document.getElementById('removedList');
+  if (!wrap || !listEl) return;
+  if (!removedItems.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('removedCount').textContent = removedItems.length;
+  listEl.innerHTML = removedItems.map(item => {
+    const when = item.removedAt ? fmtStamp(item.removedAt) : '';
+    const safeDesc = (item.description || '').replace(/</g, '&lt;');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;background:#faf9f7;">
+      <div style="min-width:0;">
+        <div style="font-weight:800;font-size:0.85rem;color:#666;">${item.itemNo ? 'No. ' + item.itemNo + ' · ' : ''}${item.sku}</div>
+        <div style="font-size:0.8rem;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeDesc}</div>
+        <div style="font-size:0.72rem;color:#b23a2e;margin-top:2px;">Removed by ${item.removedBy || '—'}${when ? ' · ' + when : ''}</div>
+      </div>
+      <button onclick="restoreItem('${item.sku}')"
+        style="flex-shrink:0;background:#1E70B8;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;">Restore</button>
+    </div>`;
+  }).join('');
 }
 
 // ── CAMERA SCANNER ──
@@ -2647,6 +2805,7 @@ function nwStopCamera() {
 // ── INIT ──
 window.onload = () => {
   showCatFields('');
+  initActingAs();
   if (firebaseReady) loadInventory();
 };
 </script>
