@@ -664,6 +664,35 @@ tr:hover td{background:#fdf9f3}
       <button class="btn" onclick="downloadQuotePDF()" style="background:#1B5E20;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:5px;cursor:pointer;border:none;">⬇️ Download PDF</button>
       <button class="btn btn-g" onclick="newQuote()">🔄 New Quote</button>
       <button class="btn" onclick="toggleSnipSize(&#39;qp-content&#39;)" id="snip-btn-quote" style="background:#6b5a3a;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">🔍 Full Size</button>
+      <button class="btn" onclick="openQuoteInquiry()" style="background:#2980d4;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">📬 Get Vendor Prices</button>
+    </div>
+
+    <!-- QUOTE VENDOR INQUIRY MODAL -->
+    <div id="quote-inq-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center;padding:16px" class="no-print">
+      <div style="background:#fff;border-radius:10px;padding:28px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <h3 style="font-size:17px;font-weight:700;color:#1a2438;margin:0">Get Vendor Prices</h3>
+          <button onclick="closeQuoteInqModal()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#6b5a3a;line-height:1">×</button>
+        </div>
+        <div style="font-size:12px;color:#8B6914;margin-bottom:16px">Send this quote's items to vendors for pricing — no PO is created</div>
+        <div style="font-size:11px;font-weight:700;color:#6b5a3a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Items <span style="font-weight:400;text-transform:none;color:#a89060">(uncheck items you don't need priced)</span></div>
+        <div id="qinq-items-list" style="border:1px solid #e0d5c0;border-radius:6px;overflow:hidden;margin-bottom:14px;max-height:200px;overflow-y:auto"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Need By</div><input id="qinq-need-by" type="date" onchange="updateQuoteInqPreview()" style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
+          <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Notes</div><input id="qinq-notes" oninput="updateQuoteInqPreview()" placeholder="Finish, hardware, etc." style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
+        </div>
+        <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Select Vendors *</div>
+        <div id="qinq-vendor-list" style="display:flex;flex-direction:column;gap:8px"></div></div>
+        <div style="background:#f5f0e8;border-radius:7px;padding:12px;margin-bottom:16px">
+          <div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Email Preview</div>
+          <div id="qinq-email-preview" style="font-size:12px;color:#2c2416;line-height:1.6;white-space:pre-wrap;font-family:inherit"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+          <button onclick="closeQuoteInqModal()" style="padding:9px 20px;border-radius:6px;border:1.5px solid #d5c8a8;background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#6b5a3a">Cancel</button>
+          <button onclick="saveQuoteInquiryOnly()" style="padding:9px 20px;border-radius:6px;border:none;background:#8B6914;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Save Only</button>
+          <button onclick="sendQuoteInquiryEmails()" style="padding:9px 24px;border-radius:6px;border:none;background:#2980d4;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Send Emails</button>
+        </div>
+      </div>
     </div>
     <div class="qp" id="qp-content" style="transform-origin: left top; transform: scale(0.537); height: 792px; overflow: visible;"><div class="qp-wrap"><div class="qp-page"><div class="qp-banner"><div class="qp-banner-left"><div class="qp-banner-logo">NORWOOD SUPPLY</div><div class="qp-banner-tag">Doors · Millwork · Building Materials</div><div class="qp-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 <a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a>| norwoodsupply.com | <a href="file:///C:/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="761a17181513464e4136111b171f1a5815191b">[email&nbsp;protected]</a><br>Mon–Fri 7:30 AM–5:00 PM | Sat 8:30 AM–12:00 PM</div></div><div class="qp-banner-right"><div class="qp-banner-title">QUOTE</div><div class="qp-banner-num">#Q-35957</div><div class="qp-banner-meta"><strong>Date:</strong> April 10, 2026<br><strong>Valid Through:</strong> May 10, 2026<br><strong>Prepared By:</strong> Lance</div></div></div><div class="qp-info-grid"><div class="qp-info-box"><div class="qp-info-label">BILL TO</div><div class="qp-info-name">Alex</div><div class="qp-info-detail">PVB</div></div><div class="qp-info-box"><div class="qp-info-label">SHIP TO / DELIVER TO</div><div class="qp-info-name">Alex</div><div class="qp-info-detail">PVB</div></div><div class="qp-info-box"><div class="qp-info-label">QUOTE DETAILS</div><div class="qp-info-detail"><strong>Quote #:</strong> Q-35957<br><strong>Date:</strong> April 10, 2026<br><strong>Expires:</strong> May 10, 2026<br><strong>Sales Rep:</strong> Lance<br><strong>Terms:</strong> 50% DEPOSIT REQUIRED<br><strong>ETA:</strong> <span style="color:#2d6a30;font-weight:700">Fri, Apr 24, 2026</span></div></div></div><table class="qp-table"><thead><tr><th style="width:50px">LINE</th><th>DESCRIPTION</th><th style="width:55px">QTY</th><th style="width:95px">UNIT PRICE</th><th style="width:105px">TOTAL</th></tr></thead><tbody><tr><td style="text-align:center;font-weight:700;width:50px">1</td><td><div style="font-weight:600">Full 1-Lite Double PH</div><div style="font-size:11px;color:#6b5a3a">LH O/S - Smooth White 1-Lite Double PH 4-9/16 Comp Jamb Alum T-Ast Mill Sill US15 · 5/0 x 6/8</div></td><td style="text-align:center;font-weight:600;width:55px">1</td><td style="text-align:right;width:95px">$957.00</td><td style="text-align:right;font-weight:700;width:105px">$957.00</td></tr></tbody></table><div class="qp-totals"><div class="qpt"><span>Subtotal:</span><span>$957.00</span></div><div class="qpt"><span>Sales Tax (7.5%):</span><span>$71.77</span></div><div class="qpt"><span>Delivery:</span><span>$50.00</span></div><div class="qpt grand"><span>QUOTE TOTAL:</span><span>$1078.78</span></div></div><div class="qp-deposit" style="margin-left:auto;width:280px"><span>50% Deposit Due:</span><span>$539.39</span></div><div class="qp-notes-box"><div class="qp-notes-label">NOTES &amp; TERMS</div><div class="qp-notes-content">• <strong>Lead Time:</strong> Approximately 1–1.5 weeks from order confirmation and deposit.<br>• <strong>Deposit:</strong> 50% DEPOSIT REQUIRED<br>• <strong>Delivery:</strong> $50.00<br>• <strong>Quote Validity:</strong> This quote is valid through <strong>May 10, 2026</strong>. Pricing subject to change after expiration.</div></div><div class="qp-terms-box"><div class="qp-terms-label">TERMS &amp; CONDITIONS</div><div class="qp-terms-content">Materials remain the property of Norwood Supply until paid in full. Special order items are non-returnable. Approved returns may be subject to restocking fees. Customer is responsible for verifying quantities, measurements, and specifications prior to installation. Claims must be made before installation.</div></div><div class="qp-footer">Norwood Supply • 6200 Norwood Ave, Jacksonville, FL 32208 • (904) 768-6818 <a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a>• norwoodsupply.com • <a href="file:///C:/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="630f020d0006535b5423040e020a0f4d000c0e">[email&nbsp;protected]</a><br>Mon–Fri 7:30 AM–5:00 PM | Sat 8:30 AM–12:00 PM | Closed Sunday</div></div></div></div>
   </div>
@@ -5619,6 +5648,94 @@ function createPOFromInquiry(inqId, vendorName) {
   });
 }
 function deleteInquiry(id){if(!confirm('Delete this inquiry?'))return;saveInquiries(getInquiries().filter(function(i){return i.id!==id;}));renderInquiries();}
+
+// ── QUOTE → VENDOR PRICE INQUIRY (no PO created) ────────────────────────────
+let quoteInqItems = [];
+function openQuoteInquiry(){
+  quoteInqItems = lines.map(function(l,i){ return Object.assign({}, l, {inqIdx:i, include:true}); });
+  var vl=document.getElementById('qinq-vendor-list');
+  if(vl){
+    vl.innerHTML=INQ_VENDORS.map(function(v,i){
+      return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid #e0d5c0;border-radius:6px;cursor:pointer;background:#fdf9f3">'+
+        '<input type="checkbox" id="qinqv-'+i+'" onchange="updateQuoteInqPreview()" style="margin-top:3px;width:16px;height:16px;cursor:pointer">'+
+        '<div><div style="font-size:13px;font-weight:600;color:#1a2438">'+v.name+'</div>'+
+        '<div style="font-size:11px;color:#6b5a3a">'+v.rep+' - '+v.email+'</div>'+
+        '<div style="font-size:10px;color:#9baab8">'+v.specialty+'</div></div></label>';
+    }).join('');
+  }
+  var needByEl=document.getElementById('qinq-need-by');
+  if(needByEl){ var etaEl=document.getElementById('c-eta-date'); needByEl.value=etaEl?etaEl.value:''; }
+  var notesEl=document.getElementById('qinq-notes'); if(notesEl) notesEl.value='';
+  renderQuoteInqItems();
+  updateQuoteInqPreview();
+  var m=document.getElementById('quote-inq-modal'); if(m) m.style.display='flex';
+}
+function renderQuoteInqItems(){
+  var c=document.getElementById('qinq-items-list'); if(!c) return;
+  if(!quoteInqItems.length){ c.innerHTML='<div style="padding:14px;font-size:12px;color:#a89060;text-align:center">No items on this quote yet.</div>'; return; }
+  c.innerHTML=quoteInqItems.map(function(l,i){
+    return '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-bottom:1px solid #f0e8d8;cursor:pointer;background:'+(l.include?'#fff':'#f9f6f1')+'">'+
+      '<input type="checkbox" '+(l.include?'checked':'')+' onchange="toggleQuoteInqItem('+i+')" style="margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0">'+
+      '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(l.include?'#1a1008':'#aaa')+'">'+l.item+(l.size?' ('+l.size+')':'')+' <span style="font-weight:400;color:#6b5a3a">x'+l.qty+'</span></div>'+
+      '<div style="font-size:11px;color:#6b5a3a">'+(l.description||'')+'</div></div></label>';
+  }).join('');
+}
+function toggleQuoteInqItem(i){ quoteInqItems[i].include=!quoteInqItems[i].include; renderQuoteInqItems(); updateQuoteInqPreview(); }
+function closeQuoteInqModal(){ var m=document.getElementById('quote-inq-modal'); if(m) m.style.display='none'; }
+function getQuoteInqSelVendors(){ return INQ_VENDORS.filter(function(v,i){ var cb=document.getElementById('qinqv-'+i); return cb&&cb.checked; }); }
+function buildQuoteInqProductText(){
+  var active=quoteInqItems.filter(function(l){ return l.include; });
+  return active.map(function(l){ return l.qty+' x '+l.item+(l.size?' ('+l.size+')':'')+(l.description?' -- '+l.description:''); }).join('\n');
+}
+function updateQuoteInqPreview(){
+  var product=buildQuoteInqProductText();
+  var custEl=document.getElementById('c-name'); var cust=custEl?custEl.value:'';
+  var needBy=gval('qinq-need-by'), notes=gval('qinq-notes');
+  var vendors=getQuoteInqSelVendors();
+  var prev=document.getElementById('qinq-email-preview'); if(!prev) return;
+  var toLine=vendors.length?vendors.map(function(v){return v.rep;}).join(', '):'(select vendors above)';
+  var body='Hello,\n\nWe would like to price the following item(s) and appreciate your best pricing:\n\n'+(product||'(no items selected)')+'\n\n';
+  if(needBy) try{body+='Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\n';}catch(e){}
+  if(cust) body+='For: '+cust+'\n';
+  if(notes) body+='Notes: '+notes+'\n';
+  body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\nLance Hopper\nNorwood Supply | (904) 768-6818';
+  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+'\nSubject: Price Request -- '+(quoteNum||'Quote')+'\n\n'+body;
+}
+function sendQuoteInquiryEmails(){
+  var product=buildQuoteInqProductText();
+  if(!product){ showToast('Select at least one item','#c04040'); return; }
+  var vendors=getQuoteInqSelVendors();
+  if(!vendors.length){ showToast('Select at least one vendor','#c04040'); return; }
+  var custEl=document.getElementById('c-name'); var cust=custEl?custEl.value:'';
+  var needBy=gval('qinq-need-by'), notes=gval('qinq-notes');
+  var subject='Price Request -- '+(quoteNum||'Quote');
+  var bodyText='Hello,\r\n\r\nWe would like to price the following item(s):\r\n\r\n'+product+'\r\n\r\n'+
+    (needBy?'Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\r\n':'')+
+    (cust?'For: '+cust+'\r\n':'')+
+    (notes?'Notes: '+notes+'\r\n':'')+
+    '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\nLance Hopper\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
+  if(vendors.length===1){
+    var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(vendors[0].email)+'&cc='+encodeURIComponent('lance087@gmail.com')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
+    window.open(gmailUrl,'_blank');
+  } else {
+    vendors.forEach(function(v,idx){
+      var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(v.email)+'&cc='+encodeURIComponent('lance087@gmail.com')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
+      if(idx===0){ window.open(gmailUrl,'_blank'); } else { setTimeout(function(){ window.open(gmailUrl,'_blank'); }, idx*800); }
+    });
+    showToast('Opening '+vendors.length+' Gmail compose windows...','#2980d4');
+  }
+  saveInqRecord(product,vendors,'',cust,needBy,notes,'Sent');
+  showToast('Gmail opened for '+vendors.length+' vendor'+(vendors.length>1?'s':''),'#2d6a30');
+  closeQuoteInqModal();
+}
+function saveQuoteInquiryOnly(){
+  var product=buildQuoteInqProductText();
+  if(!product){ showToast('Select at least one item','#c04040'); return; }
+  var custEl=document.getElementById('c-name'); var cust=custEl?custEl.value:'';
+  var needBy=gval('qinq-need-by'), notes=gval('qinq-notes');
+  saveInqRecord(product,getQuoteInqSelVendors(),'',cust,needBy,notes,'Pending');
+  showToast('Inquiry saved','#8B6914'); closeQuoteInqModal();
+}
 function filterInquiries(s){var el=document.getElementById('inq-status-filter');if(el)el.value=s;renderInquiries();}
 function renderInquiries(){
   var el=document.getElementById('inq-list');
