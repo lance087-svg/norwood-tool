@@ -2007,14 +2007,55 @@ const VENDORS = [
   {
     id: 'weyerhaeuser',
     name: 'Weyerhaeuser',
-    contact: 'Susan Shaw',
+    contact: 'Susan Shaw / Tyler Freeman',
     address: 'Weyerhaeuser NR Co — WP Distribution\nJacksonville, FL DC',
     phone: '(904) 783-2007',
-    email: '',
+    email: 'Tyler.Freeman@weyerhaeuser.com',
     email2: '',
     specialty: ['Azek Trim', 'EWP', 'Engineered Wood'],
     categories: ['Lumber', 'Other'],
     color: '#1e7145'
+  },
+  {
+    id: 'woodford',
+    name: 'Woodford Plywood',
+    contact: 'Ryan Martin',
+    address: '',
+    phone: '',
+    email: 'rmartin@wfply.com',
+    email2: '',
+    specialty: ['Plywood', 'OSB', 'Siding', 'Lumber'],
+    categories: ['Lumber'],
+    color: '#4a7c59',
+    products: [
+      'CDX Plywood: 3/8 CD, 3/8 4-ply OC (105pc/unit), 1/2 4-ply, 3/8 RS (105pc/unit), 5/8 CD, 5/8 4-ply OC (66pc/unit), 3/4 CD, 5/8 8-ply OC (66pc/unit), 5/8 RB&B (66pc/unit)',
+      '.40 CCA PT Plywood: 1/2 CDX, 3/4 CDX',
+      'BC Pine Plywood: 1/4 BC, 3/8 BC, 1/2 BC, 5/8 BC, 3/4 BC',
+      'Plybead: 3/8 1.6" OC',
+      'Underlayment Plywood: 3/4 T&G ULC, 3/4 Advantech',
+      'OSB (bundles): 4x8x7/16, 4x8x1/2, 4x8x5/8, 4x8x23/32 T&G',
+      'ZIP System: 4x8 7/16 Zip, 4x9\'7" 7/16 Zip, 4x10\'9" 7/16 Zip, 4x12\'1" 7/16 Zip, 4" Zip tape (roll)',
+      'Southern Yellow Pine #2 Dimensional: 1x4, 2x4, 2x6, 2x8, 2x10, 2x12 — 8\', 10\', 12\', 14\', 16\' lengths',
+      'Euro Spruce: 2x4 and 2x6 — 8\', 10\', 12\', 14\', 16\' and metric (92-5/8", 104-5/8", 116-5/8") lengths',
+      'Pine Siding: T1-11, Premium and Deco grades',
+      'Drywall: 3/8" and 1/2" regular, 1/2" mold-resistant, 5/8" fire code (4x8 and 4x12), 5-gal joint compound, Durock cement board (3x5x1/2 and 4x8x1/2)',
+      'Poly Iso Insulation: 3/4" (60pc/unit and 58pc/unit)',
+      'Luaun: 1/4" exterior (180pc/unit)',
+      'Birch Plywood: 5.2mm, 12mm, 18mm',
+      'Fire Rated Plywood: 15/32", 19/32", 23/32"',
+      'Cedar Timbers: 14x16, 16x16, 18x16, 24x16, 26x16, 28x18'
+    ]
+  },
+  {
+    id: 'wbp',
+    name: 'Wholesale Building Products',
+    contact: 'Tim Roush',
+    address: '',
+    phone: '',
+    email: 'timr@wholesalebldgproducts.com',
+    email2: '',
+    specialty: ['Lumber'],
+    categories: ['Lumber']
   }
 ];
 
@@ -3230,7 +3271,7 @@ function selectVendor(id) {
     info.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="lbl" style="display:block;margin-bottom:3px">Vendor Name</label><input id="ov-name" type="text" placeholder="Vendor name" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none"></div><div><label class="lbl" style="display:block;margin-bottom:3px">Phone</label><input id="ov-phone" type="text" placeholder="Phone" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none"></div><div><label class="lbl" style="display:block;margin-bottom:3px">Email</label><input id="ov-email" type="text" placeholder="Email" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none"></div><div><label class="lbl" style="display:block;margin-bottom:3px">Address</label><input id="ov-addr" type="text" placeholder="Address" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none"></div></div>';
   } else {
     info.classList.remove('hidden');
-    info.innerHTML='<strong style="color:#2980d4">'+selVendor.name+'</strong><br>'+selVendor.address.split('\n').join('<br>')+'<br>📞 '+selVendor.phone+' &nbsp;|&nbsp; ✉️ <a href="mailto:'+selVendor.email+'" style="color:#2980d4">'+selVendor.email+'</a>'+(selVendor.email2?'  <a href="mailto:'+selVendor.email2+'" style="color:#2980d4">'+selVendor.email2+'</a>':'');
+    info.innerHTML='<strong style="color:#2980d4">'+selVendor.name+'</strong><br>'+selVendor.address.split('\n').join('<br>')+'<br>📞 '+selVendor.phone+' &nbsp;|&nbsp; ✉️ <a href="mailto:'+selVendor.email+'" style="color:#2980d4">'+selVendor.email+'</a>'+(selVendor.email2?'  <a href="mailto:'+selVendor.email2+'" style="color:#2980d4">'+selVendor.email2+'</a>':'')+(selVendor.products&&selVendor.products.length?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid #cfe0f5;font-size:11px;line-height:1.7"><strong>Carries:</strong><br>'+selVendor.products.join('<br>')+'</div>':'');
   }
   const btn=document.getElementById('po-generate-btn');
   btn.disabled=false; btn.style.background='#2980d4'; btn.style.cursor='pointer';
@@ -5400,7 +5441,10 @@ var INQ_VENDORS = [
   {name:'Dixie Plywood',          email:'cmwest@dixieply.com',         rep:'C.M. West',    specialty:'Plywood, Panels, Millwork'},
   {name:'Dyke Industries',        email:'jmorell@dykeind.com',         rep:'Joey Morell',  specialty:'Exterior/Interior Doors'},
   {name:'Woodgrain Distribution', email:'lnewburn@woodgrain.com',      rep:'L. Newburn',   specialty:'Interior Doors, Millwork'},
-  {name:'Millwork Sales',         email:'rkrall@msifamily.com',        rep:'R. Krall',     specialty:'Doors, Millwork'}
+  {name:'Millwork Sales',         email:'rkrall@msifamily.com',        rep:'R. Krall',     specialty:'Doors, Millwork'},
+  {name:'Woodford Plywood',       email:'rmartin@wfply.com',           rep:'Ryan Martin',  specialty:'Plywood, OSB, Siding, Lumber'},
+  {name:'Wholesale Building Products', email:'timr@wholesalebldgproducts.com', rep:'Tim Roush', specialty:'Lumber'},
+  {name:'Weyerhaeuser',           email:'Tyler.Freeman@weyerhaeuser.com', rep:'Tyler Freeman', specialty:'Azek Trim, EWP, Engineered Wood'}
 ];
 var INQ_STATUSES = ['Pending','Sent','Replied','Ordered','Passed'];
 var INQ_COL = {
@@ -5656,11 +5700,13 @@ function openQuoteInquiry(){
   var vl=document.getElementById('qinq-vendor-list');
   if(vl){
     vl.innerHTML=INQ_VENDORS.map(function(v,i){
+      var full=VENDORS.find(function(fv){ return fv.name===v.name; });
+      var products=(full&&full.products&&full.products.length)?'<div style="font-size:10px;color:#8B6914;margin-top:4px;line-height:1.5"><strong>Carries:</strong> '+full.products.join(' · ')+'</div>':'';
       return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid #e0d5c0;border-radius:6px;cursor:pointer;background:#fdf9f3">'+
         '<input type="checkbox" id="qinqv-'+i+'" onchange="updateQuoteInqPreview()" style="margin-top:3px;width:16px;height:16px;cursor:pointer">'+
         '<div><div style="font-size:13px;font-weight:600;color:#1a2438">'+v.name+'</div>'+
         '<div style="font-size:11px;color:#6b5a3a">'+v.rep+' - '+v.email+'</div>'+
-        '<div style="font-size:10px;color:#9baab8">'+v.specialty+'</div></div></label>';
+        '<div style="font-size:10px;color:#9baab8">'+v.specialty+'</div>'+products+'</div></label>';
     }).join('');
   }
   var needByEl=document.getElementById('qinq-need-by');
