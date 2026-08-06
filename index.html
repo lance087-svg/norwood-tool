@@ -3236,10 +3236,9 @@ function showInvoice(existingInvNum) {
     (function(){var c2=getCustomer();syncToOrderTracker(invNum,c2,lines,grand,c2.etaDate||'',c2.rep||'Lance');})();
     deductInventoryForInvoice(lines, invNum, c.name||'Customer', grand, sub, tax);
   } else {
-    // Loading existing invoice — find its record id by invoice number
-    var _qs = getSavedQuotes();
-    var _found = _qs.find(function(q){ return q.quoteNum === existingInvNum; });
-    currentInvoiceRecordId = _found ? _found.id : null;
+    // Re-displaying/editing an existing invoice — save back to the SAME record
+    // (same invoice number, no new counter, payment history preserved above).
+    currentInvoiceRecordId = saveCurrentQuote('invoice');
   }
   updateInvFulfillmentStrip(invNum);
 }
@@ -3793,7 +3792,7 @@ function saveCurrentQuote(type) {
   var record = {
     id: Date.now(),
     type: type,
-    quoteNum: type === 'invoice' ? ('INV-' + String(invCounter).padStart(5,'0')) : quoteNum,
+    quoteNum: type === 'invoice' ? (currentInvNum || ('INV-' + String(invCounter).padStart(5,'0'))) : quoteNum,
     date: new Date().toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}),
     timestamp: Date.now(),
     customer: c,
@@ -3827,7 +3826,18 @@ function saveCurrentQuote(type) {
   // Check if same quote number exists - update it
   var existingIdx = quotes.findIndex(function(q){ return q.quoteNum === record.quoteNum; });
   if(existingIdx >= 0) {
-    record.id = quotes[existingIdx].id; // preserve original id
+    var prior = quotes[existingIdx];
+    record.id = prior.id; // preserve original id
+    record.date = prior.date; // keep original creation date, don't bump to today on edit
+    // Preserve any payments already recorded so re-saving (edits, refreshes) never wipes them
+    record.paymentHistory = prior.paymentHistory || record.paymentHistory;
+    record.amountPaid = prior.amountPaid || 0;
+    record.balanceDue = Math.max(0, record.grand - record.amountPaid);
+    if(record.amountPaid > 0) {
+      record.paymentStatus = record.balanceDue <= 0.01 ? 'PAID IN FULL' : 'BALANCE DUE';
+    } else {
+      record.paymentStatus = prior.paymentStatus || record.paymentStatus;
+    }
     quotes[existingIdx] = record;
   } else {
     quotes.unshift(record); // newest first
@@ -3928,6 +3938,12 @@ function loadIntoBuilder(id) {
   lines = q.lines.map(function(l){ return Object.assign({}, l); });
   manualGM = q.manualGM || null;
   quoteNum = q.type === 'quote' ? q.quoteNum : quoteNum;
+  if (q.type === 'invoice') {
+    // Restore the invoice's own number/record id so editing and re-generating
+    // updates this same invoice instead of minting a new INV- number.
+    currentInvNum = q.quoteNum;
+    currentInvoiceRecordId = q.id;
+  }
   
   // Restore customer fields
   var fields = {
