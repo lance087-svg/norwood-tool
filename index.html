@@ -5567,7 +5567,6 @@ function updateInqPreview(){
   var vendors=getSelVendors();
   var rep=getSelectedRep();
   var prev=document.getElementById('inq-email-preview'); if(!prev) return;
-  var toLine=vendors.length?vendors.map(function(v){return v.rep;}).join(', '):'(select vendors above)';
   var body='Hello,\n\nWe would like to price the following item and appreciate your best pricing:\n\n';
   if(product) body+='Item: '+product+'\n';
   if(qty)     body+='Quantity: '+qty+'\n';
@@ -5575,7 +5574,14 @@ function updateInqPreview(){
   if(cust)    body+='For: '+cust+'\n';
   if(notes)   body+='Notes: '+notes+'\n';
   body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\n'+rep.name+'\nNorwood Supply | (904) 768-6818';
-  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'\n\u26a0 No email on file for '+rep.name+' — add it so replies CC correctly')+'\nSubject: Price Request -- '+(product||'[item]')+'\n\n'+body;
+  var headerLines;
+  if(vendors.length<=1){
+    headerLines='To: '+(vendors.length?vendors[0].rep:'(select vendors above)')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'');
+  } else {
+    headerLines='To: '+(rep.email||rep.name)+'\nBCC: '+vendors.map(function(v){return v.rep;}).join(', ')+" (one email, vendors won't see each other)";
+  }
+  if(!rep.email) headerLines+='\n\u26a0 No email on file for '+rep.name+' — add it so the compose window has a "To" address';
+  prev.textContent=headerLines+'\nSubject: Price Request -- '+(product||'[item]')+'\n\n'+body;
 }
 function sendInquiryEmails(){
   var product=gval('inq-product');
@@ -5592,20 +5598,26 @@ function sendInquiryEmails(){
     (cust?'For: '+cust+'\r\n':'')+
     (notes?'Notes: '+notes+'\r\n':'')+
     '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
-  // Use Gmail web compose for each vendor (avoids mailto issues and popup blocking).
-  // All windows must open synchronously in this same click handler — a setTimeout
-  // delay makes browsers treat later opens as unrequested popups and block them.
-  vendors.forEach(function(v){
-    var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
-      '&to='+encodeURIComponent(v.email)+
+  // Browsers allow only ONE window.open per click no matter how it's called — so
+  // for multiple vendors we open a SINGLE Gmail compose with every vendor on BCC
+  // (they can't see each other) instead of trying to pop open one window each.
+  var gmailUrl;
+  if(vendors.length===1){
+    gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
+      '&to='+encodeURIComponent(vendors[0].email)+
       (rep.email?'&cc='+encodeURIComponent(rep.email):'')+
       '&su='+encodeURIComponent(subject)+
       '&body='+encodeURIComponent(bodyText);
-    window.open(gmailUrl,'_blank');
-  });
-  if(vendors.length>1) showToast('Opening '+vendors.length+' Gmail compose windows — if your browser blocked any, allow popups for this site','#2980d4');
+  } else {
+    gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
+      '&to='+encodeURIComponent(rep.email||'')+
+      '&bcc='+encodeURIComponent(vendors.map(function(v){return v.email;}).join(','))+
+      '&su='+encodeURIComponent(subject)+
+      '&body='+encodeURIComponent(bodyText);
+  }
+  window.open(gmailUrl,'_blank');
   saveInqRecord(product,vendors,qty,cust,needBy,notes,'Sent');
-  showToast('Gmail opened for '+vendors.length+' vendor'+(vendors.length>1?'s':''),'#2d6a30');
+  showToast(vendors.length>1 ? 'One email opened, BCC to all '+vendors.length+' vendors' : 'Gmail opened for '+vendors[0].rep,'#2d6a30');
   closeInqModal();
 }
 function saveInquiryOnly(){
@@ -5820,13 +5832,19 @@ function updateQuoteInqPreview(){
   var vendors=getQuoteInqSelVendors();
   var rep=getSelectedRep();
   var prev=document.getElementById('qinq-email-preview'); if(!prev) return;
-  var toLine=vendors.length?vendors.map(function(v){return v.rep;}).join(', '):'(select vendors above)';
   var body='Hello,\n\nWe would like to price the following item(s) and appreciate your best pricing:\n\n'+(product||'(no items selected)')+'\n\n';
   if(needBy) try{body+='Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\n';}catch(e){}
   if(cust) body+='For: '+cust+'\n';
   if(notes) body+='Notes: '+notes+'\n';
   body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\n'+rep.name+'\nNorwood Supply | (904) 768-6818';
-  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'\n\u26a0 No email on file for '+rep.name+' — add it so replies CC correctly')+'\nSubject: Price Request -- '+(quoteNum||'Quote')+'\n\n'+body;
+  var headerLines;
+  if(vendors.length<=1){
+    headerLines='To: '+(vendors.length?vendors[0].rep:'(select vendors above)')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'');
+  } else {
+    headerLines='To: '+(rep.email||rep.name)+'\nBCC: '+vendors.map(function(v){return v.rep;}).join(', ')+" (one email, vendors won't see each other)";
+  }
+  if(!rep.email) headerLines+='\n\u26a0 No email on file for '+rep.name+' — add it so the compose window has a "To" address';
+  prev.textContent=headerLines+'\nSubject: Price Request -- '+(quoteNum||'Quote')+'\n\n'+body;
 }
 function sendQuoteInquiryEmails(){
   var product=buildQuoteInqProductText();
@@ -5842,15 +5860,18 @@ function sendQuoteInquiryEmails(){
     (cust?'For: '+cust+'\r\n':'')+
     (notes?'Notes: '+notes+'\r\n':'')+
     '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
-  // All windows must open synchronously in this same click handler — a setTimeout
-  // delay makes browsers treat later opens as unrequested popups and block them.
-  vendors.forEach(function(v){
-    var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(v.email)+(rep.email?'&cc='+encodeURIComponent(rep.email):'')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
-    window.open(gmailUrl,'_blank');
-  });
-  if(vendors.length>1) showToast('Opening '+vendors.length+' Gmail compose windows — if your browser blocked any, allow popups for this site','#2980d4');
+  // Browsers allow only ONE window.open per click no matter how it's called — so
+  // for multiple vendors we open a SINGLE Gmail compose with every vendor on BCC
+  // (they can't see each other) instead of trying to pop open one window each.
+  var gmailUrl;
+  if(vendors.length===1){
+    gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(vendors[0].email)+(rep.email?'&cc='+encodeURIComponent(rep.email):'')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
+  } else {
+    gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(rep.email||'')+'&bcc='+encodeURIComponent(vendors.map(function(v){return v.email;}).join(','))+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
+  }
+  window.open(gmailUrl,'_blank');
   saveInqRecord(product,vendors,'',cust,needBy,notes,'Sent');
-  showToast('Gmail opened for '+vendors.length+' vendor'+(vendors.length>1?'s':''),'#2d6a30');
+  showToast(vendors.length>1 ? 'One email opened, BCC to all '+vendors.length+' vendors' : 'Gmail opened for '+vendors[0].rep,'#2d6a30');
   closeQuoteInqModal();
 }
 function saveQuoteInquiryOnly(){
