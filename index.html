@@ -677,9 +677,10 @@ tr:hover td{background:#fdf9f3}
         <div style="font-size:12px;color:#8B6914;margin-bottom:16px">Send this quote's items to vendors for pricing — no PO is created</div>
         <div style="font-size:11px;font-weight:700;color:#6b5a3a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Items <span style="font-weight:400;text-transform:none;color:#a89060">(uncheck items you don't need priced)</span></div>
         <div id="qinq-items-list" style="border:1px solid #e0d5c0;border-radius:6px;overflow:hidden;margin-bottom:14px;max-height:200px;overflow-y:auto"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
           <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Need By</div><input id="qinq-need-by" type="date" onchange="updateQuoteInqPreview()" style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
           <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Notes</div><input id="qinq-notes" oninput="updateQuoteInqPreview()" placeholder="Finish, hardware, etc." style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
+          <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Sent By</div><select id="qinq-sent-by" onchange="setSelectedRep(this.value);updateQuoteInqPreview()" style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></select></div>
         </div>
         <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Select Vendors *</div>
         <div id="qinq-vendor-list" style="display:flex;flex-direction:column;gap:8px"></div></div>
@@ -1355,6 +1356,8 @@ Subject:
       </div>
       <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Product Description *</div>
       <textarea id="inq-product" oninput="updateInqPreview()" placeholder="e.g. 3/0 x 6/8 RH fiberglass 6-panel prehung, smooth, 4-9/16 jamb" style="width:100%;height:72px;padding:9px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box"></textarea></div>
+      <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Sent By</div>
+      <select id="inq-sent-by" onchange="setSelectedRep(this.value);updateInqPreview()" style="width:160px;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none"></select></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
         <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Quantity</div><input id="inq-qty" type="number" min="1" oninput="updateInqPreview()" placeholder="e.g. 4" style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
         <div><div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Customer</div><input id="inq-customer" oninput="updateInqPreview()" placeholder="Customer name" style="width:100%;padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"></div>
@@ -5509,6 +5512,26 @@ var INQ_VENDORS = [
   {name:'Wholesale Building Products', email:'timr@wholesalebldgproducts.com', rep:'Tim Roush', specialty:'Lumber'},
   {name:'Weyerhaeuser',           email:'Tyler.Freeman@weyerhaeuser.com', rep:'Tyler Freeman', specialty:'Azek Trim, EWP, Engineered Wood'}
 ];
+// Staff who can send vendor inquiries — the picker's choice sets whose name/email
+// goes on the CC and signature, so replies come back to whoever actually sent it.
+var REP_CONTACTS = [
+  {name:'Lance', email:'lance087@gmail.com'},
+  {name:'Cleve', email:'nor6200@gmail.com'},
+  {name:'Garon', email:'garon.norwood@gmail.com'}
+];
+function getSelectedRep(){
+  var saved = localStorage.getItem('ns_inq_sentBy') || 'Lance';
+  return REP_CONTACTS.find(function(r){return r.name===saved;}) || REP_CONTACTS[0];
+}
+function setSelectedRep(name){
+  localStorage.setItem('ns_inq_sentBy', name);
+}
+function repPickerHTML(selectId){
+  return REP_CONTACTS.map(function(r){
+    var sel = getSelectedRep().name===r.name ? ' selected' : '';
+    return '<option value="'+r.name+'"'+sel+'>'+r.name+(r.email?'':' (no email on file)')+'</option>';
+  }).join('');
+}
 var INQ_STATUSES = ['Pending','Sent','Replied','Ordered','Passed'];
 var INQ_COL = {
   'Pending': {bg:'#f5f0e8',color:'#6b5a3a',border:'#d5c8a8'},
@@ -5521,6 +5544,7 @@ function getInquiries(){try{return JSON.parse(localStorage.getItem('ns_inquiries
 function saveInquiries(d){localStorage.setItem('ns_inquiries',JSON.stringify(d));nsSyncPush('ns_inquiries',d);}
 function openNewInquiry(){
   ['inq-product','inq-qty','inq-customer','inq-need-by','inq-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var sb=document.getElementById('inq-sent-by'); if(sb) sb.innerHTML=repPickerHTML();
   var vl=document.getElementById('inq-vendor-list');
   if(vl){
     vl.innerHTML=INQ_VENDORS.map(function(v,i){
@@ -5541,6 +5565,7 @@ function gval(id){var el=document.getElementById(id);return el?el.value.trim():'
 function updateInqPreview(){
   var product=gval('inq-product'), qty=gval('inq-qty'), cust=gval('inq-customer'), needBy=gval('inq-need-by'), notes=gval('inq-notes');
   var vendors=getSelVendors();
+  var rep=getSelectedRep();
   var prev=document.getElementById('inq-email-preview'); if(!prev) return;
   var toLine=vendors.length?vendors.map(function(v){return v.rep;}).join(', '):'(select vendors above)';
   var body='Hello,\n\nWe would like to price the following item and appreciate your best pricing:\n\n';
@@ -5549,8 +5574,8 @@ function updateInqPreview(){
   if(needBy)  try{body+='Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\n';}catch(e){}
   if(cust)    body+='For: '+cust+'\n';
   if(notes)   body+='Notes: '+notes+'\n';
-  body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\nLance Hopper\nNorwood Supply | (904) 768-6818';
-  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+'\nSubject: Price Request -- '+(product||'[item]')+'\n\n'+body;
+  body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\n'+rep.name+'\nNorwood Supply | (904) 768-6818';
+  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'\n\u26a0 No email on file for '+rep.name+' — add it so replies CC correctly')+'\nSubject: Price Request -- '+(product||'[item]')+'\n\n'+body;
 }
 function sendInquiryEmails(){
   var product=gval('inq-product');
@@ -5558,6 +5583,7 @@ function sendInquiryEmails(){
   var vendors=getSelVendors();
   if(!vendors.length){showToast('Select at least one vendor','#c04040');return;}
   var qty=gval('inq-qty'), cust=gval('inq-customer'), needBy=gval('inq-need-by'), notes=gval('inq-notes');
+  var rep=getSelectedRep();
   var subject='Price Request -- '+product;
   var bodyText='Hello,\r\n\r\nWe would like to price the following item:\r\n\r\n'+
     'Item: '+product+'\r\n'+
@@ -5565,31 +5591,19 @@ function sendInquiryEmails(){
     (needBy?'Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\r\n':'')+
     (cust?'For: '+cust+'\r\n':'')+
     (notes?'Notes: '+notes+'\r\n':'')+
-    '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\nLance Hopper\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
-  // Use Gmail web compose for each vendor (avoids mailto issues and popup blocking)
-  if(vendors.length===1){
+    '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
+  // Use Gmail web compose for each vendor (avoids mailto issues and popup blocking).
+  // All windows must open synchronously in this same click handler — a setTimeout
+  // delay makes browsers treat later opens as unrequested popups and block them.
+  vendors.forEach(function(v){
     var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
-      '&to='+encodeURIComponent(vendors[0].email)+
-      '&cc='+encodeURIComponent('lance087@gmail.com')+
+      '&to='+encodeURIComponent(v.email)+
+      (rep.email?'&cc='+encodeURIComponent(rep.email):'')+
       '&su='+encodeURIComponent(subject)+
       '&body='+encodeURIComponent(bodyText);
     window.open(gmailUrl,'_blank');
-  } else {
-    // For multiple vendors, open first immediately, queue rest with small delays
-    vendors.forEach(function(v,idx){
-      var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
-        '&to='+encodeURIComponent(v.email)+
-        '&cc='+encodeURIComponent('lance087@gmail.com')+
-        '&su='+encodeURIComponent(subject)+
-        '&body='+encodeURIComponent(bodyText);
-      if(idx===0){
-        window.open(gmailUrl,'_blank');
-      } else {
-        setTimeout(function(){ window.open(gmailUrl,'_blank'); }, idx*800);
-      }
-    });
-    showToast('Opening '+vendors.length+' Gmail compose windows...','#2980d4');
-  }
+  });
+  if(vendors.length>1) showToast('Opening '+vendors.length+' Gmail compose windows — if your browser blocked any, allow popups for this site','#2980d4');
   saveInqRecord(product,vendors,qty,cust,needBy,notes,'Sent');
   showToast('Gmail opened for '+vendors.length+' vendor'+(vendors.length>1?'s':''),'#2d6a30');
   closeInqModal();
@@ -5621,11 +5635,12 @@ function setVendorReply(inqId,vendorName,field,val){
 function resendToVendor(inqId,vi){
   var inqs=getInquiries(); var inq=inqs.find(function(i){return i.id===inqId;});
   if(!inq) return; var v=inq.vendors[vi]; if(!v) return;
+  var rep=getSelectedRep();
   var subject='Price Request -- '+inq.product;
-  var bodyText='Hello,\r\n\r\nFollowing up on request for: '+inq.product+'\r\n\r\nPlease reply with best price and availability.\r\n\r\nThank you,\r\nLance Hopper\r\nNorwood Supply\r\n(904) 768-6818';
+  var bodyText='Hello,\r\n\r\nFollowing up on request for: '+inq.product+'\r\n\r\nPlease reply with best price and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n(904) 768-6818';
   var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
     '&to='+encodeURIComponent(v.email)+
-    '&cc='+encodeURIComponent('lance087@gmail.com')+
+    (rep.email?'&cc='+encodeURIComponent(rep.email):'')+
     '&su='+encodeURIComponent(subject)+
     '&body='+encodeURIComponent(bodyText);
   window.open(gmailUrl,'_blank');
@@ -5776,6 +5791,7 @@ function openQuoteInquiry(){
   var needByEl=document.getElementById('qinq-need-by');
   if(needByEl){ var etaEl=document.getElementById('c-eta-date'); needByEl.value=etaEl?etaEl.value:''; }
   var notesEl=document.getElementById('qinq-notes'); if(notesEl) notesEl.value='';
+  var sb=document.getElementById('qinq-sent-by'); if(sb) sb.innerHTML=repPickerHTML();
   renderQuoteInqItems();
   updateQuoteInqPreview();
   var m=document.getElementById('quote-inq-modal'); if(m) m.style.display='flex';
@@ -5802,14 +5818,15 @@ function updateQuoteInqPreview(){
   var custEl=document.getElementById('c-name'); var cust=custEl?custEl.value:'';
   var needBy=gval('qinq-need-by'), notes=gval('qinq-notes');
   var vendors=getQuoteInqSelVendors();
+  var rep=getSelectedRep();
   var prev=document.getElementById('qinq-email-preview'); if(!prev) return;
   var toLine=vendors.length?vendors.map(function(v){return v.rep;}).join(', '):'(select vendors above)';
   var body='Hello,\n\nWe would like to price the following item(s) and appreciate your best pricing:\n\n'+(product||'(no items selected)')+'\n\n';
   if(needBy) try{body+='Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\n';}catch(e){}
   if(cust) body+='For: '+cust+'\n';
   if(notes) body+='Notes: '+notes+'\n';
-  body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\nLance Hopper\nNorwood Supply | (904) 768-6818';
-  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+'\nSubject: Price Request -- '+(quoteNum||'Quote')+'\n\n'+body;
+  body+='\nPlease reply with your best price, lead time, and availability.\n\nThank you,\n'+rep.name+'\nNorwood Supply | (904) 768-6818';
+  prev.textContent='To: '+toLine+(vendors.length>1?"\nBCC: all vendors (they won't see each other)":'')+(rep.email?'\nCC: '+rep.email+' ('+rep.name+')':'\n\u26a0 No email on file for '+rep.name+' — add it so replies CC correctly')+'\nSubject: Price Request -- '+(quoteNum||'Quote')+'\n\n'+body;
 }
 function sendQuoteInquiryEmails(){
   var product=buildQuoteInqProductText();
@@ -5818,22 +5835,20 @@ function sendQuoteInquiryEmails(){
   if(!vendors.length){ showToast('Select at least one vendor','#c04040'); return; }
   var custEl=document.getElementById('c-name'); var cust=custEl?custEl.value:'';
   var needBy=gval('qinq-need-by'), notes=gval('qinq-notes');
+  var rep=getSelectedRep();
   var subject='Price Request -- '+(quoteNum||'Quote');
   var bodyText='Hello,\r\n\r\nWe would like to price the following item(s):\r\n\r\n'+product+'\r\n\r\n'+
     (needBy?'Need by: '+new Date(needBy+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'\r\n':'')+
     (cust?'For: '+cust+'\r\n':'')+
     (notes?'Notes: '+notes+'\r\n':'')+
-    '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\nLance Hopper\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
-  if(vendors.length===1){
-    var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(vendors[0].email)+'&cc='+encodeURIComponent('lance087@gmail.com')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
+    '\r\nPlease reply with best price, lead time, and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n6200 Norwood Ave, Jacksonville FL 32208\r\n(904) 768-6818 | norwoodsupply.com';
+  // All windows must open synchronously in this same click handler — a setTimeout
+  // delay makes browsers treat later opens as unrequested popups and block them.
+  vendors.forEach(function(v){
+    var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(v.email)+(rep.email?'&cc='+encodeURIComponent(rep.email):'')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
     window.open(gmailUrl,'_blank');
-  } else {
-    vendors.forEach(function(v,idx){
-      var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+'&to='+encodeURIComponent(v.email)+'&cc='+encodeURIComponent('lance087@gmail.com')+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(bodyText);
-      if(idx===0){ window.open(gmailUrl,'_blank'); } else { setTimeout(function(){ window.open(gmailUrl,'_blank'); }, idx*800); }
-    });
-    showToast('Opening '+vendors.length+' Gmail compose windows...','#2980d4');
-  }
+  });
+  if(vendors.length>1) showToast('Opening '+vendors.length+' Gmail compose windows — if your browser blocked any, allow popups for this site','#2980d4');
   saveInqRecord(product,vendors,'',cust,needBy,notes,'Sent');
   showToast('Gmail opened for '+vendors.length+' vendor'+(vendors.length>1?'s':''),'#2d6a30');
   closeQuoteInqModal();
