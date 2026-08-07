@@ -1229,6 +1229,7 @@ Subject:
 </div>
 
 <!-- CUSTOM ITEM MODAL -->
+<input type="file" id="line-photo-file" accept="image/*" capture="environment" style="display:none" onchange="handleLinePhotoUpload(this)">
 <div id="custom-modal" class="modal-bg hidden">
   <div class="modal">
     <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">✏️ Custom / Special Order Item</div>
@@ -1237,7 +1238,11 @@ Subject:
       <label class="lbl">Description *</label>
       <input type="text" id="ci-desc" placeholder="e.g. Therma-Tru 3/0 x 6/8 Mahogany Special Order">
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#eaf4fd;border:1px solid #b8dcf5;border-radius:6px;margin-bottom:12px">
+      <input type="checkbox" id="ci-price-pending" onchange="toggleCIPricePending()" style="width:16px;height:16px;cursor:pointer">
+      <label for="ci-price-pending" style="font-size:12px;color:#1a2438;cursor:pointer;font-weight:600">Don't know the cost yet — just capture the details, I'll price it once I hear back from a vendor</label>
+    </div>
+    <div id="ci-cost-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
       <div class="fg"><label class="lbl">Your Cost ($) *</label><input type="number" id="ci-cost" min="0" step="0.01" oninput="updateCustomPreview()"></div>
       <div class="fg"><label class="lbl">Qty</label><input type="number" id="ci-qty" min="1" value="1" oninput="updateCustomPreview()" style="text-align:center;font-weight:600"></div>
       <div class="fg">
@@ -1250,6 +1255,9 @@ Subject:
           <option value="custom">Custom %</option>
         </select>
       </div>
+    </div>
+    <div id="ci-qty-only-row" class="hidden" style="margin-bottom:12px">
+      <label class="lbl">Qty</label><input type="number" id="ci-qty-pending" min="1" value="1" style="text-align:center;font-weight:600;width:100px">
     </div>
     <div id="ci-custom-gm-row" class="hidden" style="margin-bottom:12px">
       <label class="lbl">Custom Margin %</label>
@@ -1270,7 +1278,7 @@ Subject:
         <button type="button" class="btn btn-gh" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('ci-img-file').click()">📷 Take / Upload Photo</button>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f5f0e8;border-radius:6px;margin-bottom:4px">
+    <div id="ci-save-catalog-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f5f0e8;border-radius:6px;margin-bottom:4px">
       <input type="checkbox" id="ci-save-catalog" style="width:16px;height:16px;cursor:pointer">
       <label for="ci-save-catalog" style="font-size:12px;color:#6b5a3a;cursor:pointer;font-weight:600">Save this item to catalog for future quotes</label>
     </div>
@@ -2740,6 +2748,24 @@ function handleCIPhotoUpload(input) {
   });
   input.value = '';
 }
+// ── PER-LINE PHOTO (attach/replace a photo on any line already in the quote,
+//    e.g. a door — shows in the builder and on the printed quote/invoice) ────
+let linePhotoTargetId = null;
+function attachLinePhoto(lineId) {
+  linePhotoTargetId = lineId;
+  var input = document.getElementById('line-photo-file');
+  if (input) input.click();
+}
+function handleLinePhotoUpload(input) {
+  var file = input.files && input.files[0];
+  if (!file || linePhotoTargetId == null) { input.value=''; return; }
+  compressImageFile(file, 900, 0.72, function (dataUrl) {
+    var l = lines.find(function(x){ return x.lineId === linePhotoTargetId; });
+    if (l) { l.imageUrl = dataUrl; renderLines(); }
+    linePhotoTargetId = null;
+  });
+  input.value = '';
+}
 function saveEdits() {
   const edits = {};
   products.forEach(p => {
@@ -2989,8 +3015,8 @@ function renderLines() {
   lines.forEach(function(l) {
     var gmpct = l.cost > 0 ? ((l.retail - l.cost) / l.retail * 100).toFixed(0) : '—';
     h += '<tr>';
-    h += '<td><div class="limg">' + imgHTML(l) + '</div></td>';
-    h += '<td><div class="ldesc">' + l.item + '</div>';
+    h += '<td><div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="limg">' + imgHTML(l) + '</div><button onclick="attachLinePhoto(' + l.lineId + ')" title="' + (l.imageUrl?'Replace photo':'Attach a photo — shows on the printed quote') + '" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;cursor:pointer;line-height:1.5;white-space:nowrap">📷' + (l.imageUrl?' ✓':'') + '</button></div></td>';
+    h += '<td><div class="ldesc">' + l.item + (l.pricePending?' <span style="display:inline-block;background:#fdf0d5;color:#8B6914;border:1px solid #e0c078;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-left:6px;vertical-align:middle">⏳ Price Pending</span>':'') + '</div>';
     h += '<div class="lsize">' + l.category + ' · ' + (typeof formatDoorGroup==='function'?formatDoorGroup(l.group):l.group) + (l.sku ? ' · SKU:' + l.sku : '') + '</div></td>';
     // Qty adjuster
     h += '<td style="text-align:center">';
@@ -3008,7 +3034,7 @@ function renderLines() {
     h += '<button onclick="adjustPrice(' + l.lineId + ',0.01)" title="Increase 1&cent;" style="width:26px;height:20px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;font-size:10px;font-weight:700;cursor:pointer;line-height:1;padding:0">+1&cent;</button>';
     h += '<button onclick="adjustPrice(' + l.lineId + ',1)" title="Increase $1" style="width:26px;height:20px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;font-size:10px;font-weight:700;cursor:pointer;line-height:1;padding:0">+$1</button>';
     h += '</div>';
-    h += '<div style="font-size:9px;color:' + (parseFloat(gmpct) < 20 ? '#c04040' : '#8B6914') + ';margin-top:1px;text-align:center">' + gmpct + '% GM</div>';
+    h += '<div style="font-size:9px;color:' + (l.pricePending ? '#c8952a' : (parseFloat(gmpct) < 20 ? '#c04040' : '#8B6914')) + ';margin-top:1px;text-align:center;font-weight:' + (l.pricePending?'700':'400') + '">' + (l.pricePending ? 'enter price once known' : gmpct + '% GM') + '</div>';
     h += '</td>';
     // Extended
     h += '<td style="text-align:right;font-weight:700">$' + (l.retail * l.qty).toFixed(2) + '</td>';
@@ -3037,6 +3063,7 @@ function adjustPrice(lineId, delta) {
   if(newPrice < 0) return;
   l.retail = newPrice;
   l.isCustom = true; // lock it so recalc doesn't overwrite manual price
+  if(newPrice > 0) l.pricePending = false; // a real price was set — no longer waiting on a vendor
   renderLines();
   renderSummary();
 }
@@ -3050,6 +3077,7 @@ function setPrice(lineId, rawValue) {
   if(newPrice < 0) newPrice = 0;
   l.retail = newPrice;
   l.isCustom = true; // lock it so recalc doesn't overwrite the manual price
+  if(newPrice > 0) l.pricePending = false; // a real price was set — no longer waiting on a vendor
   renderLines();
   renderSummary();
 }
@@ -3148,14 +3176,14 @@ function showQuote() {
   const deposit50=grand*0.5;
   const validDate=new Date(Date.now()+30*86400000).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var lineNum=0;
-  const rows=lines.map(l=>{lineNum++;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+lineNum+'</td><td><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td><td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td></tr>';}).join('');
+  const rows=lines.map(l=>{lineNum++;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+lineNum+'</td><td><div style="display:flex;gap:8px;align-items:flex-start">'+(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:46px;height:46px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':'')+'<div><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div></div></div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td>'+(l.pricePending?'<td style="text-align:right;width:95px;color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="text-align:right;font-weight:700;width:105px;color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>';}).join('');
   document.getElementById('qp-content').innerHTML='<div class="qp-wrap"><div class="qp-page">'
 +'<div class="qp-banner"><div class="qp-banner-left"><div class="qp-banner-logo">NORWOOD SUPPLY</div><div class="qp-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="qp-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com<br>Mon\u2013Fri 7:30 AM\u20135:00 PM | Sat 8:30 AM\u201312:00 PM</div></div><div class="qp-banner-right"><div class="qp-banner-title">QUOTE</div><div class="qp-banner-num">#'+quoteNum+'</div><div class="qp-banner-meta"><strong>Date:</strong> '+quoteDate+'<br><strong>Valid Through:</strong> '+validDate+'<br><strong>Prepared By:</strong> '+c.rep+'</div></div></div>'
 +'<div class="qp-info-grid"><div class="qp-info-box"><div class="qp-info-label">BILL TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+[c.co,c.addr].filter(Boolean).join('<br>')+'</div></div><div class="qp-info-box"><div class="qp-info-label">SHIP TO / DELIVER TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+(c.shipto||c.addr||'(TBD upon order confirmation)')+'</div></div><div class="qp-info-box"><div class="qp-info-label">QUOTE DETAILS</div><div class="qp-info-detail"><strong>Quote #:</strong> '+quoteNum+'<br><strong>Date:</strong> '+quoteDate+'<br><strong>Expires:</strong> '+validDate+'<br><strong>Sales Rep:</strong> '+c.rep+'<br><strong>Terms:</strong> '+c.payment+(c.etaDate?'<br><strong>ETA:</strong> <span style="color:#2d6a30;font-weight:700">'+c.etaDate+'</span>':'')+'</div></div></div>'
 +'<table class="qp-table"><thead><tr><th style="width:50px">LINE</th><th>DESCRIPTION</th><th style="width:55px">QTY</th><th style="width:95px">UNIT PRICE</th><th style="width:105px">TOTAL</th></tr></thead><tbody>'+rows+'</tbody></table>'
 +'<div class="qp-totals"><div class="qpt"><span>Subtotal:</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="qpt" style="color:#c04040"><span>Discount:</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="qpt"><span>Sales Tax (7.5%):</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="qpt"><span>Delivery:</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="qpt grand"><span>QUOTE TOTAL:</span><span>$'+grand.toFixed(2)+'</span></div></div>'
 +(c.payment.includes('50%')?'<div class="qp-deposit" style="margin-left:auto;width:280px"><span>50% Deposit Due:</span><span>$'+deposit50.toFixed(2)+'</span></div>':'')
-+'<div class="qp-notes-box"><div class="qp-notes-label">NOTES &amp; TERMS</div><div class="qp-notes-content">\u2022 <strong>Lead Time:</strong> Approximately 1\u20131.5 weeks from order confirmation and deposit.<br>\u2022 <strong>Deposit:</strong> '+c.payment+'<br>\u2022 <strong>Delivery:</strong> '+(deliv>0?'$'+deliv.toFixed(2):'Available \u2014 delivery charges will be quoted separately if needed.')+'<br>\u2022 <strong>Quote Validity:</strong> This quote is valid through <strong>'+validDate+'</strong>. Pricing subject to change after expiration.'+(c.notes?'<br>\u2022 <strong>Notes:</strong> '+c.notes:'')+'</div></div>'
++'<div class="qp-notes-box"><div class="qp-notes-label">NOTES &amp; TERMS</div><div class="qp-notes-content">\u2022 <strong>Lead Time:</strong> Approximately 1\u20131.5 weeks from order confirmation and deposit.<br>\u2022 <strong>Deposit:</strong> '+c.payment+'<br>\u2022 <strong>Delivery:</strong> '+(deliv>0?'$'+deliv.toFixed(2):'Available \u2014 delivery charges will be quoted separately if needed.')+'<br>\u2022 <strong>Quote Validity:</strong> This quote is valid through <strong>'+validDate+'</strong>. Pricing subject to change after expiration.'+(lines.some(function(l){return l.pricePending;})?'<br>\u2022 <strong style="color:#c8952a">Pending Items:</strong> One or more items above are awaiting vendor pricing and will be confirmed in a follow-up quote.':'')+(c.notes?'<br>\u2022 <strong>Notes:</strong> '+c.notes:'')+'</div></div>'
 +'<div class="qp-terms-box"><div class="qp-terms-label">TERMS &amp; CONDITIONS</div><div class="qp-terms-content">Materials remain the property of Norwood Supply until paid in full. Special order items are non-returnable. Approved returns may be subject to restocking fees. Customer is responsible for verifying quantities, measurements, and specifications prior to installation. Claims must be made before installation.</div></div>'
 +'<div class="qp-footer">Norwood Supply \u2022 6200 Norwood Ave, Jacksonville, FL 32208 \u2022 (904) 768-6818 <a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a><a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a><a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a><a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a><a href="http://voice.google.com/calls?a=nc,%2B19047686818" class="gv-tel-link" target="_blank" rel="noopener" title="Call +1 904-768-6818 via Google Voice"></a>\u2022 norwoodsupply.com \u2022 lance087@gmail.com<br>Mon\u2013Fri 7:30 AM\u20135:00 PM | Sat 8:30 AM\u201312:00 PM | Closed Sunday</div>'
 +'</div></div>';
@@ -3206,7 +3234,7 @@ function showInvoice(existingInvNum) {
     if(pageNum===1){allPages+='<div class="inv-addr-grid"><div><div class="inv-addr-label">Sold To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+[c.co,c.phone,c.email,c.addr].filter(Boolean).join('<br>')+'</div></div><div><div class="inv-addr-label">Ship To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+(c.shipto||c.addr||'—')+'</div></div></div><hr class="inv-divider-thin">';}
     else{allPages+='<div style="font-size:11px;color:#8B6914;margin-bottom:10px;font-family:system-ui">Continued from page '+(pageNum-1)+'</div>';}
     allPages+='<table class="inv-table"><thead><tr><th style="text-align:center;width:62px">QTY<br>ORDERED</th><th style="text-align:center;width:62px">QTY<br>SHIPPED</th><th>DESCRIPTION</th><th style="text-align:right">UNIT PRICE</th><th style="text-align:right">TOTAL</th></tr></thead><tbody>';
-    allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></td><td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td></tr>').join('');
+    allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><div style="display:flex;gap:8px;align-items:flex-start">'+(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':'')+'<div><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+(l.pricePending?' <span style="color:#c8952a;font-weight:700;font-size:10px">(PRICE PENDING)</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></div></div></td>'+(l.pricePending?'<td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>').join('');
     if(isLast){
       allPages+='</tbody></table>';
       allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div>'+(amtPaid>0?'<div class="inv-tot-row" style="color:#2d6a30;font-weight:700"><span>Payments Received</span><span>-$'+amtPaid.toFixed(2)+'</span></div><div class="inv-tot-row" style="color:'+(balDue<=0.01?'#2d6a30':'#c04040')+';font-weight:800;font-size:15px;background:'+(balDue<=0.01?'#eaf3de':'#fcebeb')+';border-radius:4px;padding:8px;border-bottom:none;margin-top:4px"><span>'+(balDue<=0.01?'PAID IN FULL':'BALANCE DUE')+'</span><span>$'+balDue.toFixed(2)+'</span></div>':'')+'</div>';
@@ -3466,6 +3494,8 @@ function showCustomItem() {
   document.getElementById('ci-desc').value='';
   document.getElementById('ci-cost').value='';
   document.getElementById('ci-qty').value=1;
+  document.getElementById('ci-qty-pending').value=1;
+  document.getElementById('ci-price-pending').checked=false;
   document.getElementById('ci-preview').classList.add('hidden');
   document.getElementById('ci-save-catalog').checked=false;
   document.getElementById('ci-catalog-fields').classList.add('hidden');
@@ -3478,8 +3508,18 @@ function showCustomItem() {
   const gmSel=document.getElementById('ci-gm');
   const opts=['0.40','0.35','0.30','0.22'];
   gmSel.value=opts.includes(String(gm))?String(gm):'0.30';
+  toggleCIPricePending();
   document.getElementById('custom-modal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('ci-desc').focus(),100);
+}
+function toggleCIPricePending() {
+  var pending=document.getElementById('ci-price-pending').checked;
+  document.getElementById('ci-cost-fields').style.display=pending?'none':'';
+  document.getElementById('ci-qty-only-row').classList.toggle('hidden',!pending);
+  document.getElementById('ci-preview').classList.toggle('hidden',pending);
+  document.getElementById('ci-save-catalog-row').style.display=pending?'none':'';
+  if(pending) document.getElementById('ci-catalog-fields').classList.add('hidden');
+  if(!pending) updateCustomPreview();
 }
 function closeCustomItem() { document.getElementById('custom-modal').classList.add('hidden'); }
 function getCIGM() {
@@ -3488,6 +3528,7 @@ function getCIGM() {
   return parseFloat(sel);
 }
 function updateCustomPreview() {
+  if(document.getElementById('ci-price-pending').checked){document.getElementById('ci-preview').classList.add('hidden');return;}
   const cost=parseFloat(document.getElementById('ci-cost').value);
   const qty=parseInt(document.getElementById('ci-qty').value)||1;
   const gm=getCIGM();
@@ -3500,15 +3541,21 @@ function updateCustomPreview() {
 }
 function addCustomItem() {
   const desc=document.getElementById('ci-desc').value.trim();
-  const cost=parseFloat(document.getElementById('ci-cost').value);
-  const qty=parseInt(document.getElementById('ci-qty').value)||1;
-  const gm=getCIGM();
+  const pending=document.getElementById('ci-price-pending').checked;
   if(!desc){document.getElementById('ci-desc').style.borderColor='#c04040';document.getElementById('ci-desc').focus();return;}
-  if(!cost||cost<=0){document.getElementById('ci-cost').style.borderColor='#c04040';document.getElementById('ci-cost').focus();return;}
-  if(!gm){return;}
-  const unit=Math.round(cost/(1-gm));
-  lines.push({id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()});
-  if(document.getElementById('ci-save-catalog').checked){
+  var cost=0, gm=null, unit=0, qty=1;
+  if(pending){
+    qty=parseInt(document.getElementById('ci-qty-pending').value)||1;
+  } else {
+    qty=parseInt(document.getElementById('ci-qty').value)||1;
+    cost=parseFloat(document.getElementById('ci-cost').value);
+    gm=getCIGM();
+    if(!cost||cost<=0){document.getElementById('ci-cost').style.borderColor='#c04040';document.getElementById('ci-cost').focus();return;}
+    if(!gm){return;}
+    unit=Math.round(cost/(1-gm));
+  }
+  lines.push({id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,pricePending:pending,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()});
+  if(!pending && document.getElementById('ci-save-catalog').checked){
     const cat=document.getElementById('ci-cat').value;
     const grp=document.getElementById('ci-group').value||'Special Orders';
     const isOneTime=document.getElementById('ci-one-time').checked;
@@ -5712,7 +5759,8 @@ function deleteInquiry(id){if(!confirm('Delete this inquiry?'))return;saveInquir
 // ── QUOTE → VENDOR PRICE INQUIRY (no PO created) ────────────────────────────
 let quoteInqItems = [];
 function openQuoteInquiry(){
-  quoteInqItems = lines.map(function(l,i){ return Object.assign({}, l, {inqIdx:i, include:true}); });
+  var hasPending = lines.some(function(l){ return l.pricePending; });
+  quoteInqItems = lines.map(function(l,i){ return Object.assign({}, l, {inqIdx:i, include: hasPending ? !!l.pricePending : true}); });
   var vl=document.getElementById('qinq-vendor-list');
   if(vl){
     vl.innerHTML=INQ_VENDORS.map(function(v,i){
@@ -5738,7 +5786,7 @@ function renderQuoteInqItems(){
   c.innerHTML=quoteInqItems.map(function(l,i){
     return '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-bottom:1px solid #f0e8d8;cursor:pointer;background:'+(l.include?'#fff':'#f9f6f1')+'">'+
       '<input type="checkbox" '+(l.include?'checked':'')+' onchange="toggleQuoteInqItem('+i+')" style="margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0">'+
-      '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(l.include?'#1a1008':'#aaa')+'">'+l.item+(l.size?' ('+l.size+')':'')+' <span style="font-weight:400;color:#6b5a3a">x'+l.qty+'</span></div>'+
+      '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(l.include?'#1a1008':'#aaa')+'">'+l.item+(l.size?' ('+l.size+')':'')+' <span style="font-weight:400;color:#6b5a3a">x'+l.qty+'</span>'+(l.pricePending?' <span style="background:#fdf0d5;color:#8B6914;border:1px solid #e0c078;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;text-transform:uppercase">Price Pending</span>':'')+'</div>'+
       '<div style="font-size:11px;color:#6b5a3a">'+(l.description||'')+'</div></div></label>';
   }).join('');
 }
