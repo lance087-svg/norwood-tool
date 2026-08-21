@@ -7078,7 +7078,280 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 <script src="norwood-delivery-patch.js?v=20260821-1648"></script>
 <script src="norwood-quote-import.js?v=20260821-1648"></script>
 <script src="norwood-sync-guard.js?v=20260821-1648"></script>
-  <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
+<script>
+/* norwood-quote-pull v1.0 - embedded inline so it cannot go missing */
+// ============================================================
+//  NORWOOD QUOTE PULL v1.0 — the missing other half of
+//  norwood-sync-guard.js. Load AFTER norwood-patch.js.
+//
+//  The problem it solves: norwood-sync-guard.js pushes every
+//  saved quote UP to the Firestore `ns_quotes` collection, but
+//  nothing ever read it back DOWN. getSavedQuotes() reads only
+//  localStorage, so each device has only ever seen the quotes
+//  created on that device. Two devices = two different lists.
+//
+//  What this does, on every page load:
+//   1. Backs up the current local list (once per day) before
+//      touching anything.
+//   2. Pulls the whole ns_quotes collection from Firestore.
+//   3. Merges cloud + local by quote id. UNION — nothing is
+//      ever dropped. On a genuine conflict (same id, both
+//      edited) the NEWER timestamp wins.
+//   4. Pushes any local-only quotes UP, so the cloud becomes
+//      the complete set for every other device.
+//   5. Re-renders the history list if it's on screen.
+//
+//  Safety rails:
+//   - If the cloud read fails or returns nothing, it does
+//     NOTHING. It can never empty your list.
+//   - The merged list can never be shorter than what you
+//     started with; if it somehow would be, the merge aborts.
+//   - Deletes do not propagate yet (see note at bottom).
+//
+//  Manual: window.nsPullQuotes() to force a sync now.
+// ============================================================
+
+(function () {
+  var QUOTES_COL = 'ns_quotes';
+  var LS_KEY = 'ns_quotes';
+  var BACKUP_PREFIX = 'ns_quotes_backup_';
+
+  function readLocal() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function writeLocal(list) {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  }
+
+  // Keep one backup per day. Cheap insurance before any merge.
+  function backupOnce(list) {
+    try {
+      var d = new Date();
+      var key = BACKUP_PREFIX +
+        d.getFullYear() +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        String(d.getDate()).padStart(2, '0');
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, JSON.stringify(list));
+        console.log('[QUOTE PULL] backed up ' + list.length + ' quotes to ' + key);
+      }
+      // Keep only the 3 most recent backups so storage doesn't creep.
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(BACKUP_PREFIX) === 0) { keys.push(k); }
+      }
+      keys.sort();
+      while (keys.length > 3) { localStorage.removeItem(keys.shift()); }
+    } catch (e) {
+      console.warn('[QUOTE PULL] backup skipped', e);
+    }
+  }
+
+  // A quote's "when was this last touched" value, for conflict resolution.
+  function stampOf(q) {
+    if (!q) { return 0; }
+    var t = Number(q.timestamp) || 0;
+    if (t) { return t; }
+    return Number(q.id) || 0; // ids are ms timestamps in this app
+  }
+
+  function keyOf(q) {
+    if (!q) { return null; }
+    if (q.id !== undefined && q.id !== null && q.id !== '') { return String(q.id); }
+    if (q.quoteNum) { return 'qn:' + String(q.quoteNum); }
+    return null;
+  }
+
+  function merge(local, cloud) {
+    var byKey = {};
+    var order = [];
+
+    function add(q, source) {
+      var k = keyOf(q);
+      if (!k) { return; }
+      if (!byKey[k]) {
+        byKey[k] = { rec: q, src: source };
+        order.push(k);
+        return;
+      }
+      // Same quote from both sides - newer wins.
+      var existing = byKey[k];
+      if (stampOf(q) > stampOf(existing.rec)) {
+        byKey[k] = { rec: q, src: source };
+      }
+    }
+
+    local.forEach(function (q) { add(q, 'local'); });
+    cloud.forEach(function (q) { add(q, 'cloud'); });
+
+    var out = order.map(function (k) { return byKey[k].rec; });
+    // Newest first, matching how the history list already reads.
+    out.sort(function (a, b) { return stampOf(b) - stampOf(a); });
+    return out;
+  }
+
+  function waitForDB(cb, tries) {
+    tries = tries || 0;
+    if (window._db) { cb(window._db); return; }
+    if (tries > 40) {
+      console.warn('[QUOTE PULL] DB never became ready');
+      if (window.nsSyncStatus) { window.nsSyncStatus('Quote sync: database never connected', '#a5251a'); }
+      return;
+    }
+    setTimeout(function () { waitForDB(cb, tries + 1); }, 300);
+  }
+
+  function refreshUI() {
+    try {
+      if (typeof window.renderHistory === 'function') {
+        var el = document.getElementById('history-list');
+        if (el) { window.renderHistory(); }
+      }
+    } catch (e) { /* view not open, nothing to refresh */ }
+  }
+
+  function note(msg, color) {
+    try {
+      if (typeof window.showToast === 'function') { window.showToast(msg, color || '#2d6a30'); }
+      else { console.log('[QUOTE PULL] ' + msg); }
+    } catch (e) { console.log('[QUOTE PULL] ' + msg); }
+  }
+
+  var running = false;
+
+  function pull(announce) {
+    if (running) { return; }
+    running = true;
+
+    waitForDB(function (db) {
+      db.collection(QUOTES_COL).get().then(function (snap) {
+        var cloud = [];
+        snap.forEach(function (doc) {
+          var d = doc.data();
+          if (d && typeof d === 'object') { cloud.push(d); }
+        });
+
+        var local = readLocal();
+
+        // Rail 1: a failed/empty read must never touch the local list.
+        if (!cloud.length) {
+          console.warn('[QUOTE PULL] cloud returned 0 quotes - leaving local list alone');
+          if (window.nsSyncStatus) {
+            window.nsSyncStatus('Quote sync: cloud is empty (0 quotes stored) — nothing pulled', '#b35309');
+          }
+          running = false;
+          return;
+        }
+
+        backupOnce(local);
+
+        var merged = merge(local, cloud);
+
+        // Rail 2: the merge can only ever grow or hold steady.
+        if (merged.length < local.length) {
+          console.error('[QUOTE PULL] merge would shrink the list (' +
+            local.length + ' -> ' + merged.length + ') - aborting, nothing written');
+          running = false;
+          return;
+        }
+
+        var added = merged.length - local.length;
+        if (added > 0 || announce) {
+          writeLocal(merged);
+          refreshUI();
+        }
+
+        // Push anything the cloud is missing, so other devices get it.
+        var cloudKeys = {};
+        cloud.forEach(function (q) { var k = keyOf(q); if (k) { cloudKeys[k] = true; } });
+        var toPush = local.filter(function (q) {
+          var k = keyOf(q);
+          return k && !cloudKeys[k];
+        });
+        toPush.forEach(function (q) {
+          db.collection(QUOTES_COL).doc(String(q.id)).set(q).catch(function (e) {
+            console.warn('[QUOTE PULL] push failed for ' + q.id, e);
+          });
+        });
+
+        console.log('[QUOTE PULL] local ' + local.length +
+          ' | cloud ' + cloud.length +
+          ' | merged ' + merged.length +
+          ' | pulled down ' + added +
+          ' | pushed up ' + toPush.length);
+
+        if (window.nsSyncStatus) {
+          window.nsSyncStatus('Quote sync OK — ' + merged.length + ' total (' +
+            added + ' pulled down, ' + toPush.length + ' sent up)', '#2d6a30');
+        }
+        if (announce) {
+          note('Quotes synced — ' + merged.length + ' total (' +
+            added + ' new here, ' + toPush.length + ' sent up)');
+        } else if (added > 0) {
+          note('Synced ' + added + ' quote' + (added === 1 ? '' : 's') + ' from other devices');
+        }
+
+        running = false;
+      }).catch(function (e) {
+        console.warn('[QUOTE PULL] cloud read failed - local list untouched', e);
+        if (window.nsSyncStatus) {
+          window.nsSyncStatus('Quote sync FAILED: ' + (e && e.code ? e.code : (e && e.message ? e.message : 'unknown')), '#a5251a');
+        }
+        running = false;
+      });
+    });
+  }
+
+  window.nsPullQuotes = function () { pull(true); };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { pull(false); }, 1500); });
+  } else {
+    setTimeout(function () { pull(false); }, 1500);
+  }
+
+  // Re-check when a device that was left open comes back to the foreground.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') { setTimeout(function () { pull(false); }, 500); }
+  });
+
+  console.log('[QUOTE PULL] active');
+})();
+
+</script>
+  <script>
+/* On-page sync status - shows what the console would say, in plain English. */
+(function(){
+  function el(){ return document.getElementById('ns-sync-status'); }
+  function paint(txt, color){
+    var d = el();
+    if(!d){
+      d = document.createElement('div');
+      d.id = 'ns-sync-status';
+      d.style.cssText = 'position:fixed;left:8px;bottom:34px;z-index:99996;max-width:78vw;'+
+        'padding:6px 10px;border-radius:8px;font:12px/1.45 system-ui,-apple-system,sans-serif;'+
+        'color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;';
+      d.title = 'Tap to sync quotes now';
+      d.addEventListener('click', function(){ if(window.nsPullQuotes) window.nsPullQuotes(); });
+      document.body.appendChild(d);
+    }
+    d.style.background = color || 'rgba(0,0,0,.6)';
+    d.textContent = txt;
+  }
+  window.nsSyncStatus = paint;
+  paint('Quote sync: starting...', 'rgba(0,0,0,.6)');
+  setTimeout(function(){
+    var d = el();
+    if(d && d.textContent.indexOf('starting') !== -1){
+      paint('Quote sync: no response - tap to retry', '#b35309');
+    }
+  }, 12000);
+})();
+</script>
+<div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="ns-version.js"></script>
 </body>
 </html>
