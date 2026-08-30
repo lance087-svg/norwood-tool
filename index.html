@@ -7467,24 +7467,47 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 })();
 
 </script>
+  <style>
+  @media print { #ns-sync-status { display: none !important; } }
+  </style>
   <script>
-/* On-page sync status - shows what the console would say, in plain English. */
+/* On-page sync status - shows what the console would say, in plain English.
+   v1.1 (2026-08-30): auto-hides ~2s after a successful sync, and is force-hidden
+   during printing, so it can't show up in printed quotes/invoices or screenshots. */
 (function(){
+  var SUCCESS_COLOR = '#2d6a30';
+  var HIDE_DELAY_MS = 1800;
+  var hideTimer = null;
+
   function el(){ return document.getElementById('ns-sync-status'); }
+
   function paint(txt, color){
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     var d = el();
     if(!d){
       d = document.createElement('div');
       d.id = 'ns-sync-status';
       d.style.cssText = 'position:fixed;left:8px;bottom:34px;z-index:99996;max-width:78vw;'+
         'padding:6px 10px;border-radius:8px;font:12px/1.45 system-ui,-apple-system,sans-serif;'+
-        'color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;';
+        'color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;'+
+        'transition:opacity .4s ease;opacity:1;';
       d.title = 'Tap to sync quotes now';
       d.addEventListener('click', function(){ if(window.nsPullQuotes) window.nsPullQuotes(); });
       document.body.appendChild(d);
     }
+    d.style.display = '';
+    d.style.opacity = '1';
     d.style.background = color || 'rgba(0,0,0,.6)';
     d.textContent = txt;
+
+    // Once it reports success, fade it out — it shouldn't sit on screen
+    // (or in a screenshot/printout) once there's nothing to report.
+    if (color === SUCCESS_COLOR) {
+      hideTimer = setTimeout(function(){
+        d.style.opacity = '0';
+        setTimeout(function(){ if (d.style.opacity === '0') { d.style.display = 'none'; } }, 400);
+      }, HIDE_DELAY_MS);
+    }
   }
   window.nsSyncStatus = paint;
   paint('Quote sync: starting...', 'rgba(0,0,0,.6)');
