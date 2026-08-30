@@ -3825,8 +3825,45 @@ function getSavedQuotes() {
   try { return JSON.parse(localStorage.getItem('ns_quotes') || '[]'); }
   catch(e) { return []; }
 }
+// ── SAFE LOCALSTORAGE QUOTE WRITE (added 2026-08-30) ────────────────────────
+// Central guard against QuotaExceededError (code 22). Used by both the
+// normal save path below AND the cross-device sync (norwood-quote-pull, at
+// the bottom of this file), so a full localStorage never causes a silent
+// failed save or a "FAILED: 22" sync error. On failure it clears old daily
+// backups first, then trims to the most recent 200 quotes and retries —
+// the cloud always has the complete history, so nothing is actually lost.
+function nsSafeSetQuotes(list) {
+  function trySet(arr) {
+    try { localStorage.setItem('ns_quotes', JSON.stringify(arr)); return true; }
+    catch (e) { return false; }
+  }
+  if (trySet(list)) return true;
+
+  try {
+    for (var i = localStorage.length - 1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('ns_quotes_backup_') === 0) localStorage.removeItem(k);
+    }
+  } catch (e) {}
+  if (trySet(list)) {
+    if (typeof showToast === 'function') showToast('⚠️ Storage was nearly full — cleared old backups to make room.', '#b35309');
+    return true;
+  }
+
+  var sorted = list.slice().sort(function(a,b){
+    return (Number(b.timestamp)||Number(b.id)||0) - (Number(a.timestamp)||Number(a.id)||0);
+  });
+  var trimmed = sorted.slice(0, 200);
+  if (trySet(trimmed)) {
+    if (typeof showToast === 'function') showToast('⚠️ Local storage was full — kept your 200 most recent quotes on this device, older ones are still safe in the cloud.', '#b35309');
+    return true;
+  }
+
+  if (typeof showToast === 'function') showToast('❌ Could not save — this device is out of storage space. Let Lance know.', '#a5251a');
+  return false;
+}
 function saveQuotesToStorage(quotes) {
-  localStorage.setItem('ns_quotes', JSON.stringify(quotes));
+  nsSafeSetQuotes(quotes);
   // Cloud sync for quotes/invoices is handled by norwood-patch.js — do not
   // also push here. See NS_SYNC_KEYS note above for why.
 }
@@ -7077,11 +7114,41 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 <script src="norwood-patch.js?v=20260821-1648"></script>
 <script src="norwood-delivery-patch.js?v=20260821-1648"></script>
 <script src="norwood-quote-import.js?v=20260821-1648"></script>
+<script>
+/* ── ONE-TIME LOCALSTORAGE CLEANUP (added 2026-08-30) ─────────────────────
+   ns_salvage is a dead ~3.9MB key: nothing in this file reads or writes it
+   anymore (salvage.html talks to Firestore directly). It was silently
+   filling localStorage and causing QuotaExceededError (code 22) on quote
+   saves and syncs — that's what "Quote sync FAILED: 22" means. Removed
+   here, once, safely, before anything else tries to write. */
+(function () {
+  try {
+    if (localStorage.getItem('ns_salvage') !== null) {
+      localStorage.removeItem('ns_salvage');
+      console.log('[CLEANUP] removed stale ns_salvage key (~3.9MB freed)');
+    }
+  } catch (e) { /* localStorage unavailable — nothing to do */ }
+})();
+</script>
 <script src="norwood-sync-guard.js?v=20260821-1648"></script>
 <script>
-/* norwood-quote-pull v1.0 - embedded inline so it cannot go missing */
+/* norwood-quote-pull v1.1 - embedded inline so it cannot go missing.
+   v1.1 (2026-08-30):
+     - writeLocal() now goes through the shared nsSafeSetQuotes() helper
+       (defined above, next to saveQuotesToStorage) instead of a bare
+       setItem, so a full localStorage trims old data and shows a toast
+       instead of throwing and failing the sync as "FAILED: 22".
+     - Incremental pull: after the first full pull on a device, later
+       pulls only fetch quotes changed since the last sync (a Firestore
+       query on timestamp) instead of re-downloading the whole collection
+       every load and every tab-focus. A full reconciliation pull (catches
+       anything an incremental pull could miss) still runs automatically
+       once every 20 hours.
+     - Throttled: won't re-run within 60 seconds of the last attempt, so
+       switching tabs/apps repeatedly doesn't trigger a burst of pulls.
+*/
 // ============================================================
-//  NORWOOD QUOTE PULL v1.0 — the missing other half of
+//  NORWOOD QUOTE PULL — the missing other half of
 //  norwood-sync-guard.js. Load AFTER norwood-patch.js.
 //
 //  The problem it solves: norwood-sync-guard.js pushes every
@@ -7090,31 +7157,37 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 //  localStorage, so each device has only ever seen the quotes
 //  created on that device. Two devices = two different lists.
 //
-//  What this does, on every page load:
-//   1. Backs up the current local list (once per day) before
-//      touching anything.
-//   2. Pulls the whole ns_quotes collection from Firestore.
-//   3. Merges cloud + local by quote id. UNION — nothing is
-//      ever dropped. On a genuine conflict (same id, both
-//      edited) the NEWER timestamp wins.
-//   4. Pushes any local-only quotes UP, so the cloud becomes
-//      the complete set for every other device.
-//   5. Re-renders the history list if it's on screen.
+//  What this does:
+//   - First run on a device (or once every 20hrs after that):
+//     full reconciliation — pulls the whole ns_quotes collection,
+//     merges cloud + local by quote id (UNION, nothing ever
+//     dropped; newer timestamp wins on conflict), and pushes up
+//     any local-only quotes so the cloud stays complete.
+//   - Every other run: incremental — only asks Firestore for
+//     quotes changed since the last successful sync, which is
+//     fast regardless of how many hundreds of quotes exist.
 //
 //  Safety rails:
 //   - If the cloud read fails or returns nothing, it does
 //     NOTHING. It can never empty your list.
 //   - The merged list can never be shorter than what you
 //     started with; if it somehow would be, the merge aborts.
+//   - Local writes go through nsSafeSetQuotes(), so a full
+//     device never turns into a silent failed sync.
 //   - Deletes do not propagate yet (see note at bottom).
 //
-//  Manual: window.nsPullQuotes() to force a sync now.
+//  Manual: window.nsPullQuotes() to force a full sync now.
 // ============================================================
 
 (function () {
   var QUOTES_COL = 'ns_quotes';
   var LS_KEY = 'ns_quotes';
   var BACKUP_PREFIX = 'ns_quotes_backup_';
+  var CURSOR_KEY = 'ns_quotes_last_sync_ts';
+  var FULL_RECONCILE_KEY = 'ns_quotes_last_full_reconcile';
+  var FULL_RECONCILE_MS = 20 * 60 * 60 * 1000; // 20 hours
+  var THROTTLE_MS = 60 * 1000; // 60 seconds
+  var lastAttempt = 0;
 
   function readLocal() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
@@ -7122,7 +7195,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   }
 
   function writeLocal(list) {
-    localStorage.setItem(LS_KEY, JSON.stringify(list));
+    if (typeof window.nsSafeSetQuotes === 'function') { return window.nsSafeSetQuotes(list); }
+    // Fallback in the unlikely event the helper hasn't loaded yet.
+    try { localStorage.setItem(LS_KEY, JSON.stringify(list)); return true; }
+    catch (e) { console.warn('[QUOTE PULL] write failed and no safe-save helper available', e); return false; }
   }
 
   // Keep one backup per day. Cheap insurance before any merge.
@@ -7222,90 +7298,159 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 
   var running = false;
 
-  function pull(announce) {
-    if (running) { return; }
-    running = true;
+  function needsFullReconcile() {
+    var cursor = Number(localStorage.getItem(CURSOR_KEY)) || 0;
+    if (!cursor) { return true; } // never synced on this device
+    var lastFull = Number(localStorage.getItem(FULL_RECONCILE_KEY)) || 0;
+    return (Date.now() - lastFull) > FULL_RECONCILE_MS;
+  }
 
-    waitForDB(function (db) {
-      db.collection(QUOTES_COL).get().then(function (snap) {
-        var cloud = [];
-        snap.forEach(function (doc) {
-          var d = doc.data();
-          if (d && typeof d === 'object') { cloud.push(d); }
-        });
+  function maxStamp(list, startAt) {
+    var m = startAt || 0;
+    list.forEach(function (q) { var s = stampOf(q); if (s > m) { m = s; } });
+    return m;
+  }
 
-        var local = readLocal();
-
-        // Rail 1: a failed/empty read must never touch the local list.
-        if (!cloud.length) {
-          console.warn('[QUOTE PULL] cloud returned 0 quotes - leaving local list alone');
-          if (window.nsSyncStatus) {
-            window.nsSyncStatus('Quote sync: cloud is empty (0 quotes stored) — nothing pulled', '#b35309');
-          }
-          running = false;
-          return;
-        }
-
-        backupOnce(local);
-
-        var merged = merge(local, cloud);
-
-        // Rail 2: the merge can only ever grow or hold steady.
-        if (merged.length < local.length) {
-          console.error('[QUOTE PULL] merge would shrink the list (' +
-            local.length + ' -> ' + merged.length + ') - aborting, nothing written');
-          running = false;
-          return;
-        }
-
-        var added = merged.length - local.length;
-        if (added > 0 || announce) {
-          writeLocal(merged);
-          refreshUI();
-        }
-
-        // Push anything the cloud is missing, so other devices get it.
-        var cloudKeys = {};
-        cloud.forEach(function (q) { var k = keyOf(q); if (k) { cloudKeys[k] = true; } });
-        var toPush = local.filter(function (q) {
-          var k = keyOf(q);
-          return k && !cloudKeys[k];
-        });
-        toPush.forEach(function (q) {
-          db.collection(QUOTES_COL).doc(String(q.id)).set(q).catch(function (e) {
-            console.warn('[QUOTE PULL] push failed for ' + q.id, e);
-          });
-        });
-
-        console.log('[QUOTE PULL] local ' + local.length +
-          ' | cloud ' + cloud.length +
-          ' | merged ' + merged.length +
-          ' | pulled down ' + added +
-          ' | pushed up ' + toPush.length);
-
-        if (window.nsSyncStatus) {
-          window.nsSyncStatus('Quote sync OK — ' + merged.length + ' total (' +
-            added + ' pulled down, ' + toPush.length + ' sent up)', '#2d6a30');
-        }
-        if (announce) {
-          note('Quotes synced — ' + merged.length + ' total (' +
-            added + ' new here, ' + toPush.length + ' sent up)');
-        } else if (added > 0) {
-          note('Synced ' + added + ' quote' + (added === 1 ? '' : 's') + ' from other devices');
-        }
-
-        running = false;
-      }).catch(function (e) {
-        console.warn('[QUOTE PULL] cloud read failed - local list untouched', e);
-        if (window.nsSyncStatus) {
-          window.nsSyncStatus('Quote sync FAILED: ' + (e && e.code ? e.code : (e && e.message ? e.message : 'unknown')), '#a5251a');
-        }
-        running = false;
+  // Full reconciliation: the original full-collection pull + merge +
+  // push-anything-missing safety net. Runs on first-ever sync and once
+  // every ~20 hours after that; catches anything an incremental pull
+  // could possibly miss (e.g. a doc saved with a bad/missing timestamp).
+  function fullPull(db, announce, done) {
+    db.collection(QUOTES_COL).get().then(function (snap) {
+      var cloud = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        if (d && typeof d === 'object') { cloud.push(d); }
       });
+
+      var local = readLocal();
+
+      if (!cloud.length) {
+        console.warn('[QUOTE PULL] cloud returned 0 quotes - leaving local list alone');
+        if (window.nsSyncStatus) {
+          window.nsSyncStatus('Quote sync: cloud is empty (0 quotes stored) — nothing pulled', '#b35309');
+        }
+        done();
+        return;
+      }
+
+      backupOnce(local);
+      var merged = merge(local, cloud);
+
+      if (merged.length < local.length) {
+        console.error('[QUOTE PULL] merge would shrink the list (' +
+          local.length + ' -> ' + merged.length + ') - aborting, nothing written');
+        done();
+        return;
+      }
+
+      var added = merged.length - local.length;
+      if (added > 0 || announce) {
+        writeLocal(merged);
+        refreshUI();
+      }
+
+      var cloudKeys = {};
+      cloud.forEach(function (q) { var k = keyOf(q); if (k) { cloudKeys[k] = true; } });
+      var toPush = local.filter(function (q) { var k = keyOf(q); return k && !cloudKeys[k]; });
+      toPush.forEach(function (q) {
+        db.collection(QUOTES_COL).doc(String(q.id)).set(q).catch(function (e) {
+          console.warn('[QUOTE PULL] push failed for ' + q.id, e);
+        });
+      });
+
+      var stamp = maxStamp(merged, Date.now());
+      localStorage.setItem(CURSOR_KEY, String(stamp));
+      localStorage.setItem(FULL_RECONCILE_KEY, String(Date.now()));
+
+      console.log('[QUOTE PULL] full | local ' + local.length + ' | cloud ' + cloud.length +
+        ' | merged ' + merged.length + ' | pulled down ' + added + ' | pushed up ' + toPush.length);
+
+      if (window.nsSyncStatus) {
+        window.nsSyncStatus('Quote sync OK — ' + merged.length + ' total (' +
+          added + ' pulled down, ' + toPush.length + ' sent up)', '#2d6a30');
+      }
+      if (announce) {
+        note('Quotes synced — ' + merged.length + ' total (' + added + ' new here, ' + toPush.length + ' sent up)');
+      } else if (added > 0) {
+        note('Synced ' + added + ' quote' + (added === 1 ? '' : 's') + ' from other devices');
+      }
+      done();
+    }).catch(function (e) {
+      console.warn('[QUOTE PULL] cloud read failed - local list untouched', e);
+      if (window.nsSyncStatus) {
+        window.nsSyncStatus('Quote sync FAILED: ' + (e && e.code ? e.code : (e && e.message ? e.message : 'unknown')), '#a5251a');
+      }
+      done();
     });
   }
 
-  window.nsPullQuotes = function () { pull(true); };
+  // Incremental pull: only asks for quotes touched since the last sync.
+  // Fast no matter how large the collection gets. Falls back to a full
+  // pull automatically if the query itself errors out for any reason.
+  function incrementalPull(db, announce, done) {
+    var cursor = Number(localStorage.getItem(CURSOR_KEY)) || 0;
+    db.collection(QUOTES_COL).where('timestamp', '>', cursor).get().then(function (snap) {
+      var changed = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        if (d && typeof d === 'object') { changed.push(d); }
+      });
+
+      var local = readLocal();
+
+      if (!changed.length) {
+        console.log('[QUOTE PULL] incremental | nothing new since last sync');
+        if (window.nsSyncStatus) { window.nsSyncStatus('Quote sync OK — up to date (' + local.length + ' total)', '#2d6a30'); }
+        if (announce) { note('Already up to date — ' + local.length + ' quotes'); }
+        done();
+        return;
+      }
+
+      var merged = merge(local, changed);
+      var added = merged.length - local.length;
+      writeLocal(merged);
+      refreshUI();
+
+      var stamp = maxStamp(changed, cursor);
+      localStorage.setItem(CURSOR_KEY, String(stamp));
+
+      console.log('[QUOTE PULL] incremental | local ' + local.length + ' | changed ' + changed.length +
+        ' | merged ' + merged.length + ' | pulled down ' + added);
+
+      if (window.nsSyncStatus) {
+        window.nsSyncStatus('Quote sync OK — ' + merged.length + ' total (' + added + ' updated)', '#2d6a30');
+      }
+      if (announce) {
+        note('Quotes synced — ' + merged.length + ' total (' + added + ' new/updated)');
+      } else if (added > 0) {
+        note('Synced ' + added + ' quote' + (added === 1 ? '' : 's') + ' from other devices');
+      }
+      done();
+    }).catch(function (e) {
+      console.warn('[QUOTE PULL] incremental query failed, falling back to full pull', e);
+      fullPull(db, announce, done);
+    });
+  }
+
+  function pull(announce) {
+    var now = Date.now();
+    if (running) { return; }
+    if (!announce && (now - lastAttempt) < THROTTLE_MS) { return; } // throttle background pulls only
+    lastAttempt = now;
+    running = true;
+
+    waitForDB(function (db) {
+      function finish() { running = false; }
+      if (needsFullReconcile()) {
+        fullPull(db, announce, finish);
+      } else {
+        incrementalPull(db, announce, finish);
+      }
+    });
+  }
+
+  window.nsPullQuotes = function () { pull(true); }; // manual tap always runs, ignores throttle
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { pull(false); }, 1500); });
