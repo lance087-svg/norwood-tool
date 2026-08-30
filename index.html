@@ -526,6 +526,7 @@ tr:hover td{background:#fdf9f3}
               </div>
               <button class="btn btn-p" id="add-btn" onclick="addLine()" disabled="">+ Add to Quote</button>
               <button class="btn" onclick="showCustomItem()" style="background:#1a1008;color:#f5e8c8;white-space:nowrap">✏️ Custom Item</button>
+              <button class="btn" onclick="showSpecialOrderDoor()" style="background:#8B4513;color:#fff;white-space:nowrap">🚪 Special Order Door</button>
               <span id="ext-preview" style="font-size:12px;color:#6b5a3a;align-self:center"></span>
             </div>
           </div>
@@ -1231,6 +1232,151 @@ Subject:
 
 <!-- CUSTOM ITEM MODAL -->
 <input type="file" id="line-photo-file" accept="image/*" capture="environment" style="display:none" onchange="handleLinePhotoUpload(this)">
+<!-- DOOR SPEC EDIT MODAL — lets a spec be added or corrected after the line already exists -->
+<div id="doorspec-modal" class="modal-bg hidden" onclick="if(event.target===this)closeDoorSpecEdit()">
+  <div class="modal">
+    <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">🚪 Door Spec</div>
+    <div id="ds-item-label" style="font-size:12px;color:#8B6914;margin-bottom:18px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><label class="lbl">Hand</label>
+        <select id="ds-hand"><option value="">— Select —</option><option value="LH">Left Hand (LH)</option><option value="RH">Right Hand (RH)</option><option value="N/A">N/A — double/pair</option></select>
+      </div>
+      <div class="fg"><label class="lbl">Swing</label>
+        <select id="ds-swing"><option value="">— Select —</option><option value="In-Swing">In-Swing</option><option value="Out-Swing">Out-Swing</option><option value="N/A">N/A — interior</option></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><label class="lbl">Rough Opening</label><input type="text" id="ds-rough-opening" placeholder="e.g. 38 x 82"></div>
+      <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="ds-net-size" placeholder="e.g. 3-0 x 6-8"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="ds-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+      <div class="fg"><label class="lbl">Texture</label>
+        <select id="ds-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:16px"><label class="lbl">Hinge Finish</label><input type="text" id="ds-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+    <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
+      <button class="btn btn-d" onclick="clearDoorSpecEdit()" style="font-size:12px">Remove Spec</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-gh" onclick="closeDoorSpecEdit()">Cancel</button>
+        <button class="btn btn-p" onclick="saveDoorSpecEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPECIAL ORDER DOOR MODAL — for the ~30-40% of door sales that don't exist
+     in the catalog. Structured like the catalog (Category → Group → Style),
+     but Style can be typed fresh since these are one-offs. Door spec fields
+     are front and center here, not optional, since this is exactly where
+     wrong-hand/wrong-size mistakes have come from. -->
+<div id="sodoor-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSpecialOrderDoor()">
+  <div class="modal">
+    <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">🚪 Special Order Door</div>
+    <div style="font-size:12px;color:#8B6914;margin-bottom:16px">For doors not in the catalog — structured the same way, so nothing gets lost in a sentence</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fg"><label class="lbl">Category *</label>
+        <select id="sod-category"><option value="">— Select —</option><option value="Interior Doors">Interior</option><option value="Exterior Doors">Exterior</option></select>
+      </div>
+      <div class="fg"><label class="lbl">Group *</label>
+        <select id="sod-group"><option value="">— Select —</option><option value="Prehung">Prehung</option><option value="Slab">Slab Only</option></select>
+      </div>
+    </div>
+
+    <div class="fg" style="margin-bottom:4px"><label class="lbl">Style *</label>
+      <select id="sod-style" onchange="toggleSODStyleOther()">
+        <option value="">— Select —</option>
+        <option value="__other__">+ Add a new style…</option>
+      </select>
+    </div>
+    <div id="sod-style-other-row" class="hidden fg" style="margin-bottom:12px">
+      <input type="text" id="sod-style-other" placeholder="Type the new style name, e.g. Craftsman 3-Lite">
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <input type="checkbox" id="sod-remember-style" checked style="width:14px;height:14px;cursor:pointer">
+        <label for="sod-remember-style" style="font-size:11px;color:#6b5a3a;cursor:pointer">Remember this style for next time</label>
+      </div>
+    </div>
+    <div id="sod-style-spacer" style="margin-bottom:8px"></div>
+
+    <div style="padding:12px;background:#fdfbf7;border:1.5px solid #e8dcc0;border-radius:8px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.3px;margin-bottom:10px">Spec — the part that has to be right</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Hand</label>
+          <select id="sod-hand"><option value="">— Select —</option><option value="LH">Left Hand (LH)</option><option value="RH">Right Hand (RH)</option><option value="N/A">N/A — double/pair</option></select>
+        </div>
+        <div class="fg"><label class="lbl">Swing</label>
+          <select id="sod-swing"><option value="">— Select —</option><option value="In-Swing">In-Swing</option><option value="Out-Swing">Out-Swing</option><option value="N/A">N/A — interior</option></select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Rough Opening</label><input type="text" id="sod-rough-opening" placeholder="e.g. 38 x 82"></div>
+        <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="sod-net-size" placeholder="e.g. 3-0 x 6-8"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="sod-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+        <div class="fg"><label class="lbl">Texture</label>
+          <select id="sod-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
+        </div>
+      </div>
+      <div class="fg"><label class="lbl">Hinge Finish</label><input type="text" id="sod-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+    </div>
+
+    <div class="fg" style="margin-bottom:12px">
+      <label class="lbl">Additional Notes <span style="font-size:10px;color:#8B6914;font-weight:400">(anything the fields above don't cover)</span></label>
+      <input type="text" id="sod-notes" placeholder="e.g. matching existing trim, glass pattern detail...">
+    </div>
+
+    <div class="fg" style="margin-bottom:12px">
+      <label class="lbl">Photo <span style="font-size:10px;color:#8B6914;font-weight:400">(shows on the quote/invoice — a photo of the opening or a matching sample heads off a lot of mismatches)</span></label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="sod-img-prev" style="width:44px;height:64px;background:#f0e8d8;border-radius:4px;border:1.5px solid #d5c0a0;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#a89060;text-align:center;line-height:1.2">No photo</div>
+        <input type="file" id="sod-img-file" accept="image/*" capture="environment" style="display:none" onchange="handleSODPhotoUpload(this)">
+        <button type="button" class="btn btn-gh" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('sod-img-file').click()">📷 Take / Upload Photo</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#eaf4fd;border:1px solid #b8dcf5;border-radius:6px;margin-bottom:12px">
+      <input type="checkbox" id="sod-price-pending" onchange="toggleSODPricePending()" style="width:16px;height:16px;cursor:pointer">
+      <label for="sod-price-pending" style="font-size:12px;color:#1a2438;cursor:pointer;font-weight:600">Don't know the cost yet — just capture the spec, I'll price it once I hear back from a vendor</label>
+    </div>
+    <div id="sod-cost-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fg"><label class="lbl">Your Cost ($) *</label><input type="number" id="sod-cost" min="0" step="0.01" oninput="updateSODPreview()"></div>
+      <div class="fg"><label class="lbl">Qty</label><input type="number" id="sod-qty" min="1" value="1" oninput="updateSODPreview()" style="text-align:center;font-weight:600"></div>
+      <div class="fg">
+        <label class="lbl">Margin %</label>
+        <select id="sod-gm" onchange="updateSODPreview()">
+          <option value="0.40">40% — Single</option>
+          <option value="0.35">35% — 2-5</option>
+          <option value="0.30" selected="">30% — 6+</option>
+          <option value="0.22">22% — Volume</option>
+          <option value="custom">Custom %</option>
+        </select>
+      </div>
+    </div>
+    <div id="sod-qty-only-row" class="hidden" style="margin-bottom:12px">
+      <label class="lbl">Qty</label><input type="number" id="sod-qty-pending" min="1" value="1" style="text-align:center;font-weight:600;width:100px">
+    </div>
+    <div id="sod-custom-gm-row" class="hidden" style="margin-bottom:12px">
+      <label class="lbl">Custom Margin %</label>
+      <input type="number" id="sod-custom-gm" min="1" max="99" placeholder="e.g. 28" oninput="updateSODPreview()" style="width:120px">
+    </div>
+    <div id="sod-preview" class="hidden" style="background:#fdf9f3;border:1.5px solid #e8dcc0;border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;gap:20px;align-items:center">
+        <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">Unit Price</div><div id="sod-unit-price" style="font-size:22px;font-weight:700;font-family:Georgia,serif;color:#1a1008">$0.00</div></div>
+        <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">Extended</div><div id="sod-ext-price" style="font-size:22px;font-weight:700;font-family:Georgia,serif;color:#c8952a">$0.00</div></div>
+        <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">GM</div><div id="sod-gm-pct" style="font-size:16px;font-weight:700;color:#2d6a30">30%</div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-gh" onclick="closeSpecialOrderDoor()">Cancel</button>
+      <button class="btn btn-p" onclick="addSpecialOrderDoor()">Add to Quote</button>
+    </div>
+  </div>
+</div>
+
 <div id="custom-modal" class="modal-bg hidden">
   <div class="modal">
     <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">✏️ Custom / Special Order Item</div>
@@ -1238,6 +1384,32 @@ Subject:
     <div class="fg" style="margin-bottom:12px">
       <label class="lbl">Description *</label>
       <input type="text" id="ci-desc" placeholder="e.g. Therma-Tru 3/0 x 6/8 Mahogany Special Order">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fdf0d5;border:1px solid #e0c078;border-radius:6px;margin-bottom:12px">
+      <input type="checkbox" id="ci-is-door" onchange="toggleCIDoorSpec()" style="width:16px;height:16px;cursor:pointer">
+      <label for="ci-is-door" style="font-size:12px;color:#5a4520;cursor:pointer;font-weight:600">🚪 This is a door — capture hand/swing/size as separate fields (not just in the sentence above)</label>
+    </div>
+    <div id="ci-door-spec-fields" class="hidden" style="padding:12px;background:#fdfbf7;border:1.5px solid #e8dcc0;border-radius:8px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Hand</label>
+          <select id="ci-hand"><option value="">— Select —</option><option value="LH">Left Hand (LH)</option><option value="RH">Right Hand (RH)</option><option value="N/A">N/A — double/pair</option></select>
+        </div>
+        <div class="fg"><label class="lbl">Swing</label>
+          <select id="ci-swing"><option value="">— Select —</option><option value="In-Swing">In-Swing</option><option value="Out-Swing">Out-Swing</option><option value="N/A">N/A — interior</option></select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Rough Opening</label><input type="text" id="ci-rough-opening" placeholder="e.g. 38 x 82"></div>
+        <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="ci-net-size" placeholder="e.g. 3-0 x 6-8"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="ci-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+        <div class="fg"><label class="lbl">Texture</label>
+          <select id="ci-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
+        </div>
+      </div>
+      <div class="fg"><label class="lbl">Hinge Finish</label><input type="text" id="ci-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+      <div style="font-size:10px;color:#8B6914;margin-top:8px;line-height:1.4">These show as a spec strip under the line item on screen, so you and Garon/Cleve can double-check hand/size before it goes out — this is separate from the description sentence above.</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#eaf4fd;border:1px solid #b8dcf5;border-radius:6px;margin-bottom:12px">
       <input type="checkbox" id="ci-price-pending" onchange="toggleCIPricePending()" style="width:16px;height:16px;cursor:pointer">
@@ -3004,6 +3176,64 @@ function clearLines() {
   recalcLines(); renderLines(); renderSummary();
   if(selProd) showPreview();
 }
+// Renders a compact spec strip under a door line — hand/swing/size, at a
+// glance, so the person building or reviewing the quote can catch a
+// mismatch before it becomes a wrong-door delivery.
+function doorSpecChipHTML(spec) {
+  var parts = [];
+  if(spec.hand) parts.push(spec.hand);
+  if(spec.swing) parts.push(spec.swing);
+  if(spec.roughOpening) parts.push('RO ' + spec.roughOpening);
+  if(spec.netSize) parts.push('Net ' + spec.netSize);
+  if(spec.jambWidth) parts.push(spec.jambWidth + ' jamb');
+  if(spec.texture) parts.push(spec.texture);
+  if(spec.hingeFinish) parts.push(spec.hingeFinish);
+  if(!parts.length) return '';
+  return '<div style="margin-top:3px;font-size:10px;font-weight:700;color:#8B6914;background:#fdf0d5;border:1px solid #e8dcc0;border-radius:4px;padding:2px 6px;display:inline-block">🚪 ' + parts.join(' · ') + '</div>';
+}
+var dsEditingLineId = null;
+function openDoorSpecEdit(lineId) {
+  var l = lines.find(function(x){ return x.lineId === lineId; });
+  if(!l) return;
+  dsEditingLineId = lineId;
+  document.getElementById('ds-item-label').textContent = l.item;
+  var s = l.doorSpec || {};
+  document.getElementById('ds-hand').value = s.hand || '';
+  document.getElementById('ds-swing').value = s.swing || '';
+  document.getElementById('ds-rough-opening').value = s.roughOpening || '';
+  document.getElementById('ds-net-size').value = s.netSize || '';
+  document.getElementById('ds-jamb-width').value = s.jambWidth || '';
+  document.getElementById('ds-texture').value = s.texture || '';
+  document.getElementById('ds-hinge-finish').value = s.hingeFinish || '';
+  document.getElementById('doorspec-modal').classList.remove('hidden');
+}
+function closeDoorSpecEdit() {
+  document.getElementById('doorspec-modal').classList.add('hidden');
+  dsEditingLineId = null;
+}
+function saveDoorSpecEdit() {
+  var l = lines.find(function(x){ return x.lineId === dsEditingLineId; });
+  if(!l) { closeDoorSpecEdit(); return; }
+  var spec = {
+    hand: document.getElementById('ds-hand').value,
+    swing: document.getElementById('ds-swing').value,
+    roughOpening: document.getElementById('ds-rough-opening').value.trim(),
+    netSize: document.getElementById('ds-net-size').value.trim(),
+    jambWidth: document.getElementById('ds-jamb-width').value.trim(),
+    texture: document.getElementById('ds-texture').value,
+    hingeFinish: document.getElementById('ds-hinge-finish').value.trim()
+  };
+  if(Object.values(spec).some(function(v){return v;})){ l.doorSpec = spec; }
+  else { delete l.doorSpec; }
+  closeDoorSpecEdit();
+  renderLines(); renderSummary();
+}
+function clearDoorSpecEdit() {
+  var l = lines.find(function(x){ return x.lineId === dsEditingLineId; });
+  if(l) { delete l.doorSpec; }
+  closeDoorSpecEdit();
+  renderLines(); renderSummary();
+}
 function renderLines() {
   var empty = document.getElementById('empty-msg');
   var tbl = document.getElementById('lines-table');
@@ -3020,7 +3250,11 @@ function renderLines() {
     h += '<tr>';
     h += '<td><div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="limg">' + imgHTML(l) + '</div><button onclick="attachLinePhoto(' + l.lineId + ')" title="' + (l.imageUrl?'Replace photo':'Attach a photo — shows on the printed quote') + '" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;cursor:pointer;line-height:1.5;white-space:nowrap">📷' + (l.imageUrl?' ✓':'') + '</button></div></td>';
     h += '<td><div class="ldesc">' + l.item + (l.pricePending?' <span style="display:inline-block;background:#fdf0d5;color:#8B6914;border:1px solid #e0c078;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-left:6px;vertical-align:middle">⏳ Price Pending</span>':'') + '</div>';
-    h += '<div class="lsize">' + l.category + ' · ' + (typeof formatDoorGroup==='function'?formatDoorGroup(l.group):l.group) + (l.sku ? ' · SKU:' + l.sku : '') + '</div></td>';
+    h += '<div class="lsize">' + l.category + ' · ' + (typeof formatDoorGroup==='function'?formatDoorGroup(l.group):l.group) + (l.sku ? ' · SKU:' + l.sku : '') + '</div>';
+    h += '<div style="margin-top:3px">';
+    if(l.doorSpec){ h += doorSpecChipHTML(l.doorSpec) + ' '; }
+    h += '<button onclick="openDoorSpecEdit(' + l.lineId + ')" style="font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;cursor:pointer;color:#6b5a3a;vertical-align:middle">' + (l.doorSpec?'✏️ Edit spec':'🚪 + Add door spec') + '</button>';
+    h += '</div></td>';
     // Qty adjuster
     h += '<td style="text-align:center">';
     h += '<div style="display:flex;align-items:center;justify-content:center;gap:3px">';
@@ -3503,6 +3737,10 @@ function showCustomItem() {
   document.getElementById('ci-save-catalog').checked=false;
   document.getElementById('ci-catalog-fields').classList.add('hidden');
   document.getElementById('ci-custom-gm-row').classList.add('hidden');
+  document.getElementById('ci-is-door').checked=false;
+  ['ci-hand','ci-swing','ci-texture'].forEach(id=>document.getElementById(id).value='');
+  ['ci-rough-opening','ci-net-size','ci-jamb-width','ci-hinge-finish'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ci-door-spec-fields').classList.add('hidden');
   ciPhotoData='';
   document.getElementById('ci-img-prev').innerHTML='No photo';
   document.getElementById('ci-one-time').checked=false;
@@ -3514,6 +3752,10 @@ function showCustomItem() {
   toggleCIPricePending();
   document.getElementById('custom-modal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('ci-desc').focus(),100);
+}
+function toggleCIDoorSpec() {
+  var on = document.getElementById('ci-is-door').checked;
+  document.getElementById('ci-door-spec-fields').classList.toggle('hidden', !on);
 }
 function toggleCIPricePending() {
   var pending=document.getElementById('ci-price-pending').checked;
@@ -3557,7 +3799,22 @@ function addCustomItem() {
     if(!gm){return;}
     unit=Math.round(cost/(1-gm));
   }
-  lines.push({id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,pricePending:pending,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()});
+  var newLine={id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,pricePending:pending,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()};
+  if(document.getElementById('ci-is-door').checked){
+    var spec={
+      hand:document.getElementById('ci-hand').value,
+      swing:document.getElementById('ci-swing').value,
+      roughOpening:document.getElementById('ci-rough-opening').value.trim(),
+      netSize:document.getElementById('ci-net-size').value.trim(),
+      jambWidth:document.getElementById('ci-jamb-width').value.trim(),
+      texture:document.getElementById('ci-texture').value,
+      hingeFinish:document.getElementById('ci-hinge-finish').value.trim()
+    };
+    // Only attach if at least one field actually has something in it —
+    // don't clutter every line with an empty spec object.
+    if(Object.values(spec).some(v=>v)){ newLine.doorSpec=spec; }
+  }
+  lines.push(newLine);
   if(!pending && document.getElementById('ci-save-catalog').checked){
     const cat=document.getElementById('ci-cat').value;
     const grp=document.getElementById('ci-group').value||'Special Orders';
@@ -3567,6 +3824,161 @@ function addCustomItem() {
     saveEdits();
   }
   closeCustomItem();
+  renderLines(); renderSummary();
+}
+
+// ── SPECIAL ORDER DOOR ──────────────────────────────────────────────────────
+// Structured entry for doors that aren't in the catalog (~30-40% of door
+// sales per Lance). Category/Group mirror the catalog; Style can be typed
+// fresh and optionally remembered for next time, since these are one-offs
+// by definition. Spec fields are always visible (not gated by a checkbox)
+// because this is exactly where wrong-hand/wrong-size mistakes originate.
+var SOD_BASE_STYLES = ['6-Panel','2-Panel Shaker','5-Panel Shaker','Flush / Flat Panel','Louver','Craftsman','Colonial','Raised Panel','Full-Lite (Glass)','Half-Lite (Glass)','1-Lite','Fan-Lite'];
+var sodPhotoData = '';
+function getSODCustomStyles() {
+  try { return JSON.parse(localStorage.getItem('ns_custom_door_styles') || '[]'); }
+  catch(e) { return []; }
+}
+function saveSODCustomStyle(name) {
+  var list = getSODCustomStyles();
+  if(!list.includes(name)) { list.push(name); localStorage.setItem('ns_custom_door_styles', JSON.stringify(list)); }
+}
+function populateSODStyles() {
+  var sel = document.getElementById('sod-style');
+  var all = SOD_BASE_STYLES.concat(getSODCustomStyles()).sort();
+  sel.innerHTML = '<option value="">— Select —</option>';
+  all.forEach(function(s){ var o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+  var otherOpt = document.createElement('option');
+  otherOpt.value = '__other__'; otherOpt.textContent = '+ Add a new style…';
+  sel.appendChild(otherOpt);
+}
+function toggleSODStyleOther() {
+  var isOther = document.getElementById('sod-style').value === '__other__';
+  document.getElementById('sod-style-other-row').classList.toggle('hidden', !isOther);
+}
+function toggleSODPricePending() {
+  var pending = document.getElementById('sod-price-pending').checked;
+  document.getElementById('sod-cost-fields').style.display = pending?'none':'';
+  document.getElementById('sod-qty-only-row').classList.toggle('hidden', !pending);
+  document.getElementById('sod-preview').classList.toggle('hidden', pending);
+  if(pending) document.getElementById('sod-custom-gm-row').classList.add('hidden');
+  if(!pending) updateSODPreview();
+}
+function getSODGM() {
+  var sel = document.getElementById('sod-gm').value;
+  if(sel==='custom'){ var v=parseFloat(document.getElementById('sod-custom-gm').value); return isNaN(v)?null:v/100; }
+  return parseFloat(sel);
+}
+function updateSODPreview() {
+  if(document.getElementById('sod-price-pending').checked){ document.getElementById('sod-preview').classList.add('hidden'); return; }
+  var cost=parseFloat(document.getElementById('sod-cost').value);
+  var qty=parseInt(document.getElementById('sod-qty').value)||1;
+  var gm=getSODGM();
+  if(!cost||cost<=0||!gm){ document.getElementById('sod-preview').classList.add('hidden'); return; }
+  var unit=Math.round(cost/(1-gm));
+  document.getElementById('sod-unit-price').textContent='$'+unit.toFixed(2);
+  document.getElementById('sod-ext-price').textContent='$'+(unit*qty).toFixed(2);
+  document.getElementById('sod-gm-pct').textContent=Math.round(gm*100)+'%';
+  document.getElementById('sod-preview').classList.remove('hidden');
+}
+function handleSODPhotoUpload(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  compressImageFile(file, 900, 0.72, function (dataUrl) {
+    sodPhotoData = dataUrl;
+    document.getElementById('sod-img-prev').innerHTML = '<img src="' + dataUrl + '" style="width:100%;height:100%;object-fit:cover">';
+  });
+  input.value = '';
+}
+function showSpecialOrderDoor() {
+  document.getElementById('sod-category').value='';
+  document.getElementById('sod-group').value='';
+  populateSODStyles();
+  document.getElementById('sod-style').value='';
+  document.getElementById('sod-style-other').value='';
+  document.getElementById('sod-style-other-row').classList.add('hidden');
+  document.getElementById('sod-remember-style').checked=true;
+  ['sod-hand','sod-swing','sod-texture'].forEach(function(id){document.getElementById(id).value='';});
+  ['sod-rough-opening','sod-net-size','sod-jamb-width','sod-hinge-finish'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('sod-notes').value='';
+  sodPhotoData='';
+  document.getElementById('sod-img-prev').innerHTML='No photo';
+  document.getElementById('sod-price-pending').checked=false;
+  document.getElementById('sod-cost').value='';
+  document.getElementById('sod-qty').value=1;
+  document.getElementById('sod-qty-pending').value=1;
+  var total=lines.reduce(function(s,l){return s+l.qty;},0);
+  var gm=manualGM!==null?manualGM:getGM(total);
+  var gmSel=document.getElementById('sod-gm');
+  var opts=['0.40','0.35','0.30','0.22'];
+  gmSel.value=opts.includes(String(gm))?String(gm):'0.30';
+  toggleSODPricePending();
+  document.getElementById('sodoor-modal').classList.remove('hidden');
+}
+function closeSpecialOrderDoor() { document.getElementById('sodoor-modal').classList.add('hidden'); }
+function addSpecialOrderDoor() {
+  var category = document.getElementById('sod-category').value;
+  var group = document.getElementById('sod-group').value;
+  var styleSel = document.getElementById('sod-style').value;
+  var style = styleSel==='__other__' ? document.getElementById('sod-style-other').value.trim() : styleSel;
+
+  if(!category){ document.getElementById('sod-category').style.borderColor='#c04040'; document.getElementById('sod-category').focus(); return; }
+  if(!group){ document.getElementById('sod-group').style.borderColor='#c04040'; document.getElementById('sod-group').focus(); return; }
+  if(!style){
+    var el = styleSel==='__other__' ? document.getElementById('sod-style-other') : document.getElementById('sod-style');
+    el.style.borderColor='#c04040'; el.focus(); return;
+  }
+
+  if(styleSel==='__other__' && document.getElementById('sod-remember-style').checked && style){
+    saveSODCustomStyle(style);
+  }
+
+  var pending = document.getElementById('sod-price-pending').checked;
+  var cost=0, gm=null, unit=0, qty=1;
+  if(pending){
+    qty=parseInt(document.getElementById('sod-qty-pending').value)||1;
+  } else {
+    qty=parseInt(document.getElementById('sod-qty').value)||1;
+    cost=parseFloat(document.getElementById('sod-cost').value);
+    gm=getSODGM();
+    if(!cost||cost<=0){ document.getElementById('sod-cost').style.borderColor='#c04040'; document.getElementById('sod-cost').focus(); return; }
+    if(!gm){ return; }
+    unit=Math.round(cost/(1-gm));
+  }
+
+  var spec = {
+    hand: document.getElementById('sod-hand').value,
+    swing: document.getElementById('sod-swing').value,
+    roughOpening: document.getElementById('sod-rough-opening').value.trim(),
+    netSize: document.getElementById('sod-net-size').value.trim(),
+    jambWidth: document.getElementById('sod-jamb-width').value.trim(),
+    texture: document.getElementById('sod-texture').value,
+    hingeFinish: document.getElementById('sod-hinge-finish').value.trim()
+  };
+  var notes = document.getElementById('sod-notes').value.trim();
+
+  // Auto-build a readable one-line description from the structured fields,
+  // so the printed quote/invoice still reads as a normal sentence — the
+  // structure underneath is what the confirmation step (next) will use.
+  var catLabel = category==='Exterior Doors' ? 'Exterior' : 'Interior';
+  var descParts = [catLabel, group, 'Door —', style];
+  var desc = descParts.join(' ');
+  var specBits = [];
+  if(spec.hand) specBits.push(spec.hand);
+  if(spec.swing) specBits.push(spec.swing);
+  if(spec.netSize) specBits.push(spec.netSize);
+  if(specBits.length) desc += ', ' + specBits.join(', ');
+  if(notes) desc += ' — ' + notes;
+
+  var newLine = {
+    id: Date.now(), sku:'SO-DOOR', item:desc, category:category, group:group,
+    size:spec.netSize||'', description:desc, cost:cost, onHand:null, uom:'EA',
+    isCustom:true, pricePending:pending, imageUrl:sodPhotoData||'',
+    qty:qty, retail:unit, gm:gm, lineId:Date.now(),
+    doorSpec: spec, doorStyle: style, notes: notes
+  };
+  lines.push(newLine);
+  closeSpecialOrderDoor();
   renderLines(); renderSummary();
 }
 
