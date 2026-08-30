@@ -1250,12 +1250,33 @@ Subject:
       <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="ds-net-size" placeholder="e.g. 3-0 x 6-8"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="ds-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+      <div class="fg"><label class="lbl">Jamb Width</label>
+        <select id="ds-jamb-width" onchange="toggleSpecOtherField('ds','jamb-width')"><option value="">— Select —</option><option value="4-9/16&quot;">4-9/16"</option><option value="6-9/16&quot;">6-9/16"</option><option value="__other__">Other (type in)</option></select>
+      </div>
+      <div class="fg"><label class="lbl">Jamb Material</label>
+        <select id="ds-jamb-material"><option value="">— Select —</option><option value="Composite">Composite</option><option value="Primed Wood">Primed Wood</option></select>
+      </div>
+    </div>
+    <div id="ds-jamb-width-other-row" class="hidden fg" style="margin-bottom:10px">
+      <input type="text" id="ds-jamb-width-other" placeholder="Type jamb width, e.g. 5-1/4&quot;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="fg"><label class="lbl">Texture</label>
         <select id="ds-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
       </div>
+      <div class="fg"><label class="lbl">Threshold Finish</label>
+        <select id="ds-threshold-finish" onchange="toggleSpecOtherField('ds','threshold-finish')"><option value="">— Select —</option><option value="Mill Finish">Mill Finish</option><option value="Bronze">Bronze</option><option value="Silver">Silver</option><option value="__other__">Other (type in)</option></select>
+      </div>
     </div>
-    <div class="fg" style="margin-bottom:16px"><label class="lbl">Hinge Finish</label><input type="text" id="ds-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+    <div id="ds-threshold-finish-other-row" class="hidden fg" style="margin-bottom:10px">
+      <input type="text" id="ds-threshold-finish-other" placeholder="Type threshold finish">
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label class="lbl">Hinge Finish</label>
+      <select id="ds-hinge-finish" onchange="toggleSpecOtherField('ds','hinge-finish')"><option value="">— Select —</option><option value="Satin Nickel">Satin Nickel</option><option value="Antique Nickel">Antique Nickel</option><option value="Black">Black</option><option value="Bronze">Bronze</option><option value="__other__">Other (type in)</option></select>
+    </div>
+    <div id="ds-hinge-finish-other-row" class="hidden fg" style="margin-bottom:16px">
+      <input type="text" id="ds-hinge-finish-other" placeholder="Type hinge finish">
+    </div>
     <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
       <button class="btn btn-d" onclick="clearDoorSpecEdit()" style="font-size:12px">Remove Spec</button>
       <div style="display:flex;gap:10px">
@@ -1315,12 +1336,33 @@ Subject:
         <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="sod-net-size" placeholder="e.g. 3-0 x 6-8"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="sod-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+        <div class="fg"><label class="lbl">Jamb Width</label>
+          <select id="sod-jamb-width" onchange="toggleSpecOtherField('sod','jamb-width')"><option value="">— Select —</option><option value="4-9/16&quot;">4-9/16"</option><option value="6-9/16&quot;">6-9/16"</option><option value="__other__">Other (type in)</option></select>
+        </div>
+        <div class="fg"><label class="lbl">Jamb Material</label>
+          <select id="sod-jamb-material"><option value="">— Select —</option><option value="Composite">Composite</option><option value="Primed Wood">Primed Wood</option></select>
+        </div>
+      </div>
+      <div id="sod-jamb-width-other-row" class="hidden fg" style="margin-bottom:10px">
+        <input type="text" id="sod-jamb-width-other" placeholder="Type jamb width, e.g. 5-1/4&quot;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="fg"><label class="lbl">Texture</label>
           <select id="sod-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
         </div>
+        <div class="fg"><label class="lbl">Threshold Finish</label>
+          <select id="sod-threshold-finish" onchange="toggleSpecOtherField('sod','threshold-finish')"><option value="">— Select —</option><option value="Mill Finish">Mill Finish</option><option value="Bronze">Bronze</option><option value="Silver">Silver</option><option value="__other__">Other (type in)</option></select>
+        </div>
       </div>
-      <div class="fg"><label class="lbl">Hinge Finish</label><input type="text" id="sod-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+      <div id="sod-threshold-finish-other-row" class="hidden fg" style="margin-bottom:10px">
+        <input type="text" id="sod-threshold-finish-other" placeholder="Type threshold finish">
+      </div>
+      <div class="fg"><label class="lbl">Hinge Finish</label>
+        <select id="sod-hinge-finish" onchange="toggleSpecOtherField('sod','hinge-finish')"><option value="">— Select —</option><option value="Satin Nickel">Satin Nickel</option><option value="Antique Nickel">Antique Nickel</option><option value="Black">Black</option><option value="Bronze">Bronze</option><option value="__other__">Other (type in)</option></select>
+      </div>
+      <div id="sod-hinge-finish-other-row" class="hidden fg">
+        <input type="text" id="sod-hinge-finish-other" placeholder="Type hinge finish">
+      </div>
     </div>
 
     <div class="fg" style="margin-bottom:12px">
@@ -1403,12 +1445,33 @@ Subject:
         <div class="fg"><label class="lbl">Net Unit Size</label><input type="text" id="ci-net-size" placeholder="e.g. 3-0 x 6-8"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="fg"><label class="lbl">Jamb Width</label><input type="text" id="ci-jamb-width" placeholder="e.g. 4-9/16&quot;"></div>
+        <div class="fg"><label class="lbl">Jamb Width</label>
+          <select id="ci-jamb-width" onchange="toggleSpecOtherField('ci','jamb-width')"><option value="">— Select —</option><option value="4-9/16&quot;">4-9/16"</option><option value="6-9/16&quot;">6-9/16"</option><option value="__other__">Other (type in)</option></select>
+        </div>
+        <div class="fg"><label class="lbl">Jamb Material</label>
+          <select id="ci-jamb-material"><option value="">— Select —</option><option value="Composite">Composite</option><option value="Primed Wood">Primed Wood</option></select>
+        </div>
+      </div>
+      <div id="ci-jamb-width-other-row" class="hidden fg" style="margin-bottom:10px">
+        <input type="text" id="ci-jamb-width-other" placeholder="Type jamb width, e.g. 5-1/4&quot;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="fg"><label class="lbl">Texture</label>
           <select id="ci-texture"><option value="">— Select —</option><option value="Smooth">Smooth</option><option value="Textured / Woodgrain">Textured / Woodgrain</option></select>
         </div>
+        <div class="fg"><label class="lbl">Threshold Finish</label>
+          <select id="ci-threshold-finish" onchange="toggleSpecOtherField('ci','threshold-finish')"><option value="">— Select —</option><option value="Mill Finish">Mill Finish</option><option value="Bronze">Bronze</option><option value="Silver">Silver</option><option value="__other__">Other (type in)</option></select>
+        </div>
       </div>
-      <div class="fg"><label class="lbl">Hinge Finish</label><input type="text" id="ci-hinge-finish" placeholder="e.g. Satin Nickel"></div>
+      <div id="ci-threshold-finish-other-row" class="hidden fg" style="margin-bottom:10px">
+        <input type="text" id="ci-threshold-finish-other" placeholder="Type threshold finish">
+      </div>
+      <div class="fg"><label class="lbl">Hinge Finish</label>
+        <select id="ci-hinge-finish" onchange="toggleSpecOtherField('ci','hinge-finish')"><option value="">— Select —</option><option value="Satin Nickel">Satin Nickel</option><option value="Antique Nickel">Antique Nickel</option><option value="Black">Black</option><option value="Bronze">Bronze</option><option value="__other__">Other (type in)</option></select>
+      </div>
+      <div id="ci-hinge-finish-other-row" class="hidden fg">
+        <input type="text" id="ci-hinge-finish-other" placeholder="Type hinge finish">
+      </div>
       <div style="font-size:10px;color:#8B6914;margin-top:8px;line-height:1.4">These show as a spec strip under the line item on screen, so you and Garon/Cleve can double-check hand/size before it goes out — this is separate from the description sentence above.</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#eaf4fd;border:1px solid #b8dcf5;border-radius:6px;margin-bottom:12px">
@@ -3176,6 +3239,52 @@ function clearLines() {
   recalcLines(); renderLines(); renderSummary();
   if(selProd) showPreview();
 }
+// Shared helper for any "dropdown with an Other option" field across the
+// three door-spec surfaces (Custom Item's door toggle, Special Order Door,
+// and the standalone edit modal) — jamb width and threshold finish both use
+// this same pattern: prefix-field is the select, prefix-field-other-row is
+// the hidden text row, prefix-field-other is the typed value.
+function toggleSpecOtherField(prefix, field) {
+  var sel = document.getElementById(prefix + '-' + field).value;
+  var row = document.getElementById(prefix + '-' + field + '-other-row');
+  if(row) row.classList.toggle('hidden', sel !== '__other__');
+}
+function resolveSpecSelect(prefix, field) {
+  var el = document.getElementById(prefix + '-' + field);
+  if(!el) return '';
+  var sel = el.value;
+  if(sel === '__other__') {
+    var other = document.getElementById(prefix + '-' + field + '-other');
+    return other ? other.value.trim() : '';
+  }
+  return sel;
+}
+// Populates a "select with an Other option" field (and its hidden text
+// fallback) from a stored value. If the stored value matches one of the
+// dropdown's known options, selects it directly; otherwise falls back to
+// "Other" and fills in the typed value — so an older or unusual value
+// entered before this field existed as a dropdown still displays correctly.
+function populateSpecOtherSelect(prefix, field, knownValues, storedValue) {
+  var sel = document.getElementById(prefix + '-' + field);
+  var otherRow = document.getElementById(prefix + '-' + field + '-other-row');
+  var otherInput = document.getElementById(prefix + '-' + field + '-other');
+  if(!sel) return;
+  if(!storedValue) {
+    sel.value = '';
+    if(otherInput) otherInput.value = '';
+    if(otherRow) otherRow.classList.add('hidden');
+    return;
+  }
+  if(knownValues.indexOf(storedValue) > -1) {
+    sel.value = storedValue;
+    if(otherInput) otherInput.value = '';
+    if(otherRow) otherRow.classList.add('hidden');
+  } else {
+    sel.value = '__other__';
+    if(otherInput) otherInput.value = storedValue;
+    if(otherRow) otherRow.classList.remove('hidden');
+  }
+}
 // Renders a compact spec strip under a door line — hand/swing/size, at a
 // glance, so the person building or reviewing the quote can catch a
 // mismatch before it becomes a wrong-door delivery.
@@ -3185,8 +3294,9 @@ function doorSpecChipHTML(spec) {
   if(spec.swing) parts.push(spec.swing);
   if(spec.roughOpening) parts.push('RO ' + spec.roughOpening);
   if(spec.netSize) parts.push('Net ' + spec.netSize);
-  if(spec.jambWidth) parts.push(spec.jambWidth + ' jamb');
+  if(spec.jambWidth) parts.push(spec.jambWidth + (spec.jambMaterial ? ' ' + spec.jambMaterial : '') + ' jamb');
   if(spec.texture) parts.push(spec.texture);
+  if(spec.thresholdFinish) parts.push(spec.thresholdFinish + ' threshold');
   if(spec.hingeFinish) parts.push(spec.hingeFinish);
   if(!parts.length) return '';
   return '<div style="margin-top:3px;font-size:10px;font-weight:700;color:#8B6914;background:#fdf0d5;border:1px solid #e8dcc0;border-radius:4px;padding:2px 6px;display:inline-block">🚪 ' + parts.join(' · ') + '</div>';
@@ -3202,9 +3312,11 @@ function openDoorSpecEdit(lineId) {
   document.getElementById('ds-swing').value = s.swing || '';
   document.getElementById('ds-rough-opening').value = s.roughOpening || '';
   document.getElementById('ds-net-size').value = s.netSize || '';
-  document.getElementById('ds-jamb-width').value = s.jambWidth || '';
+  populateSpecOtherSelect('ds', 'jamb-width', ['4-9/16"','6-9/16"'], s.jambWidth || '');
+  document.getElementById('ds-jamb-material').value = s.jambMaterial || '';
   document.getElementById('ds-texture').value = s.texture || '';
-  document.getElementById('ds-hinge-finish').value = s.hingeFinish || '';
+  populateSpecOtherSelect('ds', 'threshold-finish', ['Mill Finish','Bronze','Silver'], s.thresholdFinish || '');
+  populateSpecOtherSelect('ds', 'hinge-finish', ['Satin Nickel','Antique Nickel','Black','Bronze'], s.hingeFinish || '');
   document.getElementById('doorspec-modal').classList.remove('hidden');
 }
 function closeDoorSpecEdit() {
@@ -3219,9 +3331,11 @@ function saveDoorSpecEdit() {
     swing: document.getElementById('ds-swing').value,
     roughOpening: document.getElementById('ds-rough-opening').value.trim(),
     netSize: document.getElementById('ds-net-size').value.trim(),
-    jambWidth: document.getElementById('ds-jamb-width').value.trim(),
+    jambWidth: resolveSpecSelect('ds', 'jamb-width'),
+    jambMaterial: document.getElementById('ds-jamb-material').value,
     texture: document.getElementById('ds-texture').value,
-    hingeFinish: document.getElementById('ds-hinge-finish').value.trim()
+    thresholdFinish: resolveSpecSelect('ds', 'threshold-finish'),
+    hingeFinish: resolveSpecSelect('ds', 'hinge-finish')
   };
   if(Object.values(spec).some(function(v){return v;})){ l.doorSpec = spec; }
   else { delete l.doorSpec; }
@@ -3429,8 +3543,9 @@ function orderConfirmationHTML(lineArr, prefix) {
       if(s.swing) parts.push(s.swing);
       if(s.roughOpening) parts.push('RO ' + s.roughOpening);
       if(s.netSize) parts.push('Net ' + s.netSize);
-      if(s.jambWidth) parts.push(s.jambWidth + ' jamb');
+      if(s.jambWidth) parts.push(s.jambWidth + (s.jambMaterial ? ' ' + s.jambMaterial : '') + ' jamb');
       if(s.texture) parts.push(s.texture);
+      if(s.thresholdFinish) parts.push(s.thresholdFinish + ' threshold');
       if(s.hingeFinish) parts.push(s.hingeFinish);
       html += '<li style="margin-bottom:3px"><strong>' + l.item + '</strong>' + (parts.length ? ' \u2014 ' + parts.join(', ') : '') + '</li>';
     });
@@ -3780,8 +3895,11 @@ function showCustomItem() {
   document.getElementById('ci-catalog-fields').classList.add('hidden');
   document.getElementById('ci-custom-gm-row').classList.add('hidden');
   document.getElementById('ci-is-door').checked=false;
-  ['ci-hand','ci-swing','ci-texture'].forEach(id=>document.getElementById(id).value='');
-  ['ci-rough-opening','ci-net-size','ci-jamb-width','ci-hinge-finish'].forEach(id=>document.getElementById(id).value='');
+  ['ci-hand','ci-swing','ci-texture','ci-jamb-width','ci-jamb-material','ci-threshold-finish','ci-hinge-finish'].forEach(id=>document.getElementById(id).value='');
+  ['ci-rough-opening','ci-net-size','ci-jamb-width-other','ci-threshold-finish-other','ci-hinge-finish-other'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ci-jamb-width-other-row').classList.add('hidden');
+  document.getElementById('ci-threshold-finish-other-row').classList.add('hidden');
+  document.getElementById('ci-hinge-finish-other-row').classList.add('hidden');
   document.getElementById('ci-door-spec-fields').classList.add('hidden');
   ciPhotoData='';
   document.getElementById('ci-img-prev').innerHTML='No photo';
@@ -3848,9 +3966,11 @@ function addCustomItem() {
       swing:document.getElementById('ci-swing').value,
       roughOpening:document.getElementById('ci-rough-opening').value.trim(),
       netSize:document.getElementById('ci-net-size').value.trim(),
-      jambWidth:document.getElementById('ci-jamb-width').value.trim(),
+      jambWidth:resolveSpecSelect('ci','jamb-width'),
+      jambMaterial:document.getElementById('ci-jamb-material').value,
       texture:document.getElementById('ci-texture').value,
-      hingeFinish:document.getElementById('ci-hinge-finish').value.trim()
+      thresholdFinish:resolveSpecSelect('ci','threshold-finish'),
+      hingeFinish:resolveSpecSelect('ci','hinge-finish')
     };
     // Only attach if at least one field actually has something in it —
     // don't clutter every line with an empty spec object.
@@ -3940,8 +4060,11 @@ function showSpecialOrderDoor() {
   document.getElementById('sod-style-other').value='';
   document.getElementById('sod-style-other-row').classList.add('hidden');
   document.getElementById('sod-remember-style').checked=true;
-  ['sod-hand','sod-swing','sod-texture'].forEach(function(id){document.getElementById(id).value='';});
-  ['sod-rough-opening','sod-net-size','sod-jamb-width','sod-hinge-finish'].forEach(function(id){document.getElementById(id).value='';});
+  ['sod-hand','sod-swing','sod-texture','sod-jamb-width','sod-jamb-material','sod-threshold-finish','sod-hinge-finish'].forEach(function(id){document.getElementById(id).value='';});
+  ['sod-rough-opening','sod-net-size','sod-jamb-width-other','sod-threshold-finish-other','sod-hinge-finish-other'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('sod-jamb-width-other-row').classList.add('hidden');
+  document.getElementById('sod-threshold-finish-other-row').classList.add('hidden');
+  document.getElementById('sod-hinge-finish-other-row').classList.add('hidden');
   document.getElementById('sod-notes').value='';
   sodPhotoData='';
   document.getElementById('sod-img-prev').innerHTML='No photo';
@@ -3993,9 +4116,11 @@ function addSpecialOrderDoor() {
     swing: document.getElementById('sod-swing').value,
     roughOpening: document.getElementById('sod-rough-opening').value.trim(),
     netSize: document.getElementById('sod-net-size').value.trim(),
-    jambWidth: document.getElementById('sod-jamb-width').value.trim(),
+    jambWidth: resolveSpecSelect('sod','jamb-width'),
+    jambMaterial: document.getElementById('sod-jamb-material').value,
     texture: document.getElementById('sod-texture').value,
-    hingeFinish: document.getElementById('sod-hinge-finish').value.trim()
+    thresholdFinish: resolveSpecSelect('sod','threshold-finish'),
+    hingeFinish: resolveSpecSelect('sod', 'hinge-finish')
   };
   var notes = document.getElementById('sod-notes').value.trim();
 
