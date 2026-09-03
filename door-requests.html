@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Door Finder requests — Norwood</title>
+<style>
+  :root{--blue:#1E70B8;--navy:#17325C;--ink:#22303F;--muted:#5B6B7C;--well:#EEF3F8;--rule:#D9E2EC;--ok:#2B7A4B;--warn:#A8660F;--bad:#B33A2E}
+  *{box-sizing:border-box}
+  body{margin:0;background:#F6F8FA;color:var(--ink);font:400 16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:16px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:22px;margin:0;color:var(--navy)}
+  .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input,select,button{font:inherit}
+  input.txt,select{padding:8px 10px;border:1.5px solid #B9CADB;border-radius:6px}
+  button{padding:8px 14px;border-radius:6px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;font-weight:600}
+  button.q{background:#fff;color:var(--blue)}
+  .card{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:14px;margin-bottom:12px;display:grid;grid-template-columns:150px 1fr;gap:14px}
+  @media (max-width:600px){.card{grid-template-columns:1fr}}
+  .card.done{opacity:.55}
+  .pics{display:flex;flex-direction:column;gap:6px}
+  .pics a{display:block}
+  .pics img{width:100%;border-radius:6px;border:1px solid var(--rule);background:var(--well);object-fit:cover;aspect-ratio:36/50}
+  .pics .cap{font-size:12px;color:var(--muted)}
+  .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+  .who{font-weight:700;color:var(--navy);font-size:18px}
+  .when{color:var(--muted);font-size:14px}
+  .spec{margin:8px 0;padding:10px 12px;background:var(--well);border-radius:8px;font-weight:600;white-space:pre-line}
+  .kv{font-size:15px;margin:4px 0}
+  .kv b{color:var(--navy)}
+  .risk{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
+  .risk.low{background:#E8F3EC;color:var(--ok)} .risk.medium{background:#FBF1E3;color:var(--warn)} .risk.high{background:#F8E7E5;color:var(--bad)}
+  details{margin-top:8px} summary{cursor:pointer;color:var(--blue);font-weight:600}
+  .reply{white-space:pre-line;background:#fff;border:1px dashed #B9CADB;border-radius:8px;padding:10px;margin-top:6px;font-size:15px}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .acts a{padding:7px 12px;border:1.5px solid var(--blue);border-radius:6px;color:var(--blue);text-decoration:none;font-weight:600}
+  .empty{text-align:center;color:var(--muted);padding:40px 0}
+  .msg{color:var(--bad);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Door Finder requests</h1>
+    <div class="ctl">
+      <input class="txt" id="pin" type="password" placeholder="PIN" style="width:90px" inputmode="numeric">
+      <select id="who"><option value="">Acting as…</option><option>Phil</option><option>Garon</option><option>Cleve</option><option>Lance</option></select>
+      <label style="font-size:14px"><input type="checkbox" id="showDone"> show handled</label>
+      <button id="load">Refresh</button>
+    </div>
+  </header>
+  <div id="list"><div class="empty">Enter the PIN and tap Refresh.</div></div>
+</div>
+
+<script>
+// SETUP: same URL you pasted into door-finder.html
+var FUNCTION_URL = "https://doorfinder-933963197210.us-central1.run.app";
+
+var $ = function(id){ return document.getElementById(id); };
+$('pin').value = localStorage.getItem('ns_df_pin') || '';
+$('who').value = localStorage.getItem('ns_inv_actingAs') || '';
+$('who').addEventListener('change', function(){ localStorage.setItem('ns_inv_actingAs', this.value); });
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function when(iso){ try{ var d=new Date(iso); return d.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return iso||''; } }
+function contactLink(c){
+  c = (c||'').trim();
+  if (/@/.test(c)) return '<a href="mailto:'+esc(c)+'">Email</a>';
+  var digits = c.replace(/\D/g,'');
+  if (digits.length >= 10) return '<a href="tel:'+esc(digits)+'">Call</a><a href="sms:'+esc(digits)+'">Text</a>';
+  return '';
+}
+
+async function load(){
+  var pin = $('pin').value.trim();
+  if (!pin){ $('list').innerHTML = '<div class="empty">Enter the PIN first.</div>'; return; }
+  localStorage.setItem('ns_df_pin', pin);
+  $('list').innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    var r = await fetch(FUNCTION_URL + '?list=1&pin=' + encodeURIComponent(pin));
+    var d = await r.json();
+    if (d.error) throw new Error(d.error);
+    render(d.items || []);
+  }catch(e){
+    $('list').innerHTML = '<div class="empty msg">' + esc(e.message) + '</div>';
+  }
+}
+
+function render(items){
+  var showDone = $('showDone').checked;
+  var rows = items.filter(function(it){ return showDone || !it.handled; });
+  if (!rows.length){ $('list').innerHTML = '<div class="empty">Nothing waiting. Customers who use the Door Finder show up here.</div>'; return; }
+  $('list').innerHTML = rows.map(function(it){
+    var r = it.result || {};
+    var pics = (it.photos||[]).map(function(u,i){ return '<a href="'+esc(u)+'" target="_blank"><img src="'+esc(u)+'" alt=""><div class="cap">Current door '+(i+1)+'</div></a>'; }).join('');
+    if (it.wantedPhoto) pics += '<a href="'+esc(it.wantedPhoto)+'" target="_blank"><img src="'+esc(it.wantedPhoto)+'" alt=""><div class="cap">Wants this</div></a>';
+    if (!pics) pics = '<div class="cap">No photos saved</div>';
+    var size = (r.width_in && r.height_in) ? r.width_in + ' x ' + r.height_in + (r.call_size ? ' (' + r.call_size + ')' : '') : '—';
+    var wanted = r.wanted ? '<div class="kv"><b>Wants:</b> ' + esc(r.wanted.description) + ' — <b>' + ({yes:'fits',maybe:'fits with a change',no:'does NOT fit'})[r.wanted.fits] + '.</b> ' + esc(r.wanted.fit_note) + '</div>' : '';
+    return '<div class="card' + (it.handled ? ' done' : '') + '" data-id="'+esc(it.id)+'">' +
+      '<div class="pics">' + pics + '</div>' +
+      '<div>' +
+        '<div class="top"><span class="who">' + esc(it.name) + ' · ' + esc(it.contact) + '</span><span class="when">' + when(it.createdIso) + (it.handled ? ' · handled by ' + esc(it.handledBy||'') : '') + '</span></div>' +
+        '<div class="spec">' + esc(r.staff_summary || '') + '</div>' +
+        '<div class="kv"><b>Size:</b> ' + esc(size) + ' · <b>' + esc(r.method||'') + '/' + esc(r.confidence||'') + '</b> — ' + esc(r.method_note||'') + '</div>' +
+        '<div class="kv"><b>Config:</b> ' + esc(r.config) + ' · <b>Unit:</b> ' + esc(r.unit_rec) + '</div>' +
+        '<div class="kv"><b>Hand:</b> ' + esc(r.swing) + '</div>' +
+        '<div class="kv"><b>Style:</b> ' + esc(r.style) + ' · ' + esc(r.material) + '</div>' +
+        '<div class="kv"><b>Home:</b> ' + esc(r.home_age_read) + (r.home_age_signals && r.home_age_signals.length ? ' (' + esc(r.home_age_signals.join(', ')) + ')' : '') + ' · <span class="risk ' + esc(r.cutdown_risk||'') + '">cut-down: ' + esc(r.cutdown_risk||'?') + '</span> ' + esc(r.cutdown_note||'') + '</div>' +
+        wanted +
+        (r.stated_check ? '<div class="kv"><b>Stated size check:</b> ' + esc(r.stated_check) + '</div>' : '') +
+        (r.red_flags && r.red_flags.length ? '<div class="kv"><b>Flags:</b> ' + esc(r.red_flags.join('; ')) + '</div>' : '') +
+        (r.need_from_customer && r.need_from_customer.length ? '<div class="kv"><b>Still need:</b> ' + esc(r.need_from_customer.join('; ')) + '</div>' : '') +
+        '<div class="kv"><b>They said:</b> ' + esc([it.location, it.home_age, it.address, it.stated, it.notes].filter(Boolean).join(' · ') || '—') + '</div>' +
+        '<details><summary>Reply the customer already saw</summary><div class="reply">' + esc(r.customer_reply||'') + '</div></details>' +
+        '<div class="acts">' + contactLink(it.contact) +
+          '<a href="#" data-handled="' + (it.handled ? '0' : '1') + '">' + (it.handled ? 'Reopen' : 'Mark handled') + '</a>' +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+
+  document.querySelectorAll('[data-handled]').forEach(function(a){
+    a.addEventListener('click', async function(ev){
+      ev.preventDefault();
+      var card = a.closest('.card'), id = card.getAttribute('data-id');
+      var who = $('who').value;
+      if (!who){ alert('Pick who you are first (Acting as…).'); return; }
+      a.textContent = 'Saving…';
+      try{
+        var r = await fetch(FUNCTION_URL, { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'handled', id:id, handled: a.getAttribute('data-handled')==='1', by: who, pin: $('pin').value.trim() }) });
+        var d = await r.json(); if (d.error) throw new Error(d.error);
+        load();
+      }catch(e){ alert(e.message); a.textContent = 'Retry'; }
+    });
+  });
+}
+
+$('load').addEventListener('click', load);
+$('showDone').addEventListener('change', load);
+if ($('pin').value) load();
+</script>
+</body>
+</html>
