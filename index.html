@@ -468,6 +468,7 @@ tr:hover td{background:#fdf9f3}
     <button class="tab" onclick="window.open('door-requests.html','_blank')" title="Customer Door Finder requests">📷 Door Finder</button>
     <button class="tab" id="tab-history" onclick="showPage(&#39;history&#39;,this)">🗂️ Saved Quotes</button>
     <button class="tab" id="tab-orders" onclick="showPage(&#39;orders&#39;,this)">📦 Order Tracker</button>
+    <button class="tab" id="tab-pickup" onclick="showPage(&#39;pickup&#39;,this)">🚚 Pickup</button>
     <button class="tab" id="tab-catalog" onclick="showPage(&#39;catalog&#39;,this)">🚪 Catalog</button>
     <button class="tab" id="tab-admin" onclick="showPage(&#39;admin&#39;,this)">⚙️ Manage</button>
     <button class="tab" id="tab-lumber" onclick="showPage(&#39;lumber&#39;,this)">🪵 Lumber</button>
@@ -1589,6 +1590,22 @@ Subject:
   </div>
   <div id="order-kpis" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px"></div>
   <div id="order-list"></div>
+</div>
+<div id="page-pickup" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+    <div><h2 style="font-size:20px;font-weight:700;margin-bottom:3px">🚚 Pickup &amp; Release</h2>
+    <p style="color:#6b5a3a;font-size:13px" id="pickup-summary-lbl">Before anything leaves the yard: look it up here. Green = release it. Red = collect first.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="pickup-filter" onchange="renderPickup()" style="padding:9px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:14px;font-family:inherit;outline:none;background:#fff">
+        <option value="ready">Ready for pickup</option>
+        <option value="open">All open orders</option>
+        <option value="owing">Released still owing</option>
+        <option value="released">Released (last 30 days)</option>
+      </select>
+    </div>
+  </div>
+  <input class="srch" id="pickup-search" placeholder="Customer name, phone, or invoice # …" oninput="renderPickup()" style="width:100%;padding:14px 16px;font-size:18px;border-radius:8px;border:2px solid #1a2438;margin-bottom:14px;box-sizing:border-box;font-family:inherit">
+  <div id="pickup-list"></div>
 </div>
 <div id="page-inquiries" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -3125,7 +3142,7 @@ function showPage(name, btn) {
   if(name==='reports') { renderReports(); renderSalesLog(); }
   if(name==='orders') renderOrderTracker();
   if(name==='inquiries') renderInquiries();
-  
+  if(name==='pickup' && typeof renderPickup==='function') renderPickup();
 }
 function showView(id) {
   ['quote-view','print-view','invoice-view','po-view'].forEach(v => {
@@ -6608,7 +6625,8 @@ function renderOrderTracker(){
     } else {
       poTag='<button onclick="linkPOToOrder(\''+escInv+'\')" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;background:transparent;color:#9baab8;border:1px dashed #9baab8;cursor:pointer;font-family:inherit">+ Link PO</button>';
     }
-    html+='<div style="background:#fff;border-radius:8px;border:1.5px solid #e0d5c0;margin-bottom:12px;overflow:hidden"><div style="background:#1a2438;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:#2980d4">'+o.invNum+'</span>'+poTag+'<span style="font-size:13px;font-weight:600">'+(o.customer&&o.customer.name?o.customer.name:'Unknown')+'</span>'+(o.customer&&o.customer.phone?'<span style="font-size:11px;color:#9baab8">'+o.customer.phone+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:#9baab8">'+fmtD(o.createdDate)+'</span><span style="font-size:11px;color:#9baab8">Rep: '+o.rep+'</span><span style="font-size:13px;font-weight:700;color:#a8d8a8">$'+(o.total||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span><button onclick="deleteOrder(\''+escInv+'\')" style="background:transparent;border:none;color:#c04040;cursor:pointer;font-size:13px;padding:2px 6px" title="Hide order">x</button></div></div><div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Items ('+o.items.length+')</div>'+iRows+'</div><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Status</div><select onchange="setOrderStatus(\''+escInv+'\',this.value)" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid '+c.border+';background:'+c.bg+';color:'+c.color+';font-size:12px;font-weight:700;font-family:inherit;outline:none;margin-bottom:10px">'+sOpts+'</select><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">ETA</div><input type="date" value="'+(o.eta||'')+'" onchange="setOrderETA(\''+escInv+'\',this.value)" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box"></div><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div><textarea onchange="setOrderNotes(\''+escInv+'\',this.value)" style="width:100%;height:70px;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:12px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box">'+(o.notes||'')+'</textarea></div></div></div>';
+    var relBtns=(typeof nsPickupButtons==='function')?nsPickupButtons(o):'';
+    html+='<div style="background:#fff;border-radius:8px;border:1.5px solid #e0d5c0;margin-bottom:12px;overflow:hidden"><div style="background:#1a2438;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:#2980d4">'+o.invNum+'</span>'+poTag+'<span style="font-size:13px;font-weight:600">'+(o.customer&&o.customer.name?o.customer.name:'Unknown')+'</span>'+(o.customer&&o.customer.phone?'<span style="font-size:11px;color:#9baab8">'+o.customer.phone+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:#9baab8">'+fmtD(o.createdDate)+'</span><span style="font-size:11px;color:#9baab8">Rep: '+o.rep+'</span><span style="font-size:13px;font-weight:700;color:#a8d8a8">$'+(o.total||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span><button onclick="deleteOrder(\''+escInv+'\')" style="background:transparent;border:none;color:#c04040;cursor:pointer;font-size:13px;padding:2px 6px" title="Hide order">x</button></div></div><div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Items ('+o.items.length+')</div>'+iRows+'</div><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Status</div><select onchange="setOrderStatus(\''+escInv+'\',this.value)" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid '+c.border+';background:'+c.bg+';color:'+c.color+';font-size:12px;font-weight:700;font-family:inherit;outline:none;margin-bottom:10px">'+sOpts+'</select>'+relBtns+'<div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">ETA</div><input type="date" value="'+(o.eta||'')+'" onchange="setOrderETA(\''+escInv+'\',this.value)" style="width:100%;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box"></div><div><div style="font-size:10px;font-weight:700;color:#8B6914;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div><textarea onchange="setOrderNotes(\''+escInv+'\',this.value)" style="width:100%;height:70px;padding:6px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:12px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box">'+(o.notes||'')+'</textarea></div></div></div>';
   }
   el.innerHTML=html;
 }
@@ -8553,6 +8571,367 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 
   console.log('[QUOTE PULL] active');
 })();
+
+</script>
+<script>
+// ============================================================
+//  PICKUP & RELEASE (added 2026-09-06)
+//  Nothing leaves the yard without the tool saying it's paid.
+//   - Pickup tag (4x6 Rollo) printed when an order is Received:
+//     green OK TO RELEASE / red DO NOT RELEASE, reprinted on payment
+//   - Pickup page: look up by name/phone/invoice, giant green/red card
+//   - Release gate: "Delivered" now goes through nsReleaseOrder():
+//     balance owed → Take Payment, or a manager override with a reason
+//   - Every release stamped: who released, who picked up, when,
+//     balance at release, override + reason (stored on the invoice
+//     record AND the order meta so the daily report sees it)
+//   - Released-still-owing alarm bar across the whole tool
+//   - Deep links: index.html?pay=INV-01234 / ?pickup=INV-01234
+// ============================================================
+var NS_OVERRIDE_NAMES = ['Cleve', 'Lance', 'Garon'];
+
+function nsFindInvoiceByNum(invNum) {
+  return getSavedQuotes().find(function(q){ return q.type === 'invoice' && q.quoteNum === invNum; }) || null;
+}
+function nsOrderMetaFor(invNum) { var m = getOrderMeta(); return m[invNum] || {}; }
+
+// One place that decides the color of the door: green / red / amber
+function nsReleaseState(q) {
+  var ps = nsPayState(q);
+  if (ps.balance <= 0.01) return { ok: true, tone: 'green', label: 'PAID IN FULL', sub: 'OK TO RELEASE', balance: 0, ps: ps };
+  if (ps.status === 'NET 30') return { ok: true, tone: 'amber', label: 'NET 30 — $' + ps.balance.toFixed(2) + ' due' + (q.dueDate ? ' ' + q.dueDate : ''), sub: 'OK TO RELEASE — invoice goes with it', balance: ps.balance, ps: ps };
+  return { ok: false, tone: 'red', label: 'BALANCE DUE $' + ps.balance.toFixed(2), sub: 'DO NOT RELEASE — collect first', balance: ps.balance, ps: ps };
+}
+var NS_TONE = {
+  green: { bg: '#1e7b32', fg: '#fff', border: '#145a22', soft: '#eaf3de' },
+  red:   { bg: '#c0392b', fg: '#fff', border: '#8e2a20', soft: '#fde8e8' },
+  amber: { bg: '#b35309', fg: '#fff', border: '#7a3806', soft: '#fff3e0' }
+};
+
+// ── Pickup tag (4" x 6" Rollo) ────────────────────────────────────────────────
+function nsPrintPickupTag(invNum) {
+  var q = nsFindInvoiceByNum(invNum);
+  if (!q) { showToast('Invoice ' + invNum + ' not found', '#c04040'); return; }
+  var st = nsReleaseState(q);
+  var t = NS_TONE[st.tone];
+  var c = q.customer || {};
+  var meta = nsOrderMetaFor(invNum);
+  var items = (q.lines || []).slice(0, 5).map(function(l){ return '<div style="font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b>' + (l.qty||1) + 'x</b> ' + nsEsc(l.item || l.description || '') + (l.size ? ' (' + nsEsc(l.size) + ')' : '') + '</div>'; }).join('') +
+    ((q.lines||[]).length > 5 ? '<div style="font-size:11px;color:#555">+' + ((q.lines||[]).length - 5) + ' more — see invoice</div>' : '');
+  var who = nsActingAs() || '';
+  var printed = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  var html = '<!DOCTYPE html><html><head><title>Pickup tag ' + nsEsc(invNum) + '</title><style>' +
+    '@page{size:152mm 101mm;margin:0}' +
+    'body{margin:0;padding:5mm 6mm;font-family:Arial,Helvetica,sans-serif;width:152mm;height:101mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;color:#000}' +
+    '*{box-sizing:border-box}' +
+    '</style></head><body>' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:2px">' +
+      '<div style="font-size:13px;font-weight:900;letter-spacing:1px">NORWOOD SUPPLY · PICKUP</div>' +
+      '<div style="font-size:12px;font-weight:700">' + nsEsc(invNum) + ' · ' + nsEsc(q.date || '') + '</div>' +
+    '</div>' +
+    '<div style="font-size:30px;font-weight:900;line-height:1.1;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nsEsc(c.name || '—') + '</div>' +
+    (c.co ? '<div style="font-size:14px;font-weight:600">' + nsEsc(c.co) + '</div>' : '') +
+    (c.phone ? '<div style="font-size:13px">' + nsEsc(c.phone) + '</div>' : '') +
+    '<div style="flex:1;margin-top:4px;overflow:hidden">' + items + '</div>' +
+    '<div style="background:' + t.bg + ';color:' + t.fg + ';border:3px solid ' + t.border + ';border-radius:8px;padding:8px 10px;text-align:center;margin-top:4px">' +
+      '<div style="font-size:' + (st.tone === 'amber' ? '22' : '30') + 'px;font-weight:900;line-height:1.05">' + nsEsc(st.label) + '</div>' +
+      '<div style="font-size:15px;font-weight:800;letter-spacing:.5px;margin-top:3px">' + nsEsc(st.sub) + '</div>' +
+      (st.ps.paid > 0 && st.balance > 0.01 ? '<div style="font-size:12px;margin-top:3px">Paid so far $' + st.ps.paid.toFixed(2) + ' of $' + (q.grand||0).toFixed(2) + '</div>' : '') +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:10px;color:#444;margin-top:4px">' +
+      '<span>Total $' + (q.grand||0).toFixed(2) + (meta.linkedPO ? ' · ' + nsEsc(meta.linkedPO) : '') + '</span>' +
+      '<span>Printed ' + printed + (who ? ' by ' + nsEsc(who) : '') + ' · release it in the tool (🚚 Pickup)</span>' +
+    '</div>' +
+    '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  var win = window.open('', '_blank');
+  if (!win) { showToast('Pop-up blocked — allow pop-ups for this site to print tags', '#c04040'); return; }
+  win.document.write(html); win.document.close();
+  showToast('🏷️ Pickup tag → Rollo (' + st.label + ')', st.ok ? '#2d6a30' : '#c0392b');
+}
+
+// ── Buttons that appear on each Order Tracker card ────────────────────────────
+function nsPickupButtons(o) {
+  var q = nsFindInvoiceByNum(o.invNum);
+  if (!q) return '';
+  var st = nsReleaseState(q);
+  var t = NS_TONE[st.tone];
+  var esc = o.invNum.replace(/'/g, "\\'");
+  var released = (nsOrderMetaFor(o.invNum).release);
+  var pill = '<div style="display:inline-block;background:' + t.soft + ';color:' + t.bg + ';border:1.5px solid ' + t.bg + ';border-radius:5px;padding:4px 9px;font-size:11px;font-weight:800;margin-bottom:8px">' + nsEsc(st.label) + (released ? ' · RELEASED ' + nsEsc(released.date || '') : '') + '</div>';
+  var btns = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+    '<button onclick="nsPrintPickupTag(\'' + esc + '\')" style="padding:5px 10px;border-radius:5px;border:1px solid #1a2438;background:#fff;color:#1a2438;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🏷️ Tag</button>' +
+    (!st.ok ? '<button onclick="openPaymentModal(' + q.id + ')" style="padding:5px 10px;border-radius:5px;border:none;background:#7b3fa0;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">💳 Take Payment</button>' : '') +
+    (!released ? '<button onclick="nsReleaseOrder(\'' + esc + '\')" style="padding:5px 10px;border-radius:5px;border:none;background:' + t.bg + ';color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✅ Release</button>' : '') +
+    '</div>';
+  return pill + btns;
+}
+
+// ── Release gate ──────────────────────────────────────────────────────────────
+var nsReleaseReturnTo = null; // invNum to re-open after Take Payment closes
+function nsReleaseOrder(invNum, opts) {
+  opts = opts || {};
+  var q = nsFindInvoiceByNum(invNum);
+  if (!q) { showToast('Invoice ' + invNum + ' not found', '#c04040'); return; }
+  var st = nsReleaseState(q);
+  var t = NS_TONE[st.tone];
+  var c = q.customer || {};
+  var who = nsActingAs();
+  var old = document.getElementById('ns-release-modal'); if (old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'ns-release-modal';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99980;display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto';
+  var canOverride = NS_OVERRIDE_NAMES.indexOf(who) !== -1;
+  box.innerHTML =
+    '<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;font-family:inherit;overflow:hidden">' +
+      '<div style="background:' + t.bg + ';color:#fff;padding:18px 20px;text-align:center">' +
+        '<div style="font-size:26px;font-weight:900;line-height:1.1">' + nsEsc(st.label) + '</div>' +
+        '<div style="font-size:15px;font-weight:800;margin-top:4px;letter-spacing:.5px">' + nsEsc(st.sub) + '</div>' +
+      '</div>' +
+      '<div style="padding:16px 20px">' +
+        '<div style="font-size:20px;font-weight:800;color:#1a1008">' + nsEsc(c.name || '—') + (c.co ? ' <span style="font-weight:500;color:#6b5a3a">— ' + nsEsc(c.co) + '</span>' : '') + '</div>' +
+        '<div style="font-size:13px;color:#6b5a3a;margin:2px 0 10px">' + nsEsc(invNum) + ' · ' + nsEsc(q.date || '') + ' · ' + (q.lines||[]).length + ' item(s) · total $' + (q.grand||0).toFixed(2) + (st.ps.paid > 0 ? ' · paid $' + st.ps.paid.toFixed(2) : '') + '</div>' +
+        '<div style="background:#f5f0e8;border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.5;max-height:110px;overflow:auto;margin-bottom:12px">' +
+          (q.lines||[]).map(function(l){ return '<div><b>' + (l.qty||1) + 'x</b> ' + nsEsc(l.item || l.description || '') + (l.size ? ' (' + nsEsc(l.size) + ')' : '') + '</div>'; }).join('') +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' +
+          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">Picked up by (customer / driver)</div>' +
+            '<input id="ns-rel-pickedby" placeholder="e.g. Joe, or Joe\'s helper Mike" style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:15px;font-family:inherit;box-sizing:border-box"></div>' +
+          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">Released by</div>' +
+            '<div id="ns-rel-who" style="display:flex;gap:5px;flex-wrap:wrap">' +
+              NS_STAFF_NAMES.map(function(n){ var on = n === who; return '<button type="button" data-n="' + n + '" style="padding:8px 12px;border-radius:20px;border:1.5px solid ' + (on?'#1a1008':'#d5c8a8') + ';background:' + (on?'#1a1008':'#fff') + ';color:' + (on?'#fff':'#2c2416') + ';font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">' + n + '</button>'; }).join('') +
+            '</div></div>' +
+        '</div>' +
+        (!st.ok ?
+          '<div style="background:#fde8e8;border:1.5px solid #e08080;border-radius:8px;padding:12px;margin-bottom:12px">' +
+            '<div style="font-size:14px;font-weight:800;color:#a5251a;margin-bottom:8px">Customer still owes $' + st.balance.toFixed(2) + '. Collect it, then release.</div>' +
+            '<button type="button" id="ns-rel-pay" style="width:100%;padding:13px;border-radius:8px;border:none;background:#7b3fa0;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit">💳 Take Payment Now</button>' +
+            '<div id="ns-rel-override-wrap" style="margin-top:10px;' + (canOverride ? '' : 'display:none') + '">' +
+              '<div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">Manager override — release anyway (reason required)</div>' +
+              '<input id="ns-rel-reason" placeholder="e.g. Net 30 approved, paying Friday, billed to builder" style="width:100%;padding:9px;border-radius:6px;border:1.5px solid #e08080;font-size:13px;font-family:inherit;box-sizing:border-box">' +
+            '</div>' +
+            '<div id="ns-rel-override-note" style="font-size:11px;color:#8a7a5a;margin-top:8px;' + (canOverride ? 'display:none' : '') + '">Only Cleve, Lance, or Garon can release product that still owes. Pick one of their names above (with them present) or take the payment.</div>' +
+          '</div>' : '') +
+        '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+          '<button type="button" id="ns-rel-cancel" style="padding:11px 18px;border-radius:8px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Cancel</button>' +
+          '<button type="button" id="ns-rel-ok" style="padding:11px 22px;border-radius:8px;border:none;background:' + (st.ok ? '#1e7b32' : '#c0392b') + ';color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">' + (st.ok ? '✅ Release — picked up' : '⚠️ Override & Release') + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(box);
+  var okBtn = box.querySelector('#ns-rel-ok');
+  function paintWho() {
+    box.querySelectorAll('#ns-rel-who button').forEach(function(x){ var on = x.getAttribute('data-n') === who; x.style.background = on ? '#1a1008' : '#fff'; x.style.color = on ? '#fff' : '#2c2416'; x.style.borderColor = on ? '#1a1008' : '#d5c8a8'; });
+    canOverride = NS_OVERRIDE_NAMES.indexOf(who) !== -1;
+    var ow = box.querySelector('#ns-rel-override-wrap'), on = box.querySelector('#ns-rel-override-note');
+    if (ow) ow.style.display = canOverride ? '' : 'none';
+    if (on) on.style.display = canOverride ? 'none' : '';
+    if (!st.ok) { okBtn.style.opacity = canOverride ? '1' : '.4'; }
+  }
+  paintWho();
+  box.querySelectorAll('#ns-rel-who button').forEach(function(b){ b.onclick = function(){ who = b.getAttribute('data-n'); nsSetActingAs(who); paintWho(); }; });
+  box.querySelector('#ns-rel-cancel').onclick = function(){ box.remove(); if (opts.onCancel) opts.onCancel(); };
+  var payBtn = box.querySelector('#ns-rel-pay');
+  if (payBtn) payBtn.onclick = function(){ nsReleaseReturnTo = invNum; box.remove(); openPaymentModal(q.id); };
+  okBtn.onclick = function() {
+    if (!who) { showToast('Pick who is releasing it', '#b35309'); return; }
+    var pickedBy = (box.querySelector('#ns-rel-pickedby').value || '').trim();
+    if (!pickedBy) { showToast('Who is picking it up? Type a name.', '#b35309'); box.querySelector('#ns-rel-pickedby').focus(); return; }
+    var reason = '';
+    if (!st.ok) {
+      if (!canOverride) { showToast('Only Cleve, Lance, or Garon can release product that still owes', '#c0392b'); return; }
+      reason = (box.querySelector('#ns-rel-reason').value || '').trim();
+      if (!reason) { showToast('Type the reason for releasing without payment', '#c0392b'); box.querySelector('#ns-rel-reason').focus(); return; }
+      if (!confirm('Release $' + st.balance.toFixed(2) + ' of unpaid product to ' + pickedBy + '?\n\nReason: ' + reason + '\n\nThis will show in red on the daily report until it is paid.')) return;
+    }
+    box.remove();
+    nsCommitRelease(q, { by: who, pickedUpBy: pickedBy, reason: reason, override: !st.ok, balance: st.balance, net30: st.tone === 'amber' });
+  };
+  setTimeout(function(){ var f = box.querySelector('#ns-rel-pickedby'); if (f) f.focus(); }, 50);
+}
+
+function nsCommitRelease(q, r) {
+  var now = Date.now();
+  var rel = { at: now, date: new Date(now).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), time: new Date(now).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+              by: r.by, pickedUpBy: r.pickedUpBy, balance: Math.round(r.balance * 100) / 100, override: !!r.override, reason: r.reason || '', net30: !!r.net30 };
+  // order meta (drives the tracker + syncs via ns_sync)
+  var meta = getOrderMeta(); if (!meta[q.quoteNum]) meta[q.quoteNum] = {};
+  meta[q.quoteNum].status = 'Delivered'; meta[q.quoteNum].release = rel; saveOrderMeta(meta);
+  // invoice record (drives the daily report + syncs via ns_quotes)
+  var all = getSavedQuotesRaw();
+  var rec = all.find(function(x){ return x && String(x.id) === String(q.id); });
+  if (rec) { rec.release = rel; rec.timestamp = now; if (!rec.history) rec.history = []; rec.history.push({ at: now, by: r.by, action: 'released to ' + r.pickedUpBy + (r.override ? ' OWING $' + rel.balance + ' — ' + r.reason : '') }); saveQuotesToStorage(all, true); nsPushQuoteDoc(rec); }
+  try { renderOrderTracker(); } catch(e) {}
+  try { renderPickup(); } catch(e) {}
+  nsUpdateOwingBar();
+  if (r.override) showFlash('⚠️ ' + q.quoteNum + ' released to ' + r.pickedUpBy + ' STILL OWING $' + rel.balance.toFixed(2), '#c0392b', 8000);
+  else showToast('✅ ' + q.quoteNum + ' released to ' + r.pickedUpBy + ' by ' + r.by, '#2d6a30');
+}
+
+// Route the tracker's status dropdown through the gate
+(function(){
+  var _orig = window.setOrderStatus;
+  window.setOrderStatus = function(invNum, s) {
+    if (s === 'Delivered') {
+      var q = nsFindInvoiceByNum(invNum);
+      if (q && !(nsOrderMetaFor(invNum).release)) { nsReleaseOrder(invNum, { onCancel: function(){ try { renderOrderTracker(); } catch(e) {} } }); return; }
+    }
+    _orig.apply(this, arguments);
+    if (s === 'Received') {
+      var q2 = nsFindInvoiceByNum(invNum);
+      if (q2) nsTagPrompt(invNum, 'Product is in — print the pickup tag for it?');
+    }
+  };
+})();
+
+// Small toast with a Print button (auto pop-ups get blocked, a tap doesn't)
+function nsTagPrompt(invNum, msg) {
+  var old = document.getElementById('ns-tag-prompt'); if (old) old.remove();
+  var d = document.createElement('div');
+  d.id = 'ns-tag-prompt';
+  d.style.cssText = 'position:fixed;bottom:80px;right:24px;background:#1a2438;color:#fff;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:340px;display:flex;gap:10px;align-items:center';
+  d.innerHTML = '<span>' + nsEsc(msg) + '</span><button style="padding:7px 12px;border-radius:6px;border:none;background:#2980d4;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">🏷️ Print</button><button style="background:none;border:none;color:#9baab8;cursor:pointer;font-size:16px">✕</button>';
+  d.children[1].onclick = function(){ d.remove(); nsPrintPickupTag(invNum); };
+  d.children[2].onclick = function(){ d.remove(); };
+  document.body.appendChild(d);
+  setTimeout(function(){ if (d.parentNode) d.remove(); }, 20000);
+}
+
+// After a payment: re-open the release sheet if we came from it, and offer a fresh (green) tag
+(function(){
+  var _rp = window.recordPayment;
+  window.recordPayment = function() {
+    var id = currentPaymentId;
+    _rp.apply(this, arguments);
+    if (currentPaymentId === null && id) { // modal closed = payment recorded
+      var q = getSavedQuotes().find(function(x){ return x.id === id; });
+      if (!q) return;
+      nsUpdateOwingBar();
+      if (nsReleaseReturnTo === q.quoteNum) { nsReleaseReturnTo = null; setTimeout(function(){ nsReleaseOrder(q.quoteNum); }, 250); return; }
+      var m = nsOrderMetaFor(q.quoteNum);
+      if ((m.status === 'Received' || m.status === 'In Transit') && nsReleaseState(q).ok) nsTagPrompt(q.quoteNum, q.quoteNum + ' is now paid — print a green tag to swap onto the product?');
+    }
+  };
+  var _cp = window.closePaymentModal;
+  window.closePaymentModal = function() {
+    _cp.apply(this, arguments);
+    // cancelled out of Take Payment while releasing → back to the release sheet
+    if (nsReleaseReturnTo) { var inv = nsReleaseReturnTo; nsReleaseReturnTo = null; setTimeout(function(){ if (!document.getElementById('ns-release-modal')) nsReleaseOrder(inv); }, 200); }
+  };
+})();
+
+// ── Pickup page ───────────────────────────────────────────────────────────────
+function renderPickup() {
+  var el = document.getElementById('pickup-list'); if (!el) return;
+  var filter = (document.getElementById('pickup-filter') || {}).value || 'ready';
+  var srch = ((document.getElementById('pickup-search') || {}).value || '').toLowerCase().trim();
+  var meta = getOrderMeta();
+  var inv = getSavedQuotes().filter(function(q){ return q.type === 'invoice'; });
+  var rows = inv.map(function(q) {
+    var m = meta[q.quoteNum] || {};
+    var status = m.status || ((q.customer||{}).payment === 'PAID IN FULL' ? 'Delivered' : 'Pending');
+    return { q: q, m: m, status: status, st: nsReleaseState(q), rel: m.release || q.release || null };
+  }).filter(function(r){ return !r.m.hidden; });
+  var cutoff30 = Date.now() - 30 * 86400000;
+  var shown = rows.filter(function(r) {
+    if (srch) {
+      var c = r.q.customer || {};
+      var hay = ((c.name||'') + ' ' + (c.co||'') + ' ' + (c.phone||'') + ' ' + r.q.quoteNum).toLowerCase();
+      if (hay.indexOf(srch) === -1) return false;
+      return true; // searching looks across everything
+    }
+    if (filter === 'ready') return r.status === 'Received';
+    if (filter === 'open') return r.status !== 'Delivered';
+    if (filter === 'owing') return r.status === 'Delivered' && !r.st.ok;
+    if (filter === 'released') return r.status === 'Delivered' && r.rel && (Number(r.rel.at)||0) > cutoff30;
+    return true;
+  });
+  shown.sort(function(a,b){ return (a.st.ok === b.st.ok ? 0 : (a.st.ok ? 1 : -1)) || ((Number(b.q.timestamp)||0) - (Number(a.q.timestamp)||0)); });
+  var lbl = document.getElementById('pickup-summary-lbl');
+  var ready = rows.filter(function(r){ return r.status === 'Received'; });
+  var readyOwe = ready.filter(function(r){ return !r.st.ok; });
+  if (lbl) lbl.textContent = ready.length + ' ready for pickup' + (readyOwe.length ? ' · ' + readyOwe.length + ' still owe $' + readyOwe.reduce(function(s,r){ return s + r.st.balance; }, 0).toFixed(2) : ' · all paid') + ' · ' + shown.length + ' showing';
+  if (!shown.length) {
+    el.innerHTML = '<div style="text-align:center;padding:48px;color:#a89060;font-size:15px">' + (srch ? 'Nothing matches "' + nsEsc(srch) + '". Try the invoice number or phone.' : filter === 'ready' ? 'Nothing marked Received yet. When product comes in, set its Order Tracker status to Received and it shows up here.' : 'Nothing here.') + '</div>';
+    return;
+  }
+  el.innerHTML = shown.map(function(r) {
+    var q = r.q, c = q.customer || {}, t = NS_TONE[r.st.tone], esc = q.quoteNum.replace(/'/g, "\\'");
+    var items = (q.lines||[]).slice(0,3).map(function(l){ return (l.qty||1) + 'x ' + (l.item || l.description || ''); }).join(' · ') + ((q.lines||[]).length > 3 ? ' +' + ((q.lines||[]).length-3) + ' more' : '');
+    var relLine = r.rel ? '<div style="font-size:12px;color:#4a3a20;margin-top:6px">✅ Released ' + nsEsc(r.rel.date || '') + (r.rel.time ? ' ' + nsEsc(r.rel.time) : '') + ' to <b>' + nsEsc(r.rel.pickedUpBy || '?') + '</b> by ' + nsEsc(r.rel.by || '?') + (r.rel.override ? ' — <span style="color:#a5251a;font-weight:700">OVERRIDE, owed $' + Number(r.rel.balance||0).toFixed(2) + ': ' + nsEsc(r.rel.reason||'') + '</span>' : '') + '</div>' : '';
+    return '<div style="border:2px solid ' + t.bg + ';border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff">' +
+      '<div style="display:flex;flex-wrap:wrap;align-items:stretch">' +
+        '<div style="flex:1;min-width:220px;padding:14px 16px">' +
+          '<div style="font-size:20px;font-weight:800;color:#1a1008">' + nsEsc(c.name || '—') + (c.co ? ' <span style="font-size:14px;font-weight:500;color:#6b5a3a">— ' + nsEsc(c.co) + '</span>' : '') + '</div>' +
+          '<div style="font-size:13px;color:#6b5a3a;margin-top:2px">' + nsEsc(q.quoteNum) + ' · ' + nsEsc(q.date||'') + (c.phone ? ' · ' + nsEsc(c.phone) : '') + ' · <span style="font-weight:700;color:' + ((OT_COLORS[r.status]||{}).color || '#333') + '">' + nsEsc(r.status) + '</span>' + (r.m.linkedPO ? ' · ' + nsEsc(r.m.linkedPO) : '') + '</div>' +
+          '<div style="font-size:13px;color:#2c2416;margin-top:6px">' + nsEsc(items) + '</div>' +
+          relLine +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+            '<button onclick="nsPrintPickupTag(\'' + esc + '\')" style="padding:9px 14px;border-radius:7px;border:1.5px solid #1a2438;background:#fff;color:#1a2438;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🏷️ Print Tag</button>' +
+            (!r.st.ok ? '<button onclick="openPaymentModal(' + q.id + ')" style="padding:9px 14px;border-radius:7px;border:none;background:#7b3fa0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💳 Take Payment</button>' : '') +
+            (r.status !== 'Delivered' ? '<button onclick="nsReleaseOrder(\'' + esc + '\')" style="padding:9px 16px;border-radius:7px;border:none;background:' + t.bg + ';color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">' + (r.st.ok ? '✅ Release' : '🔒 Release (owes)') + '</button>' : '') +
+            '<button onclick="loadAndPrint(' + q.id + ',\'invoice\')" style="padding:9px 12px;border-radius:7px;border:1px solid #d5c8a8;background:#f5f0e8;color:#2c2416;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🧾 Invoice</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="width:190px;background:' + t.bg + ';color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px 10px">' +
+          '<div style="font-size:' + (r.st.tone === 'amber' ? '15' : '20') + 'px;font-weight:900;line-height:1.1">' + nsEsc(r.st.label) + '</div>' +
+          '<div style="font-size:12px;font-weight:800;margin-top:6px;letter-spacing:.3px">' + nsEsc(r.st.sub) + '</div>' +
+          (r.st.ps.paid > 0 && !r.st.ok ? '<div style="font-size:11px;margin-top:6px;opacity:.9">paid $' + r.st.ps.paid.toFixed(2) + ' of $' + (q.grand||0).toFixed(2) + '</div>' : '<div style="font-size:11px;margin-top:6px;opacity:.9">total $' + (q.grand||0).toFixed(2) + '</div>') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Released-still-owing alarm bar ───────────────────────────────────────────
+function nsReleasedOwing() {
+  var meta = getOrderMeta();
+  return getSavedQuotes().filter(function(q) {
+    if (q.type !== 'invoice') return false;
+    var m = meta[q.quoteNum] || {};
+    var rel = m.release || q.release;
+    if (!rel && m.status !== 'Delivered') return false; // legacy auto-"Delivered" (no explicit status) is ignored
+    if (!rel && (Number(q.timestamp)||0) < Date.now() - 60*86400000) return false; // old explicit deliveries: leave to the cleanup list, not the alarm
+    var st = nsReleaseState(q);
+    return !st.ok;
+  });
+}
+function nsUpdateOwingBar() {
+  var list = nsReleasedOwing();
+  var bar = document.getElementById('ns-owing-bar');
+  if (!list.length) { if (bar) bar.remove(); return; }
+  var total = list.reduce(function(s,q){ return s + nsPayState(q).balance; }, 0);
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'ns-owing-bar';
+    bar.style.cssText = 'background:#c0392b;color:#fff;padding:9px 16px;font-size:14px;font-weight:800;text-align:center;cursor:pointer;letter-spacing:.2px;box-shadow:0 2px 6px rgba(0,0,0,.25)';
+    bar.onclick = function(){ var f = document.getElementById('pickup-filter'); if (f) f.value = 'owing'; showPage('pickup', document.getElementById('tab-pickup')); };
+    var nav = document.querySelector('nav.nav');
+    if (nav && nav.parentNode) nav.parentNode.insertBefore(bar, nav.nextSibling); else document.body.insertBefore(bar, document.body.firstChild);
+  }
+  bar.textContent = '⚠️ ' + list.length + ' order' + (list.length===1?'':'s') + ' released but still owing $' + total.toFixed(2) + ' — ' + list.slice(0,3).map(function(q){ return (q.customer||{}).name || q.quoteNum; }).join(', ') + (list.length > 3 ? '…' : '') + ' · tap to see';
+}
+// Print-safe
+(function(){ var st = document.createElement('style'); st.textContent = '@media print{#ns-owing-bar,#ns-tag-prompt,#ns-release-modal{display:none!important}}'; document.head.appendChild(st); })();
+setTimeout(nsUpdateOwingBar, 2500);
+setInterval(nsUpdateOwingBar, 60000);
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') setTimeout(nsUpdateOwingBar, 800); });
+
+// ── Deep links from the daily / 5 PM emails ───────────────────────────────────
+(function(){
+  try {
+    var p = new URLSearchParams(location.search);
+    var pay = p.get('pay'), pk = p.get('pickup');
+    if (!pay && !pk) return;
+    var tries = 0;
+    (function go() {
+      var q = nsFindInvoiceByNum(pay || pk);
+      if (!q) { if (++tries < 40) { setTimeout(go, 500); return; } showToast('Invoice ' + (pay||pk) + ' not found on this device yet — wait for sync', '#b35309'); return; }
+      if (pay) { showPage('history', document.getElementById('tab-invoices') || document.getElementById('tab-history')); setTimeout(function(){ openPaymentModal(q.id); }, 300); }
+      else { var f = document.getElementById('pickup-search'); if (f) f.value = q.quoteNum; showPage('pickup', document.getElementById('tab-pickup')); }
+    })();
+  } catch(e) {}
+})();
+console.log('[PICKUP] active');
 
 </script>
   <style>
