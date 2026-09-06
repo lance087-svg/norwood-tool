@@ -792,7 +792,7 @@ tr:hover td{background:#fdf9f3}
       <h2 style="font-size:20px;font-weight:700;margin-bottom:3px">Saved Quotes &amp; Invoices</h2>
       <p style="color:#6b5a3a;font-size:13px" id="history-count">85 saved · 85 showing</p>
     </div>
-    <button class="btn" onclick="clearAllHistory()" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:12px;padding:6px 12px;border-radius:5px">🗑️ Clear All History</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="showDuplicateFinder()" style="background:#fff;color:#1a2438;border:1px solid #1a2438;font-size:12px;padding:6px 12px;border-radius:5px">🔍 Find Duplicates</button><button class="btn" onclick="clearAllHistory()" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:12px;padding:6px 12px;border-radius:5px">🗑️ Clear All History</button></div>
   </div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     <input class="srch" id="history-search" placeholder="Search by customer, quote #, date..." oninput="renderHistory()" style="flex:1;margin-bottom:0">
@@ -4479,9 +4479,23 @@ function nsUploadReceivingPhotos(poId, photos) {
 
 // LUMBER PRICES LAST UPDATED: 3/23/2026 (Wholesale Building Products)
 // ── SAVED QUOTES SYSTEM ───────────────────────────────────────────────────────
-function getSavedQuotes() {
-  try { return JSON.parse(localStorage.getItem('ns_quotes') || '[]'); }
+// ── SOFT DELETE (added 2026-09-06) ──────────────────────────────────────────
+// Deleted quotes/invoices are no longer dropped from the list (the cloud sync
+// merges cloud+local as a union, so a dropped record just came back). Instead
+// they are stamped removed:true + removedBy/removedAt, kept for 30 days in a
+// "Deleted" bin with Restore, and pushed to Firestore so every device hides
+// them. getSavedQuotes() hides removed records from ALL existing callers;
+// getSavedQuotesRaw() returns everything.
+var NS_DELETED_KEEP_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+function getSavedQuotesRaw() {
+  try { var a = JSON.parse(localStorage.getItem('ns_quotes') || '[]'); return Array.isArray(a) ? a : []; }
   catch(e) { return []; }
+}
+function getSavedQuotes() {
+  return getSavedQuotesRaw().filter(function(q){ return q && !q.removed; });
+}
+function getDeletedQuotes() {
+  return getSavedQuotesRaw().filter(function(q){ return q && q.removed; });
 }
 // ── SAFE LOCALSTORAGE QUOTE WRITE (added 2026-08-30) ────────────────────────
 // Central guard against QuotaExceededError (code 22). Used by both the
@@ -4520,7 +4534,16 @@ function nsSafeSetQuotes(list) {
   if (typeof showToast === 'function') showToast('❌ Could not save — this device is out of storage space. Let Lance know.', '#a5251a');
   return false;
 }
-function saveQuotesToStorage(quotes) {
+function saveQuotesToStorage(quotes, raw) {
+  // Callers work with the visible (non-removed) list; re-attach the deleted
+  // records they never saw so the 30-day bin survives every save. Pass
+  // raw=true when the list already includes removed records.
+  if (!raw && Array.isArray(quotes)) {
+    var seen = {};
+    quotes.forEach(function(q){ if (q && q.id !== undefined) seen[String(q.id)] = true; });
+    var removed = getDeletedQuotes().filter(function(q){ return !seen[String(q.id)]; });
+    if (removed.length) quotes = quotes.concat(removed);
+  }
   nsSafeSetQuotes(quotes);
   // Cloud sync for quotes/invoices is handled by norwood-patch.js — do not
   // also push here. See NS_SYNC_KEYS note above for why.
@@ -4626,11 +4649,13 @@ function renderHistory() {
   updateOweBadge(quotes);
   
   var countEl = document.getElementById('history-count');
-  countEl.textContent = quotes.length + ' saved · ' + filtered.length + ' showing';
+  var delCount = getDeletedQuotes().length;
+  countEl.textContent = quotes.length + ' saved · ' + filtered.length + ' showing' + (delCount ? ' · ' + delCount + ' in Deleted bin' : '');
   
   var container = document.getElementById('history-list');
   if(filtered.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#a89060;font-size:14px">' + (quotes.length === 0 ? 'No saved quotes yet. Generate a quote or invoice to save it here automatically.' : 'No results match your search.') + '</div>';
+    renderDeletedBin(container);
     return;
   }
   
@@ -4669,6 +4694,7 @@ function renderHistory() {
       '</div>' +
     '</div>';
   }).join('');
+  renderDeletedBin(container);
 }
 
 function loadQuote(id) {
@@ -4756,11 +4782,282 @@ function loadAndPrint(id, type) {
   }, 100);
 }
 
-function deleteQuote(id) {
-  var quotes = getSavedQuotes();
-  quotes = quotes.filter(function(q){ return q.id !== id; });
-  saveQuotesToStorage(quotes);
+// ── DELETE / RESTORE / PURGE (soft delete, 2026-09-06) ──────────────────────
+var NS_STAFF_NAMES = ['Phil', 'Garon', 'Cleve', 'Lance'];
+function nsActingAs() { try { return localStorage.getItem('ns_inv_actingAs') || ''; } catch(e) { return ''; } }
+function nsSetActingAs(n) { try { localStorage.setItem('ns_inv_actingAs', n); } catch(e) {} }
+function nsEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Push one record straight to Firestore so a delete/restore lands on every
+// device on its next incremental sync (timestamp is bumped so the sync sees it).
+function nsPushQuoteDoc(rec) {
+  var tries = 0;
+  (function go() {
+    if (window._db) {
+      window._db.collection('ns_quotes').doc(String(rec.id)).set(rec)
+        .then(function(){ console.log('[DELETE] cloud updated', rec.quoteNum, rec.removed ? 'removed' : 'restored'); })
+        .catch(function(e){ console.warn('[DELETE] cloud write failed', rec.quoteNum, e); showToast('⚠️ Saved on this device, cloud will catch up on next sync', '#b35309'); });
+      return;
+    }
+    if (++tries < 40) setTimeout(go, 300);
+  })();
+}
+
+function nsSoftDeleteIds(ids, who) {
+  var all = getSavedQuotesRaw();
+  var now = Date.now();
+  var hit = [];
+  ids.forEach(function(id) {
+    var q = all.find(function(x){ return x && String(x.id) === String(id); });
+    if (!q || q.removed) return;
+    q.removed = true; q.removedBy = who || 'Unknown'; q.removedAt = now; q.timestamp = now;
+    delete q.restoredBy; delete q.restoredAt;
+    hit.push(q);
+  });
+  if (!hit.length) return 0;
+  saveQuotesToStorage(all, true);
+  hit.forEach(nsPushQuoteDoc);
   renderHistory();
+  return hit.length;
+}
+
+function restoreQuote(id) {
+  var all = getSavedQuotesRaw();
+  var q = all.find(function(x){ return x && String(x.id) === String(id); });
+  if (!q) return;
+  var liveDup = all.find(function(x){ return x && !x.removed && x.quoteNum === q.quoteNum && String(x.id) !== String(id); });
+  if (liveDup && !confirm('There is already an active ' + q.quoteNum + ' for ' + ((liveDup.customer||{}).name || '—') + '. Restore this one anyway?')) return;
+  var now = Date.now();
+  q.removed = false; q.restoredBy = nsActingAs() || 'Unknown'; q.restoredAt = now; q.timestamp = now;
+  delete q.removed; delete q.removedBy; delete q.removedAt;
+  saveQuotesToStorage(all, true);
+  nsPushQuoteDoc(q);
+  renderHistory();
+  showToast('↩️ ' + q.quoteNum + ' restored', '#2d6a30');
+}
+
+// Permanently remove: cloud doc first, then local. Used by "Delete forever"
+// and by the 30-day auto-purge.
+function nsPurgeIds(ids, silent) {
+  if (!ids.length) return;
+  function dropLocal() {
+    var keep = getSavedQuotesRaw().filter(function(q){ return !q || ids.indexOf(String(q.id)) === -1; });
+    saveQuotesToStorage(keep, true);
+    try { renderHistory(); } catch(e) {}
+  }
+  var tries = 0;
+  (function go() {
+    if (window._db) {
+      var batch = window._db.batch();
+      ids.forEach(function(id){ batch.delete(window._db.collection('ns_quotes').doc(String(id))); });
+      batch.commit().then(function(){
+        dropLocal();
+        console.log('[DELETE] purged ' + ids.length + ' from cloud');
+        if (!silent) showToast('🗑️ Permanently deleted', '#6b5a3a');
+      }).catch(function(e){
+        console.warn('[DELETE] purge failed', e);
+        if (!silent) showToast('❌ Could not reach the cloud — try again in a moment', '#a5251a');
+      });
+      return;
+    }
+    if (++tries < 40) { setTimeout(go, 300); return; }
+    if (!silent) showToast('❌ Cloud not connected — try again in a moment', '#a5251a');
+  })();
+}
+function purgeQuote(id) {
+  var q = getSavedQuotesRaw().find(function(x){ return x && String(x.id) === String(id); });
+  if (!q) return;
+  if (!confirm('Permanently delete ' + q.quoteNum + ' (' + ((q.customer||{}).name || '—') + ')? This cannot be undone.')) return;
+  nsPurgeIds([String(id)]);
+}
+function nsAutoPurgeOld() {
+  var cutoff = Date.now() - NS_DELETED_KEEP_MS;
+  var old = getDeletedQuotes().filter(function(q){ return (Number(q.removedAt) || 0) < cutoff; }).map(function(q){ return String(q.id); });
+  if (old.length) nsPurgeIds(old, true);
+}
+setTimeout(nsAutoPurgeOld, 8000); // after the first sync has run
+
+// Delete button → confirm sheet showing exactly what is being deleted
+function deleteQuote(id) {
+  var q = getSavedQuotes().find(function(x){ return String(x.id) === String(id); });
+  if (!q) return;
+  var ps = q.type === 'invoice' ? nsPayState(q) : null;
+  var who = nsActingAs();
+  var box = document.createElement('div');
+  box.id = 'ns-del-confirm';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px';
+  box.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:24px 26px;max-width:420px;width:100%;font-family:inherit">' +
+      '<div style="font-size:18px;font-weight:700;color:#1a1008;margin-bottom:6px">Delete this ' + (q.type === 'invoice' ? 'invoice' : 'quote') + '?</div>' +
+      '<div style="background:#f5f0e8;border:1px solid #d5c8a8;border-radius:8px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.6">' +
+        '<div style="font-weight:700;font-size:16px">' + nsEsc(q.quoteNum) + ' &nbsp;<span style="font-weight:400;color:#6b5a3a">' + nsEsc(q.date) + '</span></div>' +
+        '<div>' + nsEsc((q.customer||{}).name || '—') + ((q.customer||{}).co ? ' — ' + nsEsc(q.customer.co) : '') + '</div>' +
+        '<div>' + (q.lines ? q.lines.length : 0) + ' item(s) &nbsp;·&nbsp; <strong>$' + (q.grand||0).toFixed(2) + '</strong></div>' +
+        (ps && ps.paid > 0 ? '<div style="margin-top:8px;padding:8px 10px;background:#fde8e8;border:1px solid #e08080;border-radius:6px;color:#a5251a;font-weight:700">⚠️ This invoice has $' + ps.paid.toFixed(2) + ' in recorded payments' + (ps.balance > 0.01 ? ' and still owes $' + ps.balance.toFixed(2) : '') + '. Make sure you are deleting the duplicate, not the real one.</div>' : '') +
+      '</div>' +
+      '<div style="font-size:13px;color:#6b5a3a;margin-bottom:6px">It moves to the <strong>Deleted</strong> bin at the bottom of this list, disappears from every device, and can be restored for 30 days.</div>' +
+      '<div style="font-size:12px;font-weight:700;color:#4a3a20;margin:12px 0 6px">Deleted by</div>' +
+      '<div id="ns-del-who" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">' +
+        NS_STAFF_NAMES.map(function(n){ return '<button type="button" data-n="' + n + '" style="padding:7px 14px;border-radius:20px;border:1.5px solid ' + (n === who ? '#1a1008' : '#d5c8a8') + ';background:' + (n === who ? '#1a1008' : '#fff') + ';color:' + (n === who ? '#fff' : '#2c2416') + ';font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">' + n + '</button>'; }).join('') +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" id="ns-del-cancel" style="padding:10px 20px;border-radius:6px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>' +
+        '<button type="button" id="ns-del-ok" style="padding:10px 20px;border-radius:6px;border:none;background:#c04040;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:' + (who ? '1' : '.45') + '"' + (who ? '' : ' disabled') + '>🗑️ Delete</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(box);
+  var okBtn = box.querySelector('#ns-del-ok');
+  box.querySelectorAll('#ns-del-who button').forEach(function(b) {
+    b.onclick = function() {
+      who = b.getAttribute('data-n'); nsSetActingAs(who);
+      box.querySelectorAll('#ns-del-who button').forEach(function(x){ var on = x === b; x.style.background = on ? '#1a1008' : '#fff'; x.style.color = on ? '#fff' : '#2c2416'; x.style.borderColor = on ? '#1a1008' : '#d5c8a8'; });
+      okBtn.disabled = false; okBtn.style.opacity = '1';
+    };
+  });
+  box.querySelector('#ns-del-cancel').onclick = function(){ box.remove(); };
+  box.onclick = function(e){ if (e.target === box) box.remove(); };
+  okBtn.onclick = function() {
+    if (!who) return;
+    box.remove();
+    nsSoftDeleteIds([q.id], who);
+    showToast('🗑️ ' + q.quoteNum + ' deleted — restore from the Deleted bin within 30 days', '#6b5a3a');
+  };
+}
+
+// The "Deleted" bin under the saved list
+function renderDeletedBin(container) {
+  var old = document.getElementById('ns-deleted-bin');
+  if (old) old.remove();
+  var type = (window.NWTabs && window.NWTabs._currentType) || null;
+  var del = getDeletedQuotes().filter(function(q){ return !type || q.type === type; })
+    .sort(function(a,b){ return (Number(b.removedAt)||0) - (Number(a.removedAt)||0); });
+  if (!del.length) return;
+  var open = false;
+  try { open = sessionStorage.getItem('ns_deleted_open') === '1'; } catch(e) {}
+  var wrap = document.createElement('div');
+  wrap.id = 'ns-deleted-bin';
+  wrap.style.cssText = 'margin-top:22px;border:1px dashed #c9b98f;border-radius:8px;background:#faf7f0;overflow:hidden';
+  var head = document.createElement('div');
+  head.style.cssText = 'padding:10px 14px;font-size:13px;font-weight:700;color:#6b5a3a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none';
+  head.innerHTML = '<span>🗑️ Deleted (' + del.length + ') — recoverable for 30 days</span><span>' + (open ? '▲' : '▼') + '</span>';
+  var body = document.createElement('div');
+  body.style.cssText = 'padding:0 10px 10px;display:' + (open ? 'block' : 'none');
+  body.innerHTML = del.map(function(q) {
+    var daysLeft = Math.max(0, Math.ceil((NS_DELETED_KEEP_MS - (Date.now() - (Number(q.removedAt)||Date.now()))) / 86400000));
+    var when = q.removedAt ? new Date(Number(q.removedAt)).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    return '<div class="hcard-del" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid #eee4cf;font-size:13px;opacity:.85">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div><strong>' + nsEsc(q.quoteNum) + '</strong> · ' + nsEsc((q.customer||{}).name || '—') + ' · $' + (q.grand||0).toFixed(2) + '</div>' +
+        '<div style="font-size:11px;color:#8a7a5a">' + nsEsc(q.date) + ' · deleted by ' + nsEsc(q.removedBy || '?') + (when ? ' on ' + when : '') + ' · ' + daysLeft + ' day' + (daysLeft===1?'':'s') + ' left</div>' +
+      '</div>' +
+      '<button class="btn" onclick="event.stopPropagation();restoreQuote(' + q.id + ')" style="background:#2d6a30;color:#fff;font-size:11px;padding:5px 10px;border-radius:4px">↩️ Restore</button>' +
+      '<button class="btn" onclick="event.stopPropagation();purgeQuote(' + q.id + ')" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:11px;padding:5px 10px;border-radius:4px">Delete forever</button>' +
+    '</div>';
+  }).join('');
+  head.onclick = function(){ open = !open; body.style.display = open ? 'block' : 'none'; head.lastChild.textContent = open ? '▲' : '▼'; try { sessionStorage.setItem('ns_deleted_open', open ? '1' : '0'); } catch(e) {} };
+  wrap.appendChild(head); wrap.appendChild(body);
+  container.parentNode.insertBefore(wrap, container.nextSibling);
+}
+
+// ── DUPLICATE FINDER ─────────────────────────────────────────────────────────
+// Groups live records that share an invoice/quote number, or the same
+// customer + same total (the re-saved-twice pattern). Records with recorded
+// payments are never pre-selected for deletion.
+function findDuplicateGroups() {
+  var live = getSavedQuotes();
+  var type = (window.NWTabs && window.NWTabs._currentType) || null;
+  if (type) live = live.filter(function(q){ return q.type === type; });
+  var byNum = {}, byNT = {};
+  live.forEach(function(q) {
+    var n = (q.quoteNum || '').trim().toUpperCase();
+    if (n) (byNum[n] = byNum[n] || []).push(q);
+  });
+  var groups = [], used = {};
+  Object.keys(byNum).forEach(function(k) {
+    if (byNum[k].length > 1) { groups.push({ why: 'Same number ' + k, recs: byNum[k] }); byNum[k].forEach(function(q){ used[q.id] = true; }); }
+  });
+  live.forEach(function(q) {
+    if (used[q.id]) return;
+    var name = ((q.customer||{}).name || '').trim().toLowerCase().replace(/\s+/g,' ');
+    if (!name) return;
+    var k = (q.type||'') + '|' + name + '|' + (q.grand||0).toFixed(2);
+    (byNT[k] = byNT[k] || []).push(q);
+  });
+  Object.keys(byNT).forEach(function(k) {
+    if (byNT[k].length > 1) groups.push({ why: 'Same customer &amp; same total', recs: byNT[k] });
+  });
+  groups.forEach(function(g) {
+    g.recs.sort(function(a,b){ return (Number(b.timestamp)||0) - (Number(a.timestamp)||0); });
+    // keeper: most money recorded, then the newest
+    var keeper = g.recs.slice().sort(function(a,b){
+      var pa = a.type==='invoice' ? nsPayState(a).paid : 0, pb = b.type==='invoice' ? nsPayState(b).paid : 0;
+      return (pb - pa) || ((Number(b.timestamp)||0) - (Number(a.timestamp)||0));
+    })[0];
+    g.keeper = keeper.id;
+  });
+  return groups;
+}
+
+function showDuplicateFinder() {
+  var groups = findDuplicateGroups();
+  var old = document.getElementById('ns-dup-modal'); if (old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'ns-dup-modal';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99990;display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto';
+  var typeLabel = (window.NWTabs && window.NWTabs._currentType) ? (window.NWTabs._currentType === 'invoice' ? 'invoices' : 'quotes') : 'quotes & invoices';
+  var html = '<div style="background:#fff;border-radius:12px;max-width:720px;width:100%;font-family:inherit;overflow:hidden">' +
+    '<div style="background:#1a2438;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div><div style="font-size:15px;font-weight:700">🔍 Duplicate ' + typeLabel + '</div><div style="font-size:11px;color:#a89060">Same number, or same customer with the same total</div></div>' +
+      '<button type="button" id="ns-dup-close" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:14px">✕</button>' +
+    '</div><div style="padding:14px 18px;max-height:70vh;overflow:auto">';
+  if (!groups.length) {
+    html += '<div style="text-align:center;padding:30px;color:#a89060">✅ No duplicates found among your ' + typeLabel + '.</div></div></div>';
+  } else {
+    html += '<div style="font-size:13px;color:#4a3a20;margin-bottom:12px">' + groups.length + ' group' + (groups.length===1?'':'s') + ' found. The copy to <strong>keep</strong> is unchecked (the one with payments recorded, otherwise the newest). Tick the ones to delete — they go to the Deleted bin and can be restored for 30 days.</div>';
+    groups.forEach(function(g, gi) {
+      html += '<div style="border:1px solid #d5c8a8;border-radius:8px;margin-bottom:12px;overflow:hidden"><div style="background:#f5f0e8;padding:7px 12px;font-size:12px;font-weight:700;color:#6b5a3a">' + g.why + '</div>';
+      g.recs.forEach(function(q) {
+        var ps = q.type === 'invoice' ? nsPayState(q) : null;
+        var keep = q.id === g.keeper;
+        var hasPay = ps && ps.paid > 0;
+        html += '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid #eee4cf;font-size:13px;cursor:pointer;background:' + (keep ? '#f2fbf2' : '#fff') + '">' +
+          '<input type="checkbox" data-id="' + q.id + '"' + (keep || hasPay ? '' : ' checked') + ' style="width:18px;height:18px">' +
+          '<div style="flex:1;min-width:0"><div><strong>' + nsEsc(q.quoteNum) + '</strong> · ' + nsEsc((q.customer||{}).name || '—') + ' · <strong>$' + (q.grand||0).toFixed(2) + '</strong>' + (keep ? ' <span style="background:#2d6a30;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px">KEEP</span>' : '') + '</div>' +
+          '<div style="font-size:11px;color:#8a7a5a">' + nsEsc(q.date) + ' · ' + (q.lines ? q.lines.length : 0) + ' item(s)' + (hasPay ? ' · <span style="color:#a5251a;font-weight:700">$' + ps.paid.toFixed(2) + ' paid</span>' : '') + (q.customer && q.customer.notes ? ' · ' + nsEsc(String(q.customer.notes).slice(0,60)) : '') + '</div></div>' +
+          '<button type="button" class="btn" data-view="' + q.id + '" style="background:#f5f0e8;color:#2c2416;border:1px solid #d5c8a8;font-size:11px;padding:4px 8px;border-radius:4px">View</button>' +
+        '</label>';
+      });
+      html += '</div>';
+    });
+    html += '</div><div style="padding:12px 18px;border-top:1px solid #eee4cf;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div id="ns-dup-who-wrap" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#4a3a20"><span style="font-weight:700">Deleted by:</span>' +
+        NS_STAFF_NAMES.map(function(n){ var on = n === nsActingAs(); return '<button type="button" data-n="' + n + '" style="padding:5px 11px;border-radius:20px;border:1.5px solid ' + (on?'#1a1008':'#d5c8a8') + ';background:' + (on?'#1a1008':'#fff') + ';color:' + (on?'#fff':'#2c2416') + ';font-weight:600;font-size:12px;cursor:pointer;font-family:inherit">' + n + '</button>'; }).join('') +
+      '</div>' +
+      '<button type="button" id="ns-dup-go" style="padding:10px 18px;border-radius:6px;border:none;background:#c04040;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Delete selected</button>' +
+    '</div></div>';
+  }
+  box.innerHTML = html;
+  document.body.appendChild(box);
+  box.querySelector('#ns-dup-close').onclick = function(){ box.remove(); };
+  box.onclick = function(e){ if (e.target === box) box.remove(); };
+  box.querySelectorAll('[data-view]').forEach(function(b){ b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); box.remove(); loadAndPrint(Number(b.getAttribute('data-view')), 'invoice'); }; });
+  var who = nsActingAs();
+  box.querySelectorAll('#ns-dup-who-wrap button').forEach(function(b) {
+    b.onclick = function() {
+      who = b.getAttribute('data-n'); nsSetActingAs(who);
+      box.querySelectorAll('#ns-dup-who-wrap button').forEach(function(x){ var on = x === b; x.style.background = on ? '#1a1008' : '#fff'; x.style.color = on ? '#fff' : '#2c2416'; x.style.borderColor = on ? '#1a1008' : '#d5c8a8'; });
+    };
+  });
+  var go = box.querySelector('#ns-dup-go');
+  if (go) go.onclick = function() {
+    var ids = Array.from(box.querySelectorAll('input[type=checkbox]:checked')).map(function(c){ return c.getAttribute('data-id'); });
+    if (!ids.length) { showToast('Nothing ticked to delete', '#b35309'); return; }
+    if (!who) { showToast('Pick who is deleting first', '#b35309'); return; }
+    if (!confirm('Move ' + ids.length + ' duplicate' + (ids.length===1?'':'s') + ' to the Deleted bin?')) return;
+    var n = nsSoftDeleteIds(ids, who);
+    box.remove();
+    showToast('🗑️ ' + n + ' duplicate' + (n===1?'':'s') + ' deleted — restorable for 30 days', '#6b5a3a');
+  };
 }
 
 function clearAllHistory() {
@@ -4773,7 +5070,7 @@ function clearAllHistory() {
   title.textContent = 'Clear All History?';
   var msg = document.createElement('div');
   msg.style.cssText = 'font-size:14px;color:#6b5a3a;margin-bottom:22px;line-height:1.6';
-  msg.textContent = 'This will permanently delete all saved quotes and invoices. This cannot be undone.';
+  msg.textContent = 'This only clears the list on THIS device — everything stays in the cloud and reloads on the next sync. To delete a quote or invoice for good, use its 🗑️ button (or Find Duplicates).';
   var btns = document.createElement('div');
   btns.style.cssText = 'display:flex;gap:10px;justify-content:center';
   var cancel = document.createElement('button');
@@ -4782,7 +5079,7 @@ function clearAllHistory() {
   cancel.onclick = function(){ box.remove(); };
   var confirm = document.createElement('button');
   confirm.style.cssText = 'padding:10px 24px;border-radius:6px;border:none;background:#c04040;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit';
-  confirm.textContent = 'Yes, Clear All';
+  confirm.textContent = 'Clear this device';
   confirm.onclick = function(){
     localStorage.removeItem('ns_quotes');
     box.remove();
@@ -6199,7 +6496,7 @@ function buildOrderList(){
   var quotes=[];
   try{quotes=JSON.parse(localStorage.getItem('ns_quotes')||'[]');}catch(e){quotes=[];}
   if(!quotes||!Array.isArray(quotes))quotes=[];
-  var invoices=quotes.filter(function(q){return q&&q.type==='invoice';});
+  var invoices=quotes.filter(function(q){return q&&q.type==='invoice'&&!q.removed;});
   var meta=getOrderMeta();
   var orders=[];
   for(var i=0;i<invoices.length;i++){
@@ -7965,7 +8262,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 //     started with; if it somehow would be, the merge aborts.
 //   - Local writes go through nsSafeSetQuotes(), so a full
 //     device never turns into a silent failed sync.
-//   - Deletes do not propagate yet (see note at bottom).
+//   - Deletes propagate as soft deletes (removed:true, see deleteQuote).
 //
 //  Manual: window.nsPullQuotes() to force a full sync now.
 // ============================================================
