@@ -724,6 +724,7 @@ tr:hover td{background:#fdf9f3}
       <button class="btn" id="take-payment-btn" onclick="if(currentInvoiceRecordId){openPaymentModal(currentInvoiceRecordId);}else{alert(&#39;Save the invoice first.&#39;);}" style="background:#7b3fa0;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">💳 Take Payment</button>
       <span id="inv-status-badge" style="padding:6px 14px;border-radius:5px;font-weight:700;font-size:12px;letter-spacing:1px"></span>
       <button class="btn" onclick="toggleSnipSize(&#39;invoice-content&#39;)" id="snip-btn-inv" style="background:#6b5a3a;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">📱 Snip Size</button>
+      <button class="btn" id="ns-revert-btn" onclick="nsRevertInvoiceToQuote()" title="Made this invoice by mistake? Turn it back into a quote" style="display:none;background:#fff;color:#b35309;border:1.5px solid #b35309;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer">↩️ Undo — Revert to Quote</button>
     </div>
     <div id="inv-pay-banner" class="no-print"></div>
     <div id="inv-fulfillment-strip" class="no-print"style="background:#f9f6f1;border:1px solid #e0d5c0;border-radius:7px;padding:10px 16px;margin-bottom:14px;min-height:36px"></div>
@@ -3671,8 +3672,187 @@ function showQuote() {
   saveCurrentQuote('quote');
 }
 
-// ── INVOICE ───────────────────────────────────────────────────────────────────
+// ── QUOTE → INVOICE CONFIRM GATE (added 2026-09-08) ─────────────────────────
+// showInvoice(null) used to mint a new INV- number the instant anyone clicked
+// "Invoice" — from the builder OR from a quote's "View Invoice" button in the
+// saved list. One stray click = a real invoice (numbered, on the daily reports,
+// stock deducted). Now: re-showing an EXISTING invoice is untouched, but turning
+// a quote into a new invoice pops a confirm that names who did it, warns when a
+// matching invoice already exists, and stamps invoicedBy/At + history.
+var nsInvoiceGateOpen = false;
+function nsFindMatchingInvoices(custName, grand) {
+  var nm = String(custName || '').trim().toLowerCase();
+  return getSavedQuotes().filter(function(q) {
+    return q.type === 'invoice' && !q.removed &&
+      String((q.customer || {}).name || '').trim().toLowerCase() === nm && nm !== '' &&
+      Math.abs((q.grand || 0) - grand) < 0.01;
+  });
+}
+function nsPillHtml(who) {
+  return NS_STAFF_NAMES.map(function(n) {
+    var on = n === who;
+    return '<button type="button" data-n="' + n + '" style="padding:7px 14px;border-radius:20px;border:1.5px solid ' + (on ? '#1a1008' : '#d5c8a8') + ';background:' + (on ? '#1a1008' : '#fff') + ';color:' + (on ? '#fff' : '#2c2416') + ';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">' + n + '</button>';
+  }).join('');
+}
+function nsWirePills(box, sel, okBtn, onPick) {
+  box.querySelectorAll(sel + ' button').forEach(function(b) {
+    b.onclick = function() {
+      var who = b.getAttribute('data-n'); nsSetActingAs(who);
+      box.querySelectorAll(sel + ' button').forEach(function(x){ var on = x === b; x.style.background = on ? '#1a1008' : '#fff'; x.style.color = on ? '#fff' : '#2c2416'; x.style.borderColor = on ? '#1a1008' : '#d5c8a8'; });
+      okBtn.disabled = false; okBtn.style.opacity = '1';
+      onPick(who);
+    };
+  });
+}
 function showInvoice(existingInvNum) {
+  if (existingInvNum) return nsShowInvoiceNow(existingInvNum);
+  if (!lines || !lines.length) { showToast('Add at least one item before creating an invoice.', '#b35309'); return; }
+  if (nsInvoiceGateOpen) return;
+  nsInvoiceGateOpen = true;
+  var c = getCustomer();
+  var sub = lines.reduce(function(s,l){ return s + l.retail * l.qty; }, 0);
+  var tax = c.taxExempt ? 0 : sub * 0.075;
+  var grand = sub + tax + (c.delivery || 0) - (c.discount || 0);
+  var nextNum = 'INV-' + String((invCounter || 0) + 1).padStart(5, '0');
+  var who = nsActingAs();
+  var dups = nsFindMatchingInvoices(c.name, grand);
+  var fromQuote = quoteNum || '';
+  var box = document.createElement('div');
+  box.id = 'ns-inv-confirm';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px';
+  box.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:24px 26px;max-width:440px;width:100%;font-family:inherit">' +
+      '<div style="font-size:18px;font-weight:700;color:#1a1008;margin-bottom:6px">Turn this quote into an invoice?</div>' +
+      '<div style="background:#f5f0e8;border:1px solid #d5c8a8;border-radius:8px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.6">' +
+        '<div style="font-weight:700;font-size:16px">' + nsEsc(fromQuote || 'Quote') + ' &nbsp;<span style="color:#6b5a3a">&rarr;</span>&nbsp; ' + nsEsc(nextNum) + '</div>' +
+        '<div>' + nsEsc(c.name || '—') + (c.co ? ' — ' + nsEsc(c.co) : '') + '</div>' +
+        '<div>' + lines.length + ' item(s) &nbsp;·&nbsp; <strong>$' + grand.toFixed(2) + '</strong></div>' +
+        (dups.length ? '<div style="margin-top:8px;padding:8px 10px;background:#fde8e8;border:1px solid #e08080;border-radius:6px;color:#a5251a;font-weight:700">⚠️ ' + dups.map(function(d){ return nsEsc(d.quoteNum); }).join(', ') + ' already exist' + (dups.length === 1 ? 's' : '') + ' for ' + nsEsc(c.name) + ' at this same total. Are you sure you need another one?</div>' : '') +
+      '</div>' +
+      '<div style="font-size:13px;color:#6b5a3a;margin-bottom:6px">This assigns an official invoice number, saves it to <strong>Saved Invoices</strong> on every device, puts it on the Order Tracker and the daily balance reports, and deducts stock. The quote stays in history unchanged.</div>' +
+      '<div style="font-size:12px;font-weight:700;color:#4a3a20;margin:12px 0 6px">Invoiced by</div>' +
+      '<div id="ns-inv-who" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">' + nsPillHtml(who) + '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" id="ns-inv-cancel" style="padding:10px 20px;border-radius:6px;border:1.5px solid #1a1008;background:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Cancel — keep as quote</button>' +
+        '<button type="button" id="ns-inv-ok" style="padding:10px 20px;border-radius:6px;border:none;background:#1a1008;color:#f5e8c8;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:' + (who ? '1' : '.45') + '"' + (who ? '' : ' disabled') + '>Yes, create ' + nsEsc(nextNum) + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(box);
+  var okBtn = box.querySelector('#ns-inv-ok');
+  var cancelBtn = box.querySelector('#ns-inv-cancel');
+  nsWirePills(box, '#ns-inv-who', okBtn, function(w){ who = w; });
+  function close() { box.remove(); nsInvoiceGateOpen = false; document.removeEventListener('keydown', onKey); }
+  function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); showToast('Still a quote — nothing was invoiced.', '#6b5a3a'); } }
+  document.addEventListener('keydown', onKey);
+  cancelBtn.onclick = function(){ close(); showToast('Still a quote — nothing was invoiced.', '#6b5a3a'); };
+  box.onclick = function(e){ if (e.target === box) cancelBtn.onclick(); };
+  setTimeout(function(){ try { cancelBtn.focus(); } catch(e){} }, 30);
+  okBtn.onclick = function() {
+    if (!who) return;
+    close();
+    nsShowInvoiceNow(null);
+    // Stamp who turned it into an invoice on the saved record
+    try {
+      var all = getSavedQuotesRaw();
+      var rec = all.find(function(x){ return x && String(x.id) === String(currentInvoiceRecordId); });
+      if (rec) {
+        var now = Date.now();
+        rec.invoicedBy = who; rec.invoicedAt = now; rec.fromQuoteNum = fromQuote || '';
+        rec.history = rec.history || [];
+        rec.history.push({ action: 'invoiced', by: who, at: now, from: fromQuote || '', note: 'Converted from quote' });
+        saveQuotesToStorage(all, true);
+        nsPushQuoteDoc(rec);
+      }
+    } catch(e) { console.warn('[INVOICE GATE] stamp failed', e); }
+  };
+}
+
+// ── REVERT INVOICE → QUOTE (added 2026-09-08) ────────────────────────────────
+// Safety net for an accidental conversion. Only offered when the invoice has no
+// recorded payments and hasn't been released. Soft-deletes the invoice record
+// (30-day bin, synced to every device), puts stock back on this device, and
+// drops the sales-log transaction. The INV- number is NOT reused.
+function nsCanRevertInvoice(q) {
+  if (!q || q.type !== 'invoice' || q.removed) return false;
+  var ps = nsPayState(q);
+  if (ps.paid > 0) return false;
+  if (q.release) return false;
+  return true;
+}
+function nsUpdateRevertBtn(invNum) {
+  var btn = document.getElementById('ns-revert-btn');
+  if (!btn) return;
+  var q = getSavedQuotes().find(function(x){ return x.quoteNum === invNum; });
+  btn.style.display = nsCanRevertInvoice(q) ? '' : 'none';
+}
+function nsRevertInvoiceToQuote() {
+  var q = getSavedQuotes().find(function(x){ return String(x.id) === String(currentInvoiceRecordId); });
+  if (!q) { showToast('Invoice record not found.', '#b35309'); return; }
+  if (!nsCanRevertInvoice(q)) { showToast('This invoice has payments or has been released — it can\'t be reverted. Use Delete instead.', '#b35309'); return; }
+  var who = nsActingAs();
+  var box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px';
+  box.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:24px 26px;max-width:420px;width:100%;font-family:inherit">' +
+      '<div style="font-size:18px;font-weight:700;color:#1a1008;margin-bottom:6px">Revert ' + nsEsc(q.quoteNum) + ' back to a quote?</div>' +
+      '<div style="background:#f5f0e8;border:1px solid #d5c8a8;border-radius:8px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.6">' +
+        '<div>' + nsEsc((q.customer||{}).name || '—') + '</div>' +
+        '<div>' + (q.lines ? q.lines.length : 0) + ' item(s) &nbsp;·&nbsp; <strong>$' + (q.grand||0).toFixed(2) + '</strong></div>' +
+        '<div style="color:#2d6a30;font-weight:600;margin-top:4px">No payments recorded · not released</div>' +
+      '</div>' +
+      '<div style="font-size:13px;color:#6b5a3a;margin-bottom:6px">The invoice moves to the <strong>Deleted</strong> bin (restorable for 30 days), stock is put back, and it drops off the daily reports. ' + (q.fromQuoteNum ? 'Quote <strong>' + nsEsc(q.fromQuoteNum) + '</strong> is still in history.' : 'The original quote is still in history.') + ' The number ' + nsEsc(q.quoteNum) + ' will not be reused.</div>' +
+      '<div style="font-size:12px;font-weight:700;color:#4a3a20;margin:12px 0 6px">Reverted by</div>' +
+      '<div id="ns-rev-who" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">' + nsPillHtml(who) + '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" id="ns-rev-cancel" style="padding:10px 20px;border-radius:6px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>' +
+        '<button type="button" id="ns-rev-ok" style="padding:10px 20px;border-radius:6px;border:none;background:#b35309;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:' + (who ? '1' : '.45') + '"' + (who ? '' : ' disabled') + '>Revert to quote</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(box);
+  var okBtn = box.querySelector('#ns-rev-ok');
+  nsWirePills(box, '#ns-rev-who', okBtn, function(w){ who = w; });
+  box.querySelector('#ns-rev-cancel').onclick = function(){ box.remove(); };
+  box.onclick = function(e){ if (e.target === box) box.remove(); };
+  okBtn.onclick = function() {
+    if (!who) return;
+    box.remove();
+    var invNum = q.quoteNum;
+    // 1. Put stock back + drop the sales-log transaction (both device-local, same as the deduction)
+    try {
+      var txns = JSON.parse(localStorage.getItem('ns_transactions') || '[]');
+      var txn = txns.find(function(t){ return t && t.id === invNum; });
+      if (txn && txn.items && txn.items.length) {
+        var counts = JSON.parse(localStorage.getItem('ns_lumber_counts') || '{}');
+        txn.items.forEach(function(it){ if (it.sku !== undefined) counts[it.sku] = (parseFloat(counts[it.sku]) || 0) + (it.qty || 0); });
+        localStorage.setItem('ns_lumber_counts', JSON.stringify(counts));
+      }
+      if (txn) localStorage.setItem('ns_transactions', JSON.stringify(txns.filter(function(t){ return t !== txn; })));
+    } catch(e) { console.warn('[REVERT] stock restore failed', e); }
+    // 2. Mark the record, then soft-delete it (synced to every device)
+    try {
+      var all = getSavedQuotesRaw();
+      var rec = all.find(function(x){ return x && String(x.id) === String(q.id); });
+      if (rec) {
+        var now = Date.now();
+        rec.revertedBy = who; rec.revertedAt = now;
+        rec.history = rec.history || [];
+        rec.history.push({ action: 'reverted_to_quote', by: who, at: now, note: 'Invoice reverted — was a mistake' });
+        saveQuotesToStorage(all, true);
+      }
+    } catch(e) {}
+    nsSoftDeleteIds([q.id], who);
+    // 3. Back to the builder as a plain quote
+    currentInvNum = null; currentInvoiceRecordId = null;
+    var payEl = document.getElementById('c-payment'); if (payEl && payEl.value === 'PAID IN FULL') payEl.value = '50% DEPOSIT REQUIRED';
+    renderPayBanner('builder-pay-banner', null, false);
+    renderSummary();
+    showView('quote-view');
+    showToast('↩️ ' + invNum + ' reverted — it\'s a quote again. Restore it from the Deleted bin within 30 days if needed.', '#2d6a30');
+  };
+}
+
+// ── INVOICE ───────────────────────────────────────────────────────────────────
+function nsShowInvoiceNow(existingInvNum) {
   var invNum;
   if (existingInvNum) {
     invNum = existingInvNum;
@@ -3755,6 +3935,7 @@ function showInvoice(existingInvNum) {
   }
   updateInvFulfillmentStrip(invNum);
   renderPayBanner('inv-pay-banner', currentInvoiceRecordId, true);
+  nsUpdateRevertBtn(invNum);
   // Foolproof check: header said "Paid in Full" and we just logged that payment — make the user confirm it
   if(nsPendingPaidConfirm){ var pid=nsPendingPaidConfirm; nsPendingPaidConfirm=null; setTimeout(function(){ nsConfirmHeaderPaid(pid); }, 250); }
 }
@@ -4698,7 +4879,7 @@ function renderHistory() {
         '<div class="hcard-items">' + itemCount + ' item' + (itemCount!==1?'s':'') + (itemNames ? ': ' + itemNames : '') + '</div>' +
         '<div class="hcard-actions">' +
           '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'quote\')" style="background:#f5f0e8;color:#2c2416;border:1px solid #d5c8a8;font-size:11px;padding:4px 10px;border-radius:4px">📄 View Quote</button>' +
-          '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'invoice\')" style="background:#1a1008;color:#f5e8c8;font-size:11px;padding:4px 10px;border-radius:4px">🧾 View Invoice</button>' +
+          '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'invoice\')" style="background:#1a1008;color:#f5e8c8;font-size:11px;padding:4px 10px;border-radius:4px">' + (q.type === 'invoice' ? '🧾 View Invoice' : '🧾 Make Invoice…') + '</button>' +
           '<button class="btn" onclick="event.stopPropagation();loadIntoBuilder(' + q.id + ')" style="background:#2980d4;color:#fff;font-size:11px;padding:4px 10px;border-radius:4px">✏️ Edit</button>' +
           '<button class="btn" onclick="event.stopPropagation();deleteQuote(' + q.id + ')" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:11px;padding:4px 10px;border-radius:4px">🗑️</button>' +
         '</div>' +
