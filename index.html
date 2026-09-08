@@ -849,6 +849,7 @@ tr:hover td{background:#fdf9f3}
       <thead>
         <tr>
           <th style="text-align:left;padding:8px 10px;background:#1a2438;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Product</th>
+          <th style="text-align:right;padding:8px 10px;background:#1a2438;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:110px">Retail / Cost</th>
           <th style="text-align:center;padding:8px 10px;background:#1a2438;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:80px">On Hand</th>
           <th style="text-align:center;padding:8px 10px;background:#1a2438;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:90px">Reorder At</th>
           <th style="text-align:center;padding:8px 10px;background:#1a2438;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:80px">Status</th>
@@ -5402,11 +5403,21 @@ function renderLumber() {
     var nameParts = String(p.name || p.item || '(no name)');
     var sizeInfo = p.size ? ' — ' + p.size : '';
     var costInfo = p.cost ? ' · $' + p.cost.toFixed(2) + '/ea' : '';
+    // Retail = counter price (fixedRetail set by the WBP price update, else cost at lumber GM)
+    var retail = calcRetail(p.cost, getCategoryGM(p), p.fixedRetail);
+    var gmPct = (retail > 0 && p.cost > 0) ? Math.round((retail - p.cost) / retail * 100) : null;
+    var gmColor = gmPct === null ? '#8B6914' : (gmPct < 27 || gmPct > 35) ? '#c04040' : '#2d6a30';
+    var priceHTML = retail > 0
+      ? '<div style="font-weight:800;color:#1a2438;font-size:15px">$' + retail + '</div>' +
+        '<div style="font-size:10px;color:#8B6914;margin-top:1px">cost $' + (p.cost||0).toFixed(2) + (gmPct !== null ? ' · <span style="color:' + gmColor + ';font-weight:700">' + gmPct + '% GM</span>' : '') + '</div>'
+      : '<div style="font-size:11px;color:#c04040;font-weight:700">No price</div>' +
+        (p.cost ? '<div style="font-size:10px;color:#8B6914">cost $' + p.cost.toFixed(2) + '</div>' : '');
     return '<tr style="' + rowBg + '">' +
       '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8">' +
         '<div style="font-weight:700;color:#1a2438;font-size:13px">' + nameParts + sizeInfo + '</div>' +
-        '<div style="font-size:11px;color:#8B6914;margin-top:2px">' + p.group + ' · SKU: ' + p.sku + costInfo + '</div>' +
+        '<div style="font-size:11px;color:#8B6914;margin-top:2px">' + p.group + ' · SKU: ' + p.sku + '</div>' +
       '</td>' +
+      '<td style="text-align:right;padding:9px 10px;border-bottom:1px solid #f0e8d8;white-space:nowrap">' + priceHTML + '</td>' +
       '<td style="text-align:center;padding:9px 10px;border-bottom:1px solid #f0e8d8">' +
         '<input type="number" min="0" value="' + oh + '" onchange=\'saveOnHand(\\\'' + p.sku + '\\\',this.value);renderLumber()\' ' +
         'style="width:60px;padding:4px 6px;border-radius:4px;border:1.5px solid #d5c8a8;font-size:13px;font-weight:600;text-align:center;font-family:inherit">' +
