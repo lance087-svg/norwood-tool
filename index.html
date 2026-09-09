@@ -2451,6 +2451,28 @@ function init() {
       console.log('Norwood TLC price migration applied: ' + migrated + ' edited items refreshed to ' + TLC_PRICE_DATE);
     }
   } catch(err) { console.warn('TLC price migration failed:', err); }
+  // ── PRIMED FINGER-JOINT BOARD PRICE MIGRATION (9/9/2026 cost update, 40% GM) ──
+  // Forces the bundled cost/fixedRetail for the FJ board SKUs into ns_edits once
+  // per device, so any stale per-device price edit doesn't keep overriding the
+  // new numbers (same pattern as the Lumber migration above).
+  const FJ_BOARD_PRICE_DATE = '2026-09-09';
+  try {
+    if ((localStorage.getItem('ns_fj_board_price_date') || '') !== FJ_BOARD_PRICE_DATE) {
+      const fjSkus = ['7013','7014','7016','7018','7019'];
+      let migrated = 0;
+      for (const p of invProds) {
+        if (!fjSkus.includes(p.sku)) continue;
+        const e = savedEdits[p.id] || {};
+        e.cost = p.cost;
+        e.fixedRetail = p.fixedRetail;
+        savedEdits[p.id] = e;
+        migrated++;
+      }
+      localStorage.setItem('ns_edits', JSON.stringify(savedEdits));
+      localStorage.setItem('ns_fj_board_price_date', FJ_BOARD_PRICE_DATE);
+      console.log('Norwood FJ board price migration applied: ' + migrated + ' items updated to ' + FJ_BOARD_PRICE_DATE);
+    }
+  } catch(err) { console.warn('FJ board price migration failed:', err); }
   products = [...doorProds, ...invProds].map(p => {
     if (savedEdits[p.id]) {
       const edit = {...savedEdits[p.id]};
