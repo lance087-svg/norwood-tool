@@ -722,6 +722,7 @@ tr:hover td{background:#fdf9f3}
       <button class="btn btn-g" onclick="newQuote()">🔄 New Quote</button>
       <button class="btn" onclick="showPOBuilder()" style="background:#2980d4;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">📦 Create PO</button>
       <button class="btn" id="take-payment-btn" onclick="if(currentInvoiceRecordId){openPaymentModal(currentInvoiceRecordId);}else{alert(&#39;Save the invoice first.&#39;);}" style="background:#7b3fa0;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">💳 Take Payment</button>
+      <button class="btn" id="take-return-btn" onclick="openReturnModal(currentInvoiceRecordId)" style="background:#185fa5;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">↩️ Return / Credit</button>
       <span id="inv-status-badge" style="padding:6px 14px;border-radius:5px;font-weight:700;font-size:12px;letter-spacing:1px"></span>
       <button class="btn" onclick="toggleSnipSize(&#39;invoice-content&#39;)" id="snip-btn-inv" style="background:#6b5a3a;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">📱 Snip Size</button>
       <button class="btn" id="ns-revert-btn" onclick="nsRevertInvoiceToQuote()" title="Made this invoice by mistake? Turn it back into a quote" style="display:none;background:#fff;color:#b35309;border:1.5px solid #b35309;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer">↩️ Undo — Revert to Quote</button>
@@ -3896,12 +3897,14 @@ function nsShowInvoiceNow(existingInvNum) {
   // Payment info pulled from the saved record so the printed invoice always reflects deposits/balance
   var payRec=(getSavedQuotes().find(function(x){return x.quoteNum===invNum;})||{});
   var payHist=payRec.paymentHistory||[];
+  var credHist=payRec.returnsHistory||[];
   var amtPaid=nsPaidFromHistory(payHist);
   if(!payHist.length && (payRec.amountPaid||0)>0) amtPaid=payRec.amountPaid; // legacy record, no history
+  var totalCredits=nsCreditsFromHistory(credHist);
   // Header set to "Paid in Full" with nothing recorded yet: the save below logs a full payment (undoable), so show it as paid
   if(amtPaid===0 && !payHist.length && c.payment==='PAID IN FULL'){amtPaid=grand;}
-  var balDue=Math.max(0,grand-amtPaid);
-  var payStatus = (amtPaid>0 && balDue<=0.01) ? 'PAID IN FULL' : amtPaid>0 ? 'BALANCE DUE' : (c.payment==='PAID IN FULL' ? 'BALANCE DUE' : c.payment);
+  var balDue=Math.max(0,grand-amtPaid-totalCredits);
+  var payStatus = ((amtPaid>0||totalCredits>0) && balDue<=0.01) ? 'PAID IN FULL' : amtPaid>0 ? 'BALANCE DUE' : (c.payment==='PAID IN FULL' ? 'BALANCE DUE' : c.payment);
   var stampText = (amtPaid>0 && balDue>0.01) ? 'DEPOSIT RECEIVED \u2014 BALANCE DUE $'+balDue.toFixed(2) : payStatus;
   const LINES_PER_P1=18, LINES_PER_P=25;
   let pages=[];
@@ -3924,11 +3927,16 @@ function nsShowInvoiceNow(existingInvNum) {
     allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><div style="display:flex;gap:8px;align-items:flex-start">'+(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':'')+'<div><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+(l.pricePending?' <span style="color:#c8952a;font-weight:700;font-size:10px">(PRICE PENDING)</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></div></div></td>'+(l.pricePending?'<td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>').join('');
     if(isLast){
       allPages+='</tbody></table>';
-      allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div>'+(amtPaid>0?'<div class="inv-tot-row" style="color:#2d6a30;font-weight:700"><span>Payments Received</span><span>-$'+amtPaid.toFixed(2)+'</span></div><div class="inv-tot-row" style="color:'+(balDue<=0.01?'#2d6a30':'#c04040')+';font-weight:800;font-size:15px;background:'+(balDue<=0.01?'#eaf3de':'#fcebeb')+';border-radius:4px;padding:8px;border-bottom:none;margin-top:4px"><span>'+(balDue<=0.01?'PAID IN FULL':'BALANCE DUE')+'</span><span>$'+balDue.toFixed(2)+'</span></div>':'')+'</div>';
+      allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div>'+(amtPaid>0?'<div class="inv-tot-row" style="color:#2d6a30;font-weight:700"><span>Payments Received</span><span>-$'+amtPaid.toFixed(2)+'</span></div>':'')+(totalCredits>0?'<div class="inv-tot-row" style="color:#185fa5;font-weight:700"><span>Returns / Credits</span><span>-$'+totalCredits.toFixed(2)+'</span></div>':'')+((amtPaid>0||totalCredits>0)?'<div class="inv-tot-row" style="color:'+(balDue<=0.01?'#2d6a30':'#c04040')+';font-weight:800;font-size:15px;background:'+(balDue<=0.01?'#eaf3de':'#fcebeb')+';border-radius:4px;padding:8px;border-bottom:none;margin-top:4px"><span>'+(balDue<=0.01?'PAID IN FULL':'BALANCE DUE')+'</span><span>$'+balDue.toFixed(2)+'</span></div>':'')+'</div>';
       allPages+='<div class="inv-stamp '+stampClass+'">'+stampText+'</div>';
       if(payHist.length){
         allPages+='<div style="margin-top:16px;font-size:11px;font-family:system-ui,sans-serif;border:1px solid #e0d5c0;border-radius:5px;overflow:hidden"><div style="font-weight:700;color:#1a3a5c;background:#EAF3FB;text-transform:uppercase;letter-spacing:1px;font-size:10px;padding:6px 12px">Payment History</div><div style="padding:6px 12px">';
         payHist.forEach(function(p){allPages+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0e8d8;color:#4a3a22"><span>'+p.date+' &middot; '+p.method+(p.notes?' &middot; '+p.notes:'')+'</span><span style="font-weight:700;color:#2d6a30">$'+(p.amount||0).toFixed(2)+'</span></div>';});
+        allPages+='</div></div>';
+      }
+      if(credHist.length){
+        allPages+='<div style="margin-top:12px;font-size:11px;font-family:system-ui,sans-serif;border:1px solid #e0d5c0;border-radius:5px;overflow:hidden"><div style="font-weight:700;color:#185fa5;background:#EAF3FB;text-transform:uppercase;letter-spacing:1px;font-size:10px;padding:6px 12px">Returns / Credits</div><div style="padding:6px 12px">';
+        credHist.forEach(function(r){allPages+='<div style="padding:4px 0;border-bottom:1px solid #f0e8d8;color:#4a3a22"><div style="display:flex;justify-content:space-between"><span>'+r.date+' &middot; '+r.description+' (qty '+r.qty+')'+(r.reason?' &middot; '+r.reason:'')+'</span><span style="font-weight:700;color:#185fa5">-$'+(r.creditAmount||0).toFixed(2)+'</span></div>'+(r.restockPct>0?'<div style="font-size:10px;color:#8a7a5a">'+r.restockPct+'% restocking fee applied</div>':'')+'</div>';});
         allPages+='</div></div>';
       }
       allPages+=(c.notes?'<div class="inv-terms"><strong>Notes:</strong> '+c.notes+'</div>':'');
@@ -5706,12 +5714,14 @@ function recomputePayment(q){
   var grand = q.grand || 0;
   var hist = q.paymentHistory || [];
   var paid = hist.filter(function(p){return p.type!=='net30';}).reduce(function(s,p){return s+(p.amount||0);},0);
+  var credits = nsCreditsFromHistory(q.returnsHistory||[]);
   var hasNet30 = hist.some(function(p){return p.type==='net30';});
   var terms = (q.customer && q.customer.payment) || q.paymentStatus || '50% DEPOSIT REQUIRED';
   q.amountPaid = paid;
-  q.balanceDue = Math.max(0, grand - paid);
+  q.totalCredits = credits;
+  q.balanceDue = Math.max(0, grand - paid - credits);
   var st;
-  if(q.balanceDue <= 0.01 && paid > 0){ st = 'PAID IN FULL'; q.balanceDue = 0; }
+  if(q.balanceDue <= 0.01 && (paid > 0 || credits > 0)){ st = 'PAID IN FULL'; q.balanceDue = 0; }
   else if(paid > 0){ st = 'BALANCE DUE'; }
   else if(hasNet30 || terms === 'NET 30'){ st = 'NET 30'; }
   else if(terms === 'COD'){ st = 'COD'; }
@@ -5726,25 +5736,185 @@ function nsPaidFromHistory(hist){
   return (hist||[]).filter(function(p){return p.type!=='net30';}).reduce(function(s,p){return s+(parseFloat(p.amount)||0);},0);
 }
 
+// Sum of net credit amounts recorded against an invoice (parallel to nsPaidFromHistory)
+function nsCreditsFromHistory(hist){
+  return (hist||[]).reduce(function(s,r){return s+(parseFloat(r.creditAmount)||0);},0);
+}
+
 // Derived payment state for any saved record — the ONE place status is decided for screens, badges and filters
 function nsPayState(q){
   var grand = q.grand || 0;
   var hist = q.paymentHistory || [];
   var paid = nsPaidFromHistory(hist);
   if(!hist.length && (q.amountPaid||0) > 0) paid = q.amountPaid; // legacy record saved before payment history existed
-  var bal = Math.max(0, grand - paid);
+  var credits = nsCreditsFromHistory(q.returnsHistory||[]);
+  var bal = Math.max(0, grand - paid - credits);
   var terms = (q.customer && q.customer.payment) || q.paymentStatus || q.payment || '50% DEPOSIT REQUIRED';
   var hasNet30 = hist.some(function(p){return p.type==='net30';}) || terms === 'NET 30';
   var status;
-  if(paid > 0 && bal <= 0.01) status = 'PAID IN FULL';
+  if((paid > 0 || credits > 0) && bal <= 0.01) status = 'PAID IN FULL';
   else if(paid > 0) status = 'BALANCE DUE';
   else if(hasNet30) status = 'NET 30';
   else if(terms === 'COD') status = 'COD';
   else if(terms === 'BALANCE DUE') status = 'BALANCE DUE';
   else status = '50% DEPOSIT REQUIRED';
   var money = hist.filter(function(p){return p.type!=='net30';});
-  return { status: status, paid: paid, balance: bal, grand: grand, partial: paid > 0 && bal > 0.01, unpaid: paid <= 0,
+  return { status: status, paid: paid, credits: credits, balance: bal, grand: grand, partial: (paid > 0 || credits > 0) && bal > 0.01, unpaid: paid <= 0 && credits <= 0,
            last: money.length ? money[money.length-1] : null, dueDate: q.dueDate || '' };
+}
+
+// ── RETURNS / CREDITS ────────────────────────────────────────────────────────
+// A line counts as "stock" (eligible for the inventory-restock prompt) when it
+// isn't a custom/special-order line and has a real catalog SKU to restock against.
+function nsIsStockLine(l){
+  return !!l && !l.isCustom && l.category !== 'Special Order' && !!l.sku && l.sku !== 'CUSTOM';
+}
+var currentReturnId = null;
+function openReturnModal(id){
+  if(!id){ alert('Save the invoice first.'); return; }
+  var quotes = getSavedQuotes();
+  var q = quotes.find(function(x){ return x.id === id; });
+  if(!q) return;
+  currentReturnId = id;
+  var old = document.getElementById('ns-return-modal'); if(old) old.remove();
+  var qlines = q.lines || [];
+  var who = nsActingAs();
+  var box = document.createElement('div');
+  box.id = 'ns-return-modal';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  box.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:24px 26px;max-width:460px;width:100%;font-family:inherit;max-height:92vh;overflow:auto">' +
+      '<div style="font-size:17px;font-weight:700;color:#1a2438;margin-bottom:4px">↩️ Return / Credit</div>' +
+      '<div style="font-size:12px;color:#8B6914;margin-bottom:16px">' + nsEsc(q.quoteNum) + ' — ' + nsEsc((q.customer||{}).name || '—') + '</div>' +
+      '<div class="fg" style="margin-bottom:12px"><label class="lbl">Item Being Returned</label>' +
+        '<select id="rt-line" style="padding:8px 10px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;background:#faf8f4;width:100%;box-sizing:border-box">' +
+          qlines.map(function(l,i){ return '<option value="'+i+'">'+nsEsc(l.item||l.description||'Item')+' — $'+(l.retail||0).toFixed(2)+' x '+l.qty+'</option>'; }).join('') +
+          '<option value="other">Other / not a line on this invoice</option>' +
+        '</select></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' +
+        '<div class="fg"><label class="lbl">Qty Returned</label><input type="number" id="rt-qty" min="0" step="1" value="1" oninput="updateReturnPreview()" style="padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:14px;font-weight:700;font-family:inherit;outline:none;width:100%;box-sizing:border-box;text-align:right"></div>' +
+        '<div class="fg"><label class="lbl">Unit Price ($)</label><input type="number" id="rt-unit" min="0" step="0.01" value="0" oninput="updateReturnPreview()" style="padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:14px;font-weight:700;font-family:inherit;outline:none;width:100%;box-sizing:border-box;text-align:right"></div>' +
+      '</div>' +
+      '<div id="rt-desc-row" style="display:none;margin-bottom:12px" class="fg"><label class="lbl">Description</label><input type="text" id="rt-desc" placeholder="What is being returned" style="padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;width:100%;box-sizing:border-box"></div>' +
+      '<div class="fg" style="margin-bottom:12px"><label class="lbl">Restocking Fee (%)</label><input type="number" id="rt-restock" min="0" max="100" step="1" value="0" oninput="updateReturnPreview()" style="padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:14px;font-weight:700;font-family:inherit;outline:none;width:100%;box-sizing:border-box;text-align:right"></div>' +
+      '<div class="fg" style="margin-bottom:12px"><label class="lbl">Reason (optional)</label><input type="text" id="rt-reason" placeholder="Wrong size, customer changed mind, etc." style="padding:8px 12px;border-radius:5px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;width:100%;box-sizing:border-box"></div>' +
+      '<label id="rt-restock-row" style="display:none;align-items:flex-start;gap:8px;background:#eaf4fd;border:1.5px solid #a8cdea;border-radius:6px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#185fa5;font-weight:600;cursor:pointer"><input type="checkbox" id="rt-add-stock" style="margin-top:2px;width:16px;height:16px" checked><span>Add this quantity back into live inventory</span></label>' +
+      '<div id="rt-preview" style="background:#eaf3de;border-radius:6px;padding:10px 14px;font-size:12px;color:#2d6a30;font-weight:600;margin-bottom:16px"></div>' +
+      '<div style="font-size:12px;font-weight:700;color:#4a3a20;margin:0 0 6px">Processed by</div>' +
+      '<div id="rt-who" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">' +
+        NS_STAFF_NAMES.map(function(n){ return '<button type="button" data-n="'+n+'" style="padding:7px 14px;border-radius:20px;border:1.5px solid '+(n===who?'#1a1008':'#d5c8a8')+';background:'+(n===who?'#1a1008':'#fff')+';color:'+(n===who?'#fff':'#2c2416')+';font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">'+n+'</button>'; }).join('') +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" id="rt-cancel" style="padding:10px 20px;border-radius:6px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>' +
+        '<button type="button" id="rt-ok" style="padding:10px 20px;border-radius:6px;border:none;background:#2d6a30;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:'+(who?'1':'.45')+'"'+(who?'':' disabled')+'>✓ Record Credit</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(box);
+  var sel = box.querySelector('#rt-line');
+  function syncFromLine(){
+    var v = sel.value;
+    var descRow = box.querySelector('#rt-desc-row');
+    var restockRow = box.querySelector('#rt-restock-row');
+    if(v === 'other' || !qlines.length){
+      descRow.style.display = 'block';
+      restockRow.style.display = 'none';
+    } else {
+      var l = qlines[Number(v)];
+      descRow.style.display = 'none';
+      box.querySelector('#rt-unit').value = (l.retail||0).toFixed(2);
+      box.querySelector('#rt-qty').value = Math.max(1, l.qty||1);
+      restockRow.style.display = nsIsStockLine(l) ? 'flex' : 'none';
+    }
+    updateReturnPreview();
+  }
+  sel.onchange = syncFromLine;
+  syncFromLine();
+  box.querySelectorAll('#rt-who button').forEach(function(b){
+    b.onclick = function(){
+      who = b.getAttribute('data-n'); nsSetActingAs(who);
+      box.querySelectorAll('#rt-who button').forEach(function(x){ var on = x===b; x.style.background=on?'#1a1008':'#fff'; x.style.color=on?'#fff':'#2c2416'; x.style.borderColor=on?'#1a1008':'#d5c8a8'; });
+      var ok = box.querySelector('#rt-ok'); ok.disabled=false; ok.style.opacity='1';
+    };
+  });
+  box.querySelector('#rt-cancel').onclick = function(){ box.remove(); };
+  box.onclick = function(e){ if(e.target===box) box.remove(); };
+  box.querySelector('#rt-ok').onclick = function(){ recordReturnCredit(box, q, qlines); };
+}
+function updateReturnPreview(){
+  var box = document.getElementById('ns-return-modal'); if(!box) return;
+  var qty = parseFloat(box.querySelector('#rt-qty').value) || 0;
+  var unit = parseFloat(box.querySelector('#rt-unit').value) || 0;
+  var restockPct = parseFloat(box.querySelector('#rt-restock').value) || 0;
+  var gross = qty * unit;
+  var fee = gross * (restockPct/100);
+  var net = Math.max(0, gross - fee);
+  var prev = box.querySelector('#rt-preview');
+  var msg = '$'+gross.toFixed(2)+' returned';
+  if(restockPct>0) msg += ' · -$'+fee.toFixed(2)+' restocking fee ('+restockPct+'%)';
+  msg += ' · Net credit $'+net.toFixed(2);
+  prev.textContent = msg;
+}
+function recordReturnCredit(box, q, qlines){
+  var sel = box.querySelector('#rt-line');
+  var v = sel.value;
+  var qty = parseFloat(box.querySelector('#rt-qty').value) || 0;
+  var unit = parseFloat(box.querySelector('#rt-unit').value) || 0;
+  var restockPct = parseFloat(box.querySelector('#rt-restock').value) || 0;
+  var reason = box.querySelector('#rt-reason').value || '';
+  var who = nsActingAs();
+  if(!who){ alert('Pick who is processing this credit first.'); return; }
+  if(qty<=0 || unit<0){ alert('Enter a quantity and unit price.'); return; }
+  var lineRef = (v==='other' || !qlines.length) ? null : qlines[Number(v)];
+  var desc = lineRef ? (lineRef.item || lineRef.description || 'Return / credit') : (box.querySelector('#rt-desc').value || 'Return / credit');
+  var gross = qty*unit, fee = gross*(restockPct/100), net = Math.max(0, gross-fee);
+  var addStock = lineRef && nsIsStockLine(lineRef) && box.querySelector('#rt-add-stock') && box.querySelector('#rt-add-stock').checked;
+
+  var quotes = getSavedQuotes();
+  var idx = quotes.findIndex(function(x){ return x.id === q.id; });
+  if(idx<0) return;
+  var rec = quotes[idx];
+  if(!rec.returnsHistory) rec.returnsHistory = [];
+  rec.returnsHistory.push({
+    date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    timestamp: Date.now(),
+    lineId: lineRef ? lineRef.lineId : null,
+    description: desc,
+    qty: qty,
+    unitAmount: unit,
+    restockPct: restockPct,
+    creditAmount: net,
+    reason: reason,
+    restockedInventory: !!addStock,
+    processedBy: who
+  });
+  recomputePayment(rec);
+  saveQuotesToStorage(quotes);
+  box.remove();
+  renderHistory();
+  showToast('↩️ $' + net.toFixed(2) + ' credit recorded on ' + rec.quoteNum, '#2d6a30');
+  if(currentInvoiceRecordId === rec.id && currentInvNum){
+    nsShowInvoiceNow(currentInvNum);
+    if(typeof updateInvFulfillmentStrip==='function') updateInvFulfillmentStrip(currentInvNum);
+  }
+  if(addStock && lineRef && lineRef.sku) nsRestockQoh(lineRef.sku, qty, who);
+}
+// Best-effort push of a returned quantity back into live Firestore inventory (qoh).
+// Non-blocking — the credit above is already saved regardless of whether this succeeds.
+function nsRestockQoh(sku, qty, who){
+  try{
+    if(!liveInvDb || typeof firebase==='undefined' || !firebase.firestore) return;
+    liveInvDb.collection('norwood').where('sku','==',String(sku)).limit(1).get().then(function(snap){
+      if(snap.empty) return;
+      snap.docs[0].ref.update({
+        qoh: firebase.firestore.FieldValue.increment(qty),
+        lastAction: 'Return credit +' + qty,
+        lastBy: who,
+        lastAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function(){
+        if(typeof loadLiveInventory==='function') loadLiveInventory();
+      }).catch(function(e){ console.warn('Restock QOH failed:', e); });
+    }).catch(function(e){ console.warn('Restock QOH lookup failed:', e); });
+  }catch(e){ console.warn('Restock QOH error:', e); }
 }
 
 // Longer, louder toast for money warnings
