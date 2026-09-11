@@ -719,6 +719,7 @@ tr:hover td{background:#fdf9f3}
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-gh" onclick="backToBuilder()">← Back</button>
       <button class="btn btn-p" onclick="window.print()">🖨️ Print Invoice</button>
+      <button class="btn" onclick="nsPrintYardPullSheet(currentInvoiceRecordId)" style="background:#1E70B8;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">🧾 Yard Pull Sheet</button>
       <button class="btn btn-g" onclick="newQuote()">🔄 New Quote</button>
       <button class="btn" onclick="showPOBuilder()" style="background:#2980d4;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">📦 Create PO</button>
       <button class="btn" id="take-payment-btn" onclick="if(currentInvoiceRecordId){openPaymentModal(currentInvoiceRecordId);}else{alert(&#39;Save the invoice first.&#39;);}" style="background:#7b3fa0;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">💳 Take Payment</button>
@@ -6876,6 +6877,215 @@ function downloadQuotePDF() {
     alert('PDF generation failed. Use Print / PDF instead.');
   });
 }
+
+// ── YARD PULL SHEET (added 2026-09-11, Lance-approved format) ────────────────
+function nsPullSheetSections(lines) {
+  var order = ['Interior Doors','Exterior Doors','Bifold','Millwork','Lumber'];
+  var buckets = {}; order.forEach(function(k){ buckets[k]=[]; });
+  (lines||[]).forEach(function(l){
+    var cat = l.category||''; var grp=(l.group||'')+''; var raw=(l.description||l.item||'')+'';
+    var key;
+    if (/bifold/i.test(grp) || /bifold/i.test(raw)) key='Bifold';
+    else if (cat==='Interior Doors') key='Interior Doors';
+    else if (cat==='Exterior Doors') key='Exterior Doors';
+    else if (cat==='Lumber' || cat==='Composite Decking') key='Lumber';
+    else key='Millwork';
+    buckets[key].push(l);
+  });
+  return order.map(function(k){ return {name:k, lines:buckets[k]}; }).filter(function(s){ return s.lines.length>0; });
+}
+
+function nsPullSheetLineDesc(l) {
+  var raw = (l.description || l.item || '').toString().replace(/\t/g,' ').replace(/\s+/g,' ').trim();
+  var hand = '', stripped = raw;
+  if (/RH$/.test(raw)) { hand='RIGHT HAND'; stripped = raw.replace(/RH$/,'').trim(); }
+  else if (/LH$/.test(raw)) { hand='LEFT HAND'; stripped = raw.replace(/LH$/,'').trim(); }
+  var g = (l.group||'').toLowerCase();
+  var cfg = '';
+  var ds = l.doorSpec;
+  if (ds && ds.config) cfg = String(ds.config).toUpperCase();
+  else if (/slab/.test(g) && !/pre.?hung/.test(g)) cfg = 'SLAB';
+  else if (/pre.?hung/.test(g)) cfg = 'PREHUNG';
+  var parts = [stripped];
+  if (ds && ds.roughOpening) parts.push('RO ' + ds.roughOpening);
+  else if (ds && ds.netSize) parts.push(ds.netSize);
+  if (cfg) parts.push(cfg);
+  if (hand) parts.push(hand);
+  return parts.join(' — ');
+}
+
+function nsPullSheetTotals(sections) {
+  var doorCount = 0, otherParts = [];
+  sections.forEach(function(s){
+    var qty = s.lines.reduce(function(a,l){ return a + (Number(l.qty)||0); }, 0);
+    if (s.name==='Interior Doors' || s.name==='Exterior Doors' || s.name==='Bifold') doorCount += qty;
+    else otherParts.push(qty + ' Pieces ' + s.name);
+  });
+  var out = [];
+  if (doorCount>0) out.push(doorCount + ' Door' + (doorCount===1?'':'s'));
+  out = out.concat(otherParts);
+  return out.join('  |  ') || 'No items';
+}
+
+function nsPrintYardPullSheet(recordId) {
+  if (!recordId) { alert('Save the invoice first.'); return; }
+  var q = getSavedQuotes().find(function(x){ return String(x.id)===String(recordId); });
+  if (!q) { alert('Could not find this invoice.'); return; }
+
+  var doc = new jspdf.jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
+  var PAGE_W=612, PAGE_H=792, margin=32;
+  var NAVY=[30,112,184], GREY=[237,237,237], DGREY=[74,74,74], GREEN=[30,142,62], RED=[198,40,40], LINEC=[204,204,204];
+
+  var invNum = q.quoteNum || ('#'+q.id);
+  var cust = q.customer || {};
+  var isPaid = (q.payment==='PAID IN FULL') || (q.paymentStatus==='PAID IN FULL');
+  var status = isPaid ? {label:'PAID IN FULL', sub:'OK TO RELEASE', color:GREEN}
+                       : {label:(q.payment||'BALANCE DUE'), sub:'DO NOT RELEASE', color:RED};
+  var shipVia = (Number(cust.delivery)||0) > 0 ? 'DELIVERY' : 'CUSTOMER PICKUP';
+  var coOrJob = [cust.co, cust.addr].filter(Boolean).join(' — ') || (cust.shipto || '—');
+
+  // header band
+  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]);
+  doc.rect(0,0,PAGE_W,68,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(22);
+  doc.text('YARD PULL SHEET', margin, 34);
+  doc.setFontSize(28);
+  doc.text(String(invNum), PAGE_W-margin, 42, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Norwood Supply  •  6200 Norwood Ave, Jacksonville, FL', margin, 58);
+
+  var y = 68+18;
+  var boxH=104;
+  doc.setFillColor(GREY[0],GREY[1],GREY[2]);
+  doc.rect(margin, y, PAGE_W-2*margin, boxH, 'F');
+  var col1=margin+10, col2=margin+(PAGE_W-2*margin)*0.55;
+  var fy=y+18;
+  function field(x,yy,label,value){
+    doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(label, x, yy);
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(value || '—', x, yy+14);
+  }
+  field(col1, fy, 'CUSTOMER', cust.name || '—');
+  field(col2, fy, 'SALES REP', cust.rep || q.rep || '—');
+  fy+=29;
+  field(col1, fy, 'C/O / JOB ADDRESS', coOrJob);
+  field(col2, fy, 'SHIP VIA', shipVia);
+  fy+=29;
+  field(col1, fy, 'PHONE', cust.phone || '—');
+  field(col2, fy, 'INVOICE DATE', q.date || '—');
+
+  y = y+boxH+16;
+  var pillLabel = status.label + '  •  ' + status.sub;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  var textW = doc.getTextWidth(pillLabel);
+  var pillW = textW+32, pillH=26;
+  doc.setFillColor(status.color[0],status.color[1],status.color[2]);
+  doc.roundedRect(margin, y, pillW, pillH, 5, 5, 'F');
+  doc.setTextColor(255,255,255);
+  doc.text(pillLabel, margin+pillW/2, y+17, {align:'center'});
+  doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+  doc.text('NO PRICING ON THIS SHEET', PAGE_W-margin, y+16, {align:'right'});
+
+  y += pillH+16;
+
+  var sections = nsPullSheetSections(q.lines||[]);
+  var qtyX=margin+24, descX=margin+68, skuX=PAGE_W-margin-155, pulledX=PAGE_W-margin-105, shortX=PAGE_W-margin-50;
+
+  sections.forEach(function(sec){
+    doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]);
+    doc.rect(margin, y, PAGE_W-2*margin, 17, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(sec.name.toUpperCase(), margin+6, y+12);
+    y += 17+8;
+
+    doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text('QTY', qtyX, y);
+    doc.text('DESCRIPTION', descX, y);
+    doc.text('SKU', skuX, y);
+    doc.text('PULLED', pulledX, y);
+    doc.text('SHORT?', shortX, y);
+    doc.setDrawColor(DGREY[0],DGREY[1],DGREY[2]);
+    doc.line(margin, y+3, PAGE_W-margin, y+3);
+    y += 14;
+
+    sec.lines.forEach(function(l){
+      var rowH=36, rowTop=y;
+      doc.setDrawColor(0,0,0);
+      doc.rect(margin, rowTop+6, 12, 12);
+
+      doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+      doc.text(String(l.qty), qtyX, rowTop+20);
+
+      var desc = nsPullSheetLineDesc(l);
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+      var descLines = doc.splitTextToSize(desc, skuX-descX-6);
+      var dy = rowTop+11;
+      descLines.slice(0,2).forEach(function(dl){ doc.text(dl, descX, dy); dy+=12; });
+
+      var subBits = ['SKU ' + (l.sku||'—')];
+      if (l.notes) subBits.push(l.notes);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]);
+      doc.text(subBits.join('  •  '), descX, dy);
+
+      doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      doc.text(String(l.sku||''), skuX, rowTop+20);
+
+      doc.setDrawColor(DGREY[0],DGREY[1],DGREY[2]);
+      doc.rect(pulledX, rowTop+10, 40, 16);
+      doc.rect(shortX, rowTop+10, 32, 16);
+
+      y += rowH;
+      doc.setDrawColor(LINEC[0],LINEC[1],LINEC[2]);
+      doc.line(margin, y, PAGE_W-margin, y);
+
+      if (y > PAGE_H-160) {
+        doc.addPage();
+        y = margin;
+      }
+    });
+    y += 6;
+  });
+
+  if (y > PAGE_H-190) { doc.addPage(); y = margin; }
+
+  var stripH=30;
+  doc.setFillColor(GREY[0],GREY[1],GREY[2]);
+  doc.rect(margin, y, PAGE_W-2*margin, stripH, 'F');
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text(nsPullSheetTotals(sections), margin+8, y+19);
+  doc.setTextColor(RED[0],RED[1],RED[2]); doc.setFont('helvetica','bolditalic'); doc.setFontSize(8.5);
+  doc.text('Check HAND on every prehung', PAGE_W-margin-8, y+19, {align:'right'});
+  y += stripH+14;
+
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('YARD NOTES', margin, y);
+  doc.setDrawColor(153,153,153);
+  for (var i=0;i<3;i++){ y+=16; doc.line(margin, y, PAGE_W-margin, y); }
+
+  y += 26;
+  var signW=(PAGE_W-2*margin-20)/2;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]);
+  doc.text('PULLED BY', margin, y);
+  doc.text('CHECKED BY', margin+signW+20, y);
+  doc.setDrawColor(0,0,0);
+  doc.line(margin, y+18, margin+signW, y+18);
+  doc.line(margin+signW+20, y+18, PAGE_W-margin, y+18);
+
+  y += 40;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]);
+  doc.text('DATE / TIME', margin, y);
+  doc.text('STAGED AT', margin+signW+20, y);
+  doc.line(margin, y+18, margin+signW, y+18);
+  doc.line(margin+signW+20, y+18, PAGE_W-margin, y+18);
+
+  doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(DGREY[0],DGREY[1],DGREY[2]);
+  doc.text('Pull sheet only — no pricing.  Source: Invoice ' + invNum, PAGE_W/2, PAGE_H-16, {align:'center'});
+
+  doc.save('Yard_Pull_Sheet_' + String(invNum).replace(/[^a-zA-Z0-9_-]/g,'_') + '.pdf');
+}
+
 
 
 // ── ORDER TRACKER ────────────────────────────────────────────────────────────
