@@ -26,10 +26,20 @@ document.addEventListener('DOMContentLoaded', function() {
     localStorage.setItem('ns_quotes', JSON.stringify(quotes));
   }
 
-  function markStatus(id, status) {
+  // Compare the saved content, excluding bookkeeping changed by this guard.
+  // An acknowledgement for an older edit must not certify the current edit.
+  function recordVersion(record) {
+    var content = Object.assign({}, record);
+    delete content._syncStatus;
+    delete content._syncedAt;
+    return JSON.stringify(content);
+  }
+
+  function markStatus(id, status, expectedVersion) {
     var quotes = getQuotes();
     var idx = quotes.findIndex(function (q) { return q && String(q.id) === String(id); });
     if (idx === -1) return;
+    if (expectedVersion !== undefined && recordVersion(quotes[idx]) !== expectedVersion) return;
     quotes[idx]._syncStatus = status;
     if (status === 'synced') quotes[idx]._syncedAt = Date.now();
     setQuotesSilently(quotes);
@@ -45,10 +55,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function pushOne(record) {
     if (!record || !record.id) return;
+    var version = recordVersion(record);
     waitForDB(function (db) {
       db.collection('ns_quotes').doc(String(record.id)).set(record)
-        .then(function () { markStatus(record.id, 'synced'); })
-        .catch(function () { markStatus(record.id, 'error'); });
+        .then(function () { markStatus(record.id, 'synced', version); })
+        .catch(function () { markStatus(record.id, 'error', version); });
     });
   }
 
@@ -76,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(retrySweep, 15000);
 
   var badge;
+  var badgeHideTimer;
   function ensureBadge() {
     if (badge) return badge;
     badge = document.createElement('div');
@@ -93,11 +105,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var quotes = getQuotes();
     var pending = quotes.filter(function (q) { return q && q._syncStatus && q._syncStatus !== 'synced'; }).length;
     var b = ensureBadge();
+    clearTimeout(badgeHideTimer);
     b.style.opacity = '1';
     if (pending === 0) {
       b.style.background = '#2d6a30'; b.style.color = '#fff';
       b.textContent = '\u2601\ufe0f All quotes synced';
-      setTimeout(function () { if (b) b.style.opacity = '0'; }, 3000);
+      badgeHideTimer = setTimeout(function () { if (b) b.style.opacity = '0'; }, 3000);
     } else {
       b.style.background = '#c0392b'; b.style.color = '#fff';
       b.textContent = '\u26a0\ufe0f ' + pending + ' not yet synced';
