@@ -22,6 +22,9 @@ body{font-family:system-ui,sans-serif;background:#f0ece4;color:#111827;font-size
 .tab:hover{color:#f5e8c8}.tab.active{background:#f0ece4;color:#1a2438;border-radius:5px 5px 0 0}
 .tab-new{background:#2980d4!important;color:#fff!important;border-radius:5px!important;margin-left:8px;padding:7px 14px}
 .tab-new:hover{background:#a87820!important}
+#df-tab-btn{position:relative}
+.df-notify-dot{display:none;position:absolute;top:3px;right:4px;width:9px;height:9px;border-radius:50%;background:#f5c518;box-shadow:0 0 0 2px #1a2438;animation:dfPulse 1.4s infinite}
+@keyframes dfPulse{0%{box-shadow:0 0 0 0 rgba(245,197,24,.7),0 0 0 2px #1a2438}70%{box-shadow:0 0 0 7px rgba(245,197,24,0),0 0 0 2px #1a2438}100%{box-shadow:0 0 0 0 rgba(245,197,24,0),0 0 0 2px #1a2438}}
 .main{padding:20px;max-width:1200px;margin:0 auto}
 .qgrid{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
 .panel{background:#fff;border-radius:8px;border:1px solid #e0d5c0;overflow:hidden;margin-bottom:16px}
@@ -465,7 +468,7 @@ tr:hover td{background:#fdf9f3}
   <nav class="nav" style="overflow-x:auto;padding-bottom:0;justify-content:flex-start">
     <button class="tab active" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
     <button class="tab" onclick="window.open('inventory.html','_blank')" title="Open Inventory Manager in new tab">📦 Inventory</button>
-    <button class="tab" onclick="window.open('door-requests.html','_blank')" title="Customer Door Finder requests">📷 Door Finder</button>
+    <button class="tab" id="df-tab-btn" onclick="nsOpenDoorFinder()" title="Customer Door Finder requests">📷 Door Finder<span class="df-notify-dot" id="df-notify-dot"></span></button>
     <button class="tab" id="tab-history" onclick="showPage(&#39;history&#39;,this)">🗂️ Saved Quotes</button>
     <button class="tab" id="tab-orders" onclick="showPage(&#39;orders&#39;,this)">📦 Order Tracker</button>
     <button class="tab" id="tab-pickup" onclick="showPage(&#39;pickup&#39;,this)">🚚 Pickup</button>
@@ -7841,6 +7844,36 @@ function renderInquiries(){
 // ── PO LOG ────────────────────────────────────────────────────────────────────
 let currentPOData = null;  // holds the last generated PO data for email/save
 let currentInvNum = null;  // holds the current invoice number on screen
+
+// ── DOOR FINDER NEW-REQUEST NOTIFICATION (added 2026-09-12) ──────────────────
+var DF_FUNCTION_URL = "https://doorfinder-933963197210.us-central1.run.app";
+var DF_PIN = "1971";
+
+function nsOpenDoorFinder(){
+  localStorage.setItem('ns_df_last_seen_ts', String(Date.now()));
+  var dot = document.getElementById('df-notify-dot');
+  if (dot) dot.style.display = 'none';
+  window.open('door-requests.html', '_blank');
+}
+
+async function nsCheckDoorFinderNew(){
+  try{
+    var lastSeen = Number(localStorage.getItem('ns_df_last_seen_ts') || 0);
+    var r = await fetch(DF_FUNCTION_URL + '?list=1&pin=' + DF_PIN);
+    var d = await r.json();
+    if (d.error || !d.items) return;
+    var hasNew = d.items.some(function(it){
+      if (it.handled) return false;
+      var t = Date.parse(it.createdIso || '') || 0;
+      return t > lastSeen;
+    });
+    var dot = document.getElementById('df-notify-dot');
+    if (dot) dot.style.display = hasNew ? 'block' : 'none';
+  }catch(e){ /* silent — notification is best-effort, never blocks the tool */ }
+}
+setTimeout(nsCheckDoorFinderNew, 3000);
+setInterval(nsCheckDoorFinderNew, 3 * 60 * 1000);
+
 
 // ── INVOICE FULFILLMENT STRIP ────────────────────────────────────────────────
 function updateInvFulfillmentStrip(invNum) {

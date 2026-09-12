@@ -1,0 +1,2821 @@
+<!DOCTYPE html>
+<!-- saved from url=(0073)file:///C:/Users/Lance/Downloads/Norwood_Vendor_Product_Reference_v6.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Norwood Supply — Vendor Product Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+  :root {
+    --navy:         #1a2438;
+    --navy-mid:     #1f2d46;
+    --navy-light:   #263550;
+    --blue:         #2980d4;
+    --blue-dim:     rgba(41,128,212,0.18);
+    --blue-border:  rgba(41,128,212,0.35);
+    --tan:          #d4b896;
+    --tan-dim:      rgba(212,184,150,0.18);
+    --tan-border:   rgba(212,184,150,0.35);
+    --green:        #3aab6e;
+    --green-dim:    rgba(58,171,110,0.18);
+    --green-border: rgba(58,171,110,0.35);
+    --orange:       #e05a1e;
+    --orange-dim:   rgba(224,90,30,0.18);
+    --orange-border:rgba(224,90,30,0.38);
+    --wy:           #1a7040;
+    --wy-dim:       rgba(26,112,64,0.18);
+    --wy-border:    rgba(26,112,64,0.38);
+    --cream:        #f0ece4;
+    --gray:         #8fa4be;
+    --card-bg:      #1e2e47;
+    --multi-bg:     rgba(41,128,212,0.07);
+    --multi-border: rgba(212,184,150,0.45);
+    --border:       rgba(41,128,212,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--navy); color: var(--cream); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header { background: var(--navy-mid); border-bottom: 2px solid var(--blue); padding: 16px 28px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .logo-block h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--blue); letter-spacing: 2px; line-height: 1; }
+  .logo-block p { font-size: 0.68rem; color: var(--gray); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
+  .header-stats { margin-left: auto; display: flex; gap: 28px; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--tan); line-height: 1; }
+  .stat-label { font-size: 0.62rem; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── Controls ───────────────────────────────────────────── */
+  .controls { padding: 14px 28px; background: var(--navy-mid); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border); }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.4; pointer-events: none; }
+  #searchInput { width: 100%; background: var(--navy-light); border: 1px solid var(--border); border-radius: 6px; color: var(--cream); padding: 8px 12px 8px 38px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+  #searchInput:focus { border-color: var(--blue); }
+  #searchInput::placeholder { color: var(--gray); }
+  .filter-btn { background: var(--navy-light); border: 1px solid var(--border); color: var(--gray); border-radius: 6px; padding: 7px 14px; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+  .filter-btn:hover { border-color: var(--blue); color: var(--cream); }
+  .filter-btn.active[data-vendor="all"]           { background: var(--navy-light); border-color: var(--blue); color: var(--cream); }
+  .filter-btn.active[data-vendor="BlueLinx"]      { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .filter-btn.active[data-vendor="US Lumber"]     { background: var(--tan); border-color: var(--tan); color: var(--navy); }
+  .filter-btn.active[data-vendor="Logan Lumber"]  { background: var(--green); border-color: var(--green); color: #fff; }
+  .filter-btn.active[data-vendor="Dixie Plywood"] { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .filter-btn.active[data-vendor="Weyerhaeuser"]  { background: var(--wy); border-color: var(--wy); color: #fff; }
+  .filter-btn.active[data-vendor="shared"]        { background: linear-gradient(90deg, var(--blue) 0%, var(--green) 50%, var(--orange) 100%); border-color: var(--orange); color: #fff; }
+  .count-wrap { font-size: 0.78rem; color: var(--gray); margin-left: auto; white-space: nowrap; }
+  .count-wrap span { color: var(--tan); font-weight: 600; }
+
+  /* ── Grid ───────────────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding: 24px 28px; }
+
+  /* ── Card ───────────────────────────────────────────────── */
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+  .card.multi-vendor { border-color: var(--multi-border); background: var(--multi-bg); }
+  .card-header { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .card.multi-vendor .card-header { border-bottom-color: var(--multi-border); }
+  .card-title { font-weight: 600; font-size: 0.9rem; color: var(--cream); line-height: 1.3; }
+  .badge-row { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .vendor-badge { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+  .badge-bluelinx  { background: var(--blue-dim);   color: #7ec3ff;    border: 1px solid var(--blue-border); }
+  .badge-uslumber  { background: var(--tan-dim);    color: var(--tan); border: 1px solid var(--tan-border); }
+  .badge-logan     { background: var(--green-dim);  color: #7de0a8;    border: 1px solid var(--green-border); }
+  .badge-dixie     { background: var(--orange-dim); color: #ffaa7a;    border: 1px solid var(--orange-border); }
+
+  /* ── Item list ───────────────────────────────────────────── */
+  .item-list { list-style: none; padding: 8px 12px 12px; }
+  .item-list li { padding: 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .item-list li:last-child { border-bottom: none; }
+
+  /* Clickable item row */
+  .item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 4px 4px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .item-row:hover { background: rgba(41,128,212,0.12); }
+  .item-row:hover .inquiry-btn { opacity: 1; }
+
+  .item-text {
+    font-size: 0.82rem;
+    color: #b5c8de;
+    line-height: 1.4;
+    flex: 1;
+  }
+  .item-text.highlight { color: var(--tan); font-weight: 500; }
+
+  .src-tags { display: flex; gap: 3px; flex-shrink: 0; }
+  .src-label { display: inline-block; font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 1px 5px; border-radius: 2px; opacity: 0.9; }
+  .badge-wy    { background: var(--wy-dim);    color: #7de0b8;    border: 1px solid var(--wy-border); }
+  .src-bl  { background: var(--blue-dim);   color: #7ec3ff;    border: 1px solid var(--blue-border); }
+  .src-us  { background: var(--tan-dim);    color: var(--tan); border: 1px solid var(--tan-border); }
+  .src-ll  { background: var(--green-dim);  color: #7de0a8;    border: 1px solid var(--green-border); }
+  .src-dx  { background: var(--orange-dim); color: #ffaa7a;    border: 1px solid var(--orange-border); }
+  .src-wy  { background: var(--wy-dim);     color: #7de0b8;    border: 1px solid var(--wy-border); }
+
+  .inquiry-btn {
+    flex-shrink: 0;
+    opacity: 0;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue-border);
+    color: #7ec3ff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .inquiry-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* Empty */
+  .empty { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--gray); }
+  .empty p { margin-top: 12px; font-size: 0.9rem; }
+
+  /* Legend */
+  .legend { padding: 10px 28px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: 0.74rem; color: var(--gray); border-top: 1px solid var(--border); background: var(--navy-mid); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-bl    { background: var(--blue); }
+  .dot-us    { background: var(--tan); }
+  .dot-ll    { background: var(--green); }
+  .dot-dx    { background: var(--orange); }
+  .dot-wy    { background: var(--wy); }
+  .dot-multi { background: linear-gradient(135deg, var(--blue) 0%, var(--green) 60%, var(--orange) 100%); }
+  .legend-hint { margin-left: auto; font-size: 0.7rem; color: var(--gray); font-style: italic; }
+
+  /* ══════════════════════════════════════════════════════════
+     INQUIRY MODAL
+  ══════════════════════════════════════════════════════════ */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--navy-mid);
+    border: 1px solid var(--blue-border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .modal-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .modal-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--blue); letter-spacing: 1px; line-height: 1.2; }
+  .modal-header p { font-size: 0.78rem; color: var(--gray); margin-top: 3px; }
+  .modal-close { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 1.4rem; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; }
+  .modal-close:hover { color: var(--cream); }
+
+  .modal-body { padding: 18px 22px; }
+
+  .modal-product-name {
+    background: var(--navy-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    color: var(--cream);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .modal-product-name span { color: var(--gray); font-weight: 400; font-size: 0.78rem; display: block; margin-bottom: 2px; }
+
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+  .form-row input, .form-row textarea, .form-row select {
+    width: 100%;
+    background: var(--navy-light);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--cream);
+    padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-row input:focus, .form-row textarea:focus, .form-row select:focus { border-color: var(--blue); }
+  .form-row input::placeholder, .form-row textarea::placeholder { color: var(--gray); }
+  .form-row textarea { resize: vertical; min-height: 80px; }
+  .form-row select option { background: var(--navy-mid); }
+
+  /* Vendor checkboxes */
+  .vendor-checks { display: flex; flex-direction: column; gap: 8px; }
+  .vendor-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--navy-light);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .vendor-check-row:hover { border-color: var(--blue); }
+  .vendor-check-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; flex-shrink: 0; }
+  .vendor-check-info { flex: 1; }
+  .vendor-check-name { font-size: 0.85rem; font-weight: 600; color: var(--cream); }
+  .vendor-check-email { font-size: 0.72rem; color: var(--gray); }
+  .vendor-check-badge { flex-shrink: 0; }
+
+  .modal-footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn-cancel { background: var(--navy-light); border: 1px solid var(--border); color: var(--gray); border-radius: 6px; padding: 9px 20px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-cancel:hover { color: var(--cream); border-color: var(--blue); }
+  .btn-send { background: var(--blue); border: 1px solid var(--blue); color: #fff; border-radius: 6px; padding: 9px 22px; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-send:hover { background: #1a6abf; }
+  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  @media (max-width: 600px) {
+    header { padding: 12px 16px; }
+    .controls { padding: 12px 16px; }
+    .grid { padding: 16px; gap: 12px; }
+    .legend { padding: 10px 16px; }
+    .modal-body { padding: 14px 16px; }
+    .modal-footer { padding: 12px 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <h1>Norwood Supply</h1>
+    <p>Vendor Product Reference</p>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><div class="stat-num" id="total-products">238</div><div class="stat-label">Products</div></div>
+    <div class="stat"><div class="stat-num" id="total-cats">43</div><div class="stat-label">Categories</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-label">Vendors</div></div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+    <input id="searchInput" type="search" placeholder="Search products or categories…">
+  </div>
+  <button class="filter-btn active" data-vendor="all">All</button>
+  <button class="filter-btn" data-vendor="BlueLinx">BlueLinx</button>
+  <button class="filter-btn" data-vendor="US Lumber">US Lumber</button>
+  <button class="filter-btn" data-vendor="Logan Lumber">Logan Lumber</button>
+  <button class="filter-btn" data-vendor="Dixie Plywood">Dixie Plywood</button>
+  <button class="filter-btn" data-vendor="Weyerhaeuser">Weyerhaeuser</button>
+  <button class="filter-btn" data-vendor="shared">Shared</button>
+  <div class="count-wrap">Showing <span id="visibleCount">43</span> categories</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot dot-bl"></span> BlueLinx</div>
+  <div class="legend-item"><span class="legend-dot dot-us"></span> US Lumber</div>
+  <div class="legend-item"><span class="legend-dot dot-ll"></span> Logan Lumber</div>
+  <div class="legend-item"><span class="legend-dot dot-dx"></span> Dixie Plywood</div>
+  <div class="legend-item"><span class="legend-dot dot-multi"></span> Multiple vendors</div>
+  <div class="legend-hint">Hover any product → click <strong>Inquire</strong> to send a vendor email</div>
+</div>
+
+<div class="grid" id="grid"><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Composite Decking &amp; Outdoor Living</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="TimberTech%20AZEK%20%E2%80%94%20Vintage%2C%20Landmark%2C%20Harvest%2B%2C%20Harvest%20Collections" data-keys="wy" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">TimberTech AZEK — Vintage, Landmark, Harvest+, Harvest Collections</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="TimberTech%20Composite%20%E2%80%94%20Legacy%2C%20Reserve%2C%20Terrain%2B%2C%20Terrain%2C%20Prime%2B%20Collections" data-keys="wy" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">TimberTech Composite — Legacy, Reserve, Terrain+, Terrain, Prime+ Collections</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="TimberTech%20Railing%20%E2%80%94%20Classic%20Composite%20Series%20%2F%20Impression%20Rail%20Express%C2%AE%20(IRX)" data-keys="wy" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">TimberTech Railing — Classic Composite Series / Impression Rail Express® (IRX)</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="TimberTech%20Fasteners%20%E2%80%94%20CONCEALoc%C2%AE%2C%20TOPLoc%C2%AE%2C%20Cortex%C2%AE%2C%20EdgeLoc%C2%AE" data-keys="wy" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">TimberTech Fasteners — CONCEALoc®, TOPLoc®, Cortex®, EdgeLoc®</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trex%20%E2%80%94%20Composite%20Decking%2C%20Pickets%2C%20Rail%20Posts%2C%20Railing%2C%20Hardware" data-keys="us,ll" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Trex — Composite Decking, Pickets, Rail Posts, Railing, Hardware</span>
+          <span class="src-tags"><span class="src-label src-us">US</span><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trex%20Signature%2C%20Lineage%2C%20Transcend%2C%20Select%2C%20Enhance%20Series" data-keys="ll" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Trex Signature, Lineage, Transcend, Select, Enhance Series</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trex%20Railing%20%E2%80%94%20Transcend%2C%20Signature%2C%20X-Series%20Cable%20Rail" data-keys="ll" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Trex Railing — Transcend, Signature, X-Series Cable Rail</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="NewTechWood%20Decking%20%E2%80%94%20Bell%2C%20Magellan%2C%20Cortes%20Series%201x6x16" data-keys="dx" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">NewTechWood Decking — Bell, Magellan, Cortes Series 1x6x16</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="NewTechWood%20Fascia%201x12x12%20%2F%20Interior%20Panels%20%2F%20UH68%20Shadowline" data-keys="dx" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">NewTechWood Fascia 1x12x12 / Interior Panels / UH68 Shadowline</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lumberrock%20Coastal%20Collection%20%E2%80%94%205%2F4x6%20%26%202x6%20Deck%20Boards%20%2F%20Fascia" data-keys="dx" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Lumberrock Coastal Collection — 5/4x6 &amp; 2x6 Deck Boards / Fascia</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lumberrock%20Dimensional%20Lumber%202x4%2C%202x8%2C%204x4%20%E2%80%94%20cut-to-length%20available" data-keys="dx" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Lumberrock Dimensional Lumber 2x4, 2x8, 4x4 — cut-to-length available</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="MoistureShield%20Decking%20%26%20Railing%20%2F%20Joist%20Tape" data-keys="bl" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">MoistureShield Decking &amp; Railing / Joist Tape</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Wild%20Hog%20Railing%20%2F%20RDI%20Finyl%20Line%20%2F%20RDI%20Elevation%20Cable%20Rail" data-keys="us" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Wild Hog Railing / RDI Finyl Line / RDI Elevation Cable Rail</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="RDI%C2%AE%20Railing%20%2F%20Freestyle%E2%84%A2%20Screens%20%26%20Lattice" data-keys="bl" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">RDI® Railing / Freestyle™ Screens &amp; Lattice</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Aeratis%20PVC%20Porch%20Flooring" data-keys="us" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Aeratis PVC Porch Flooring</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Starborn%20Fasteners" data-keys="bl" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Starborn Fasteners</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Special%20Order%3A%20IP%C3%89%20Decking" data-keys="bl" data-category="Composite%20Decking%20%26%20Outdoor%20Living">
+          <span class="item-text">Special Order: IPÉ Decking</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Siding &amp; Trim</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="JamesHardie%20%E2%80%94%20Color%20Plus%20Siding%20%26%20Trim%2C%20Lap%20Siding%20(Cedarmill%20%26%20Smooth)" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">JamesHardie — Color Plus Siding &amp; Trim, Lap Siding (Cedarmill &amp; Smooth)</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="JamesHardie%20%E2%80%94%20Artisan%20Siding%2C%20Shingles%2C%20Soffit%2C%20Cemplank" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">JamesHardie — Artisan Siding, Shingles, Soffit, Cemplank</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="JamesHardie%20%E2%80%94%20Trim%204%2F4%20%26%205%2F4%20Smooth%20%26%20Rustic%2C%208%2F4%20Artisan" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">JamesHardie — Trim 4/4 &amp; 5/4 Smooth &amp; Rustic, 8/4 Artisan</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Versatex%20PVC%20%E2%80%94%20Smooth%20%26%20Reversible%20Trimboards%2C%20TrimLast%20Paint%20Grade" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Versatex PVC — Smooth &amp; Reversible Trimboards, TrimLast Paint Grade</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Versatex%20%E2%80%94%20T%26G%20Profiles%2C%20Canvas%20Series%20T%26G%20%26%20Trimboards" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Versatex — T&amp;G Profiles, Canvas Series T&amp;G &amp; Trimboards</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Versatex%20%E2%80%94%20White%20%26%20Canvas%20Moulding%2C%20Column%20Wraps%204%22%2F6%22%2F8%22" data-keys="dx" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Versatex — White &amp; Canvas Moulding, Column Wraps 4"/6"/8"</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="LP%20SmartSide%C2%AE" data-keys="bl,us" data-category="Siding%20%26%20Trim">
+          <span class="item-text">LP SmartSide®</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Allura%20%E2%80%94%20Fiber%20Cement%20Siding%2C%20Trim%2C%20Soffit%2C%20Panels" data-keys="bl,us" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Allura — Fiber Cement Siding, Trim, Soffit, Panels</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="PVC%20Trim%20%26%20Panels%20%2F%20Plycem%20Trim" data-keys="bl" data-category="Siding%20%26%20Trim">
+          <span class="item-text">PVC Trim &amp; Panels / Plycem Trim</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="MiraTec%20%2F%20Royal%20PVC%20%2F%20TruExterior%20%2F%20Versetta%20Stone" data-keys="us" data-category="Siding%20%26%20Trim">
+          <span class="item-text">MiraTec / Royal PVC / TruExterior / Versetta Stone</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="James%20Hardie%20%E2%80%94%20Largest%20SE%20Distributor%2C%20Every%20SKU%20Stocked" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">James Hardie — Largest SE Distributor, Every SKU Stocked</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="James%20Hardie%20%E2%80%94%20Dream%20Collection%20%26%20Woodtone%20RusticSeries%20(Special%20Order)" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">James Hardie — Dream Collection &amp; Woodtone RusticSeries (Special Order)</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AZEK%20Exteriors%20Trimboard%20%E2%80%94%20Traditional%2C%20Frontier%2C%20Beadboard%2C%20Sheet%2C%20Column%20Wrap" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">AZEK Exteriors Trimboard — Traditional, Frontier, Beadboard, Sheet, Column Wrap</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AZEK%20Reveal%20Shingle%20Panel%20(PaintPro)%20%2F%20AZEK%20Moulding" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">AZEK Reveal Shingle Panel (PaintPro) / AZEK Moulding</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Miratec%2016&#39;%20Smooth%20Select%20%26%20Reversible%20Composite%20Trim%20%E2%80%94%204%2F4%22%20%26%205%2F4%22%20widths" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Miratec 16' Smooth Select &amp; Reversible Composite Trim — 4/4" &amp; 5/4" widths</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Tamlyn%20%E2%80%94%20Exclusive%20Stocking%20Distributor%2C%2040%20Most%20Popular%20SKUs%20%2F%20Special%20Order%20all" data-keys="wy" data-category="Siding%20%26%20Trim">
+          <span class="item-text">Tamlyn — Exclusive Stocking Distributor, 40 Most Popular SKUs / Special Order all</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Millwork &amp; Mouldings</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="PFJ%20Pine%20Mouldings%20%2F%20Primed%20MDF%20Mouldings" data-keys="bl" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">PFJ Pine Mouldings / Primed MDF Mouldings</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="PrimeLinx%C2%AE%20FJ%20Radiata%20Primed%20%E2%80%94%20Trim%20Boards%2C%20Shadow%20Gap%C2%AE%2C%20Edge%20%26%20Ctr%20Bead" data-keys="bl" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">PrimeLinx® FJ Radiata Primed — Trim Boards, Shadow Gap®, Edge &amp; Ctr Bead</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="HB%26G%20Columns" data-keys="bl" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">HB&amp;G Columns</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Fingerjoint%20%26%20Raw%20Pine%20Mouldings%20%2F%20Solid%20Pine%20Moulding" data-keys="us" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">Fingerjoint &amp; Raw Pine Mouldings / Solid Pine Moulding</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Interior%20and%20Exterior%20Door%20Shop%20Components" data-keys="us" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">Interior and Exterior Door Shop Components</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="TLC%20Harmony%20Light%20Weight%20MDF%20%E2%80%94%20Primed%20Mouldings%2C%20Boards%2C%20Panels" data-keys="us" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">TLC Harmony Light Weight MDF — Primed Mouldings, Boards, Panels</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Duration%20Mouldings%20%2F%20SBP%20Primed%20FJ%20Boards" data-keys="us" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">Duration Mouldings / SBP Primed FJ Boards</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1%C3%976%20Primed%20VJ%2FBeaded%20Reversible%2016&#39;%20%2F%20Ship-lap%2C%20Nickel%20Gap" data-keys="us" data-category="Millwork%20%26%20Mouldings">
+          <span class="item-text">1×6 Primed VJ/Beaded Reversible 16' / Ship-lap, Nickel Gap</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Engineered Lumber (EWP)</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Weyerhaeuser%20TJI%C2%AE%20210%20(9%C2%BD%22%E2%80%9316%22)%2C%20230%20(16%22)%2C%20360%20(11%E2%85%9E%22%E2%80%9320%22)%2C%20560%20(11%E2%85%9E%22%E2%80%9320%22)" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser TJI® 210 (9½"–16"), 230 (16"), 360 (11⅞"–20"), 560 (11⅞"–20")</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20TimberStrand%C2%AE%20LSL%201.55E%20Beam%20%E2%80%94%201%C2%BE%22%20%26%203%C2%BD%22%20depths%209%C2%BD%22%E2%80%9316%22" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser TimberStrand® LSL 1.55E Beam — 1¾" &amp; 3½" depths 9½"–16"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20TimberStrand%C2%AE%20LSL%201.3E%20Rim%20Board%20%E2%80%94%201%E2%85%9B%22%20depths%209%C2%BD%22%E2%80%9318%22" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser TimberStrand® LSL 1.3E Rim Board — 1⅛" depths 9½"–18"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20TimberStrand%C2%AE%20LSL%20Wall%20Framing%20%E2%80%94%202x4%2C%202x6%20Bright%20%26%20Strandguard%20(Treated)%2C%202x8" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser TimberStrand® LSL Wall Framing — 2x4, 2x6 Bright &amp; Strandguard (Treated), 2x8</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Microllam%C2%AE%20LVL%201.9E%20Headers%20%26%20Beams%20%E2%80%94%201%C2%BE%22%20depths%205%C2%BD%22%E2%80%9324%22" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser Microllam® LVL 1.9E Headers &amp; Beams — 1¾" depths 5½"–24"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Parallam%C2%AE%20PSL%202.0E%20Headers%20%26%20Beams%20%E2%80%94%203%C2%BD%22%20%26%205%C2%BC%22%20depths%209%C2%BD%22%E2%80%9318%22" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser Parallam® PSL 2.0E Headers &amp; Beams — 3½" &amp; 5¼" depths 9½"–18"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Parallam%C2%AE%20PSL%201.8E%20Columns%20%E2%80%94%203%C2%BD%22x3%C2%BD%22%20thru%207%22x7%22" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser Parallam® PSL 1.8E Columns — 3½"x3½" thru 7"x7"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Treated%20Parallam%C2%AE%20Plus%20PSL%20MCA%20%E2%80%94%20Beams%20%26%20Columns" data-keys="wy" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Weyerhaeuser Treated Parallam® Plus PSL MCA — Beams &amp; Columns</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Boise%20Cascade%20%E2%80%94%20I-Joist%2C%20LVL%2C%20Rimboard%2C%20Versa%20Columns%20%26%20Studs" data-keys="dx" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Boise Cascade — I-Joist, LVL, Rimboard, Versa Columns &amp; Studs</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="BoozerBeam%20Glulams%20%E2%80%94%20Bright%20%26%20Pressure" data-keys="dx,us" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">BoozerBeam Glulams — Bright &amp; Pressure</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trus%20Joist%20I-Joists%20%E2%80%94%20210%2C%20360%2C%20560%20Series%20(in%20stock)" data-keys="ll" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Trus Joist I-Joists — 210, 360, 560 Series (in stock)</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trus%20Joist%20LVL%2FMicrolam%20%E2%80%94%20SSS%20Six-Sided%20Seal%20%26%20WSO%20Water-Shed%20Overlay" data-keys="ll" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Trus Joist LVL/Microlam — SSS Six-Sided Seal &amp; WSO Water-Shed Overlay</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="PSL%2FParallam%20Columns%20%26%20Beams%20%2F%20MCA%20Treated%20PSL" data-keys="ll" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">PSL/Parallam Columns &amp; Beams / MCA Treated PSL</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="LSL%20Timberstrand%20%26%20Strandguard%20Wall%20Frame%20%2F%20Sill%20Plate%20%2F%20Rim%20Board" data-keys="ll" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">LSL Timberstrand &amp; Strandguard Wall Frame / Sill Plate / Rim Board</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="onCENTER%C2%AE%20BLI%20Joists%20%2F%20LVL%20%2F%20Rim%20Board%20%2F%20TrimJoist%C2%AE%20Open%20Web%20Trusses" data-keys="bl" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">onCENTER® BLI Joists / LVL / Rim Board / TrimJoist® Open Web Trusses</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pacific%20Woodtech%20%2F%20Open%20Joist%20%2F%20Hangers%20%2F%20Treated%20PWT%20LVLs" data-keys="us" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">Pacific Woodtech / Open Joist / Hangers / Treated PWT LVLs</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="LP%20Structural%20Solutions%20%E2%80%94%20Legacy%2C%20FlameBlock%2C%20WeatherLogic" data-keys="us" data-category="Engineered%20Lumber%20(EWP)">
+          <span class="item-text">LP Structural Solutions — Legacy, FlameBlock, WeatherLogic</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Western Red Cedar</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Weyerhaeuser%20CedarOne%C2%AE%20%E2%80%94%20Siding%3A%20Bevel%2C%20Channel%2C%20T%26G" data-keys="wy" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Weyerhaeuser CedarOne® — Siding: Bevel, Channel, T&amp;G</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20CedarOne%C2%AE%20%E2%80%94%20Knotty%20Boards%20%2F%20Knotty%20Rough%20Dimension" data-keys="wy" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Weyerhaeuser CedarOne® — Knotty Boards / Knotty Rough Dimension</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20CedarOne%C2%AE%20%E2%80%94%20Eastern%20White%20Shim%20Shingles" data-keys="wy" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Weyerhaeuser CedarOne® — Eastern White Shim Shingles</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20CedarOne%C2%AE%20%E2%80%94%20S4S%20Cedar%20Dimension%20(Special%20Order)" data-keys="wy" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Weyerhaeuser CedarOne® — S4S Cedar Dimension (Special Order)</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="D%26Btr%20%2F%20Knotty%20%2F%20Clear%20Boards%20%26%20Dimension%20%2F%20Primed%20FJ%20Boards%20%26%20Dimension" data-keys="ll" data-category="Western%20Red%20Cedar">
+          <span class="item-text">D&amp;Btr / Knotty / Clear Boards &amp; Dimension / Primed FJ Boards &amp; Dimension</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Cedar%20Timbers" data-keys="ll" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Cedar Timbers</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Boards%2C%20Siding%2C%20Pattern%2C%20Timbers%20%2F%20Shakes%20and%20Shingles" data-keys="us" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Boards, Siding, Pattern, Timbers / Shakes and Shingles</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Western%20Red%20Cedar%20(general)" data-keys="bl" data-category="Western%20Red%20Cedar">
+          <span class="item-text">Western Red Cedar (general)</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Cypress</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Boards%20%2F%20Pattern%20%2F%20Siding" data-keys="us" data-category="Cypress">
+          <span class="item-text">Boards / Pattern / Siding</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Special%20Order%20%E2%80%94%20Timbers%2C%20Dimension%2C%20Pecky" data-keys="us" data-category="Cypress">
+          <span class="item-text">Special Order — Timbers, Dimension, Pecky</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Cypress%20(general)" data-keys="bl" data-category="Cypress">
+          <span class="item-text">Cypress (general)</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Southern Yellow Pine — Lumber &amp; Boards</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Weyerhaeuser%20SYP%20%232%20%E2%80%94%202x4%20thru%202x12%20Dimension" data-keys="wy" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">Weyerhaeuser SYP #2 — 2x4 thru 2x12 Dimension</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Framer%20Series%20%E2%80%94%202x4%2C%202x6%2010&#39;%E2%80%9316&#39;%20%2F%20104%E2%85%9D%22%2C%20116%E2%85%9D%22" data-keys="wy" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">Weyerhaeuser Framer Series — 2x4, 2x6 10'–16' / 104⅝", 116⅝"</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20D-Blaze%20Fire%20Treated%20Lumber%20%E2%80%94%20SWL%20SP%20KDAT%20S4S%20%232%20%2F%202x4%E2%80%932x8" data-keys="wy" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">Weyerhaeuser D-Blaze Fire Treated Lumber — SWL SP KDAT S4S #2 / 2x4–2x8</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="%232%20SYP%20%E2%80%94%202x4%2C%202x6%2C%202x8%2C%202x10%2C%202x12" data-keys="dx" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">#2 SYP — 2x4, 2x6, 2x8, 2x10, 2x12</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="%232%20SYP%20S4S%20%E2%80%94%201x4%2C%201x6%20%2F%20T%26G%20V-Joint%201x6%20%2F%20C%26Btr%201x4%E2%80%931x12" data-keys="dx" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">#2 SYP S4S — 1x4, 1x6 / T&amp;G V-Joint 1x6 / C&amp;Btr 1x4–1x12</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="DSS%2012ft%3A%202x6%2C%202x8%20%2F%20DSS%2016ft%3A%202x4%2C%202x8%2C%202x16" data-keys="dx" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">DSS 12ft: 2x6, 2x8 / DSS 16ft: 2x4, 2x8, 2x16</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="C%26Btr%20%2F%20Knotty%20Boards%20and%20Patterns%20%2F%20Nickel%20Joint" data-keys="ll" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">C&amp;Btr / Knotty Boards and Patterns / Nickel Joint</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="%232%26Btr%20Dimension%20%2F%201%22%2C%202%22%2C%20%26%204%22%20Crating%20Lumber" data-keys="ll" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">#2&amp;Btr Dimension / 1", 2", &amp; 4" Crating Lumber</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20%232%20Boards%20%2F%20Pattern%20Stock%20%23122" data-keys="bl" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">SYP #2 Boards / Pattern Stock #122</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Gorman%20Premium" data-keys="bl,us,ll" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">Gorman Premium</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span><span class="src-label src-us">US</span><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20Boards%20and%20Pattern%20Stock%20%2F%20Steptread%20%2F%20Spruce%20Boards%20%26%20Furring" data-keys="us" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">SYP Boards and Pattern Stock / Steptread / Spruce Boards &amp; Furring</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Selkirk%20Platinum%20Premium%20Spruce%20Boards" data-keys="us" data-category="Southern%20Yellow%20Pine%20%E2%80%94%20Lumber%20%26%20Boards">
+          <span class="item-text">Selkirk Platinum Premium Spruce Boards</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Housewrap &amp; Moisture Control</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Weyerhaeuser%20HomeGuard%C2%AE%20Housewrap%20%E2%80%94%209&#39;x150&#39;%20%2F%2055%20Rolls%20per%20Unit" data-keys="wy" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Weyerhaeuser HomeGuard® Housewrap — 9'x150' / 55 Rolls per Unit</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20ThermoPly%20RED%20%2F%20Tape%2C%20Flashing%20%26%20Sealant%20Accessories" data-keys="wy" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Weyerhaeuser ThermoPly RED / Tape, Flashing &amp; Sealant Accessories</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Typar%20Housewrap%20%E2%80%94%209x100%2C%209x150%2C%2010x100%2C%2010x150%20%2F%20Commercial%20%2F%20Drainage" data-keys="dx" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Typar Housewrap — 9x100, 9x150, 10x100, 10x150 / Commercial / Drainage</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Typar%20Tape%20%26%20Flashing%20%E2%80%94%20All%20Temp%2C%20Butyl%2C%20Flex%2C%20Clear%20Acrylic%20%2F%20Sealant" data-keys="dx" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Typar Tape &amp; Flashing — All Temp, Butyl, Flex, Clear Acrylic / Sealant</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Barricade%C2%AE%20Housewrap%20%26%20Tape" data-keys="bl,us" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Barricade® Housewrap &amp; Tape</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="PROLinx%C2%AE%20Building%20Wrap%20%2F%20Benjamin%20Obdyke%20%E2%80%94%20HydroGap%C2%AE%2C%20HydroFlash%C2%AE%2C%20Cedar%20Breather" data-keys="bl" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">PROLinx® Building Wrap / Benjamin Obdyke — HydroGap®, HydroFlash®, Cedar Breather</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Henry%20Fortifiber%20%E2%80%94%20Housewrap%2C%20Sealant%2C%20Flashing%2C%20Tape%20%26%20Roof%20Underlayment" data-keys="us" data-category="Housewrap%20%26%20Moisture%20Control">
+          <span class="item-text">Henry Fortifiber — Housewrap, Sealant, Flashing, Tape &amp; Roof Underlayment</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Hardwood Plywood &amp; Sanded Plywood</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-dixie">Dixie Plywood</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Import%20Plywood%20%E2%80%94%20Baltic%20Birch%20%26%20Maple%20%2F%20Pre-Finished%20Birch%20%26%20Maple" data-keys="dx" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">Import Plywood — Baltic Birch &amp; Maple / Pre-Finished Birch &amp; Maple</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Domestic%20Plywood%20%E2%80%94%20Maple%2C%20Birch%2C%20Cherry%2C%20Cypress%2C%20Red%20Oak%2C%20White%20Oak%2C%20Walnut%2C%20Sapele" data-keys="dx" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">Domestic Plywood — Maple, Birch, Cherry, Cypress, Red Oak, White Oak, Walnut, Sapele</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AC%20Radiata%20Pine%20%E2%80%94%201%2F4%20thru%201%22%20%2F%20Specialty%20Beaded%202%22%20OC" data-keys="dx,ll,bl" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">AC Radiata Pine — 1/4 thru 1" / Specialty Beaded 2" OC</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span><span class="src-label src-ll">LL</span><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AC-Fir%20%2F%20AB%20Marine%20%E2%80%94%201%2F4%20thru%201%22%20%2F%20MDO%20Unprimed%20%26%20Primed%20%2F%20HDO%20Plyform" data-keys="dx" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">AC-Fir / AB Marine — 1/4 thru 1" / MDO Unprimed &amp; Primed / HDO Plyform</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Import%20Hardwood%20Plywood%20%2F%20Prefinished%20Birch%20%2F%20Cabinet%20Liner" data-keys="bl" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">Import Hardwood Plywood / Prefinished Birch / Cabinet Liner</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lauan%202.7MM%20%26%205.2MM%20%2F%20Natural%20Birch%20%2F%20White%20Maple%20%2F%20Red%20Oak%20MDF%20Core" data-keys="bl" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">Lauan 2.7MM &amp; 5.2MM / Natural Birch / White Maple / Red Oak MDF Core</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Birch%20Plywood" data-keys="ll,us" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">Birch Plywood</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AC%20Arauco%20%2F%20Import%20Plywood%20%2F%20Patriot%20Timber%20%E2%80%94%20Rev%20Ply%20%26%20Rev%20Bead" data-keys="us" data-category="Hardwood%20Plywood%20%26%20Sanded%20Plywood">
+          <span class="item-text">AC Arauco / Import Plywood / Patriot Timber — Rev Ply &amp; Rev Bead</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">OSB &amp; Structural Panels</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-wy">Weyerhaeuser</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Weyerhaeuser%20OSB%20%E2%80%94%20Diamond%C2%AE%20Premium%20%2F%20Edge%20Gold%E2%84%A2%20%2F%20Edge%E2%84%A2%20Green%20Panels" data-keys="wy" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Weyerhaeuser OSB — Diamond® Premium / Edge Gold™ / Edge™ Green Panels</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20OSB%20%E2%80%94%20SturdiStep%E2%84%A2%20Treads%20%2F%20Commodity%207%2F16%2C%2015%2F32%2C%205%2F8" data-keys="wy" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Weyerhaeuser OSB — SturdiStep™ Treads / Commodity 7/16, 15/32, 5/8</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20OSB%20%E2%80%94%207%2F16%20Cut%20to%20Size%20%2F%20Oversize" data-keys="wy" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Weyerhaeuser OSB — 7/16 Cut to Size / Oversize</span>
+          <span class="src-tags"><span class="src-label ">WY</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Huber%20ZIP%20System%C2%AE%20%E2%80%94%20Wall%2FRoof%207%2F16%2C%201%2F2%2C%205%2F8%204x8%20%2F%20ZIP%20Tape%20%26%20Stretch%20Tape" data-keys="dx,bl" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Huber ZIP System® — Wall/Roof 7/16, 1/2, 5/8 4x8 / ZIP Tape &amp; Stretch Tape</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="ZIP%20Liquid%20Flashing%20%E2%80%94%2029oz%20Cartridge%20%26%2020oz%20Sausage%20Tube" data-keys="dx" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">ZIP Liquid Flashing — 29oz Cartridge &amp; 20oz Sausage Tube</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="AdvanTech%C2%AE%20Subfloor%203%2F4%22" data-keys="dx,bl" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">AdvanTech® Subfloor 3/4"</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="OSB%20Sheathing%20%2F%20Radiant%20Barrier%20%2F%20OSB%20Long%20Lengths" data-keys="bl" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">OSB Sheathing / Radiant Barrier / OSB Long Lengths</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Sanded%20AC%20%26%20BC%20Pine%20%2F%20Rated%20Sheathing" data-keys="bl" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Sanded AC &amp; BC Pine / Rated Sheathing</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pine%20Siding%20%E2%80%94%20T1-11%2C%20RB%26B%2C%20No%20Groove%20%2F%20Ply-Bead%C2%AE%20%2F%20Fire%20Rated%20%2F%20AB%20Marine" data-keys="bl" data-category="OSB%20%26%20Structural%20Panels">
+          <span class="item-text">Pine Siding — T1-11, RB&amp;B, No Groove / Ply-Bead® / Fire Rated / AB Marine</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">SYP Plywood</div>
+        <div class="badge-row"><span class="vendor-badge badge-bluelinx">BlueLinx</span><span class="vendor-badge badge-dixie">Dixie Plywood</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="SYP%20Sheathing%20%E2%80%94%203%2F8%2C%201%2F2%2C%205%2F8%2C%203%2F4%20%2F%20SYP%20Solarply%20%E2%80%94%201%2F2%20%26%205%2F8" data-keys="dx" data-category="SYP%20Plywood">
+          <span class="item-text">SYP Sheathing — 3/8, 1/2, 5/8, 3/4 / SYP Solarply — 1/2 &amp; 5/8</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20T%26G%20Flooring%20%E2%80%94%20Sturd-i-floor%20%2F%20SYP%20BBOES%20Plyform%203%2F4" data-keys="dx" data-category="SYP%20Plywood">
+          <span class="item-text">SYP T&amp;G Flooring — Sturd-i-floor / SYP BBOES Plyform 3/4</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20BC%20%E2%80%94%201%2F4%20thru%203%2F4%20%2F%20SYP%20AC%20%E2%80%94%201%2F2%20%26%203%2F4" data-keys="dx" data-category="SYP%20Plywood">
+          <span class="item-text">SYP BC — 1/4 thru 3/4 / SYP AC — 1/2 &amp; 3/4</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Deco%20SYP%20Plywood%20Siding%20%E2%80%94%203%2F8%20%26%205%2F8%20N%2FG%2C%204%22%2F8%22%2F12%22%20OC%20%26%20RB%26B" data-keys="dx" data-category="SYP%20Plywood">
+          <span class="item-text">Deco SYP Plywood Siding — 3/8 &amp; 5/8 N/G, 4"/8"/12" OC &amp; RB&amp;B</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20Treated%20Plywood%20%E2%80%94%20Sheathing%201%2F2%2C%205%2F8%2C%203%2F4" data-keys="dx" data-category="SYP%20Plywood">
+          <span class="item-text">SYP Treated Plywood — Sheathing 1/2, 5/8, 3/4</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP%20Structural%20Panels%20%2F%20Rated%20Sheathing%20(general)" data-keys="bl" data-category="SYP%20Plywood">
+          <span class="item-text">SYP Structural Panels / Rated Sheathing (general)</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Gorman Spruce</div>
+        <div class="badge-row"><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="%232%26Btr%20Elite%20Boards%20%2F%20%233%20Craftsman%20Boards" data-keys="ll" data-category="Gorman%20Spruce">
+          <span class="item-text">#2&amp;Btr Elite Boards / #3 Craftsman Boards</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="T%26G%20VJT%2FBeaded%20%2F%20Furring%20Strips%20%2F%202x2%20Premium%20Spruce" data-keys="ll" data-category="Gorman%20Spruce">
+          <span class="item-text">T&amp;G VJT/Beaded / Furring Strips / 2x2 Premium Spruce</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Gorman%20Premium%20Boards%20(general)" data-keys="us" data-category="Gorman%20Spruce">
+          <span class="item-text">Gorman Premium Boards (general)</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Hardwood Lumber</div>
+        <div class="badge-row"><span class="vendor-badge badge-uslumber">US Lumber</span><span class="vendor-badge badge-logan">Logan Lumber</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="1%22%20C%26Btr%20S4S%20Oak%20%2F%20Rough%20Oak" data-keys="ll" data-category="Hardwood%20Lumber">
+          <span class="item-text">1" C&amp;Btr S4S Oak / Rough Oak</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Poplar" data-keys="ll,us" data-category="Hardwood%20Lumber">
+          <span class="item-text">Poplar</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Red%20Oak%20%2F%20Maple%20%2F%20White%20Oak%20%2F%20Custom%20Milled%20Patterns" data-keys="us" data-category="Hardwood%20Lumber">
+          <span class="item-text">Red Oak / Maple / White Oak / Custom Milled Patterns</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Exotic Hardwood Decking &amp; Fasteners</div>
+        <div class="badge-row"><span class="vendor-badge badge-logan">Logan Lumber</span><span class="vendor-badge badge-uslumber">US Lumber</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Signature%20IP%C3%89%20%2F%20IP%C3%89%20Accessories%20%2F%20IP%C3%89%20Seal" data-keys="ll" data-category="Exotic%20Hardwood%20Decking%20%26%20Fasteners">
+          <span class="item-text">Signature IPÉ / IPÉ Accessories / IPÉ Seal</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Headcote%20Stainless%20Steel%20Colored%20Fasteners%20%2F%20IP%C3%89%20Extreme%20Clips" data-keys="ll" data-category="Exotic%20Hardwood%20Decking%20%26%20Fasteners">
+          <span class="item-text">Headcote Stainless Steel Colored Fasteners / IPÉ Extreme Clips</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="TREX%20Hidden%20Deck%20Fasteners%20%2F%20Tiger%20Claw%20Clips" data-keys="ll" data-category="Exotic%20Hardwood%20Decking%20%26%20Fasteners">
+          <span class="item-text">TREX Hidden Deck Fasteners / Tiger Claw Clips</span>
+          <span class="src-tags"><span class="src-label src-ll">LL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Starborn%20Fasteners%20(general)" data-keys="us" data-category="Exotic%20Hardwood%20Decking%20%26%20Fasteners">
+          <span class="item-text">Starborn Fasteners (general)</span>
+          <span class="src-tags"><span class="src-label src-us">US</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Pressure Treated Lumber</div>
+        <div class="badge-row"><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-bluelinx">BlueLinx</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="CDX%20PT%20Sheathing%20%E2%80%94%2015%2F32%2C%2019%2F32%2C%2023%2F32" data-keys="dx" data-category="Pressure%20Treated%20Lumber">
+          <span class="item-text">CDX PT Sheathing — 15/32, 19/32, 23/32</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Borate%20Treated%20Boards%20%E2%80%94%201x2%2C%201x4%2C%201x6%2C%201x8" data-keys="dx" data-category="Pressure%20Treated%20Lumber">
+          <span class="item-text">Borate Treated Boards — 1x2, 1x4, 1x6, 1x8</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Borate%20Treated%20Lumber%20%E2%80%94%202x4%20thru%202x12%2C%204x4%2C%206x6" data-keys="dx" data-category="Pressure%20Treated%20Lumber">
+          <span class="item-text">Borate Treated Lumber — 2x4 thru 2x12, 4x4, 6x6</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Treated%20Lumber%20(general)" data-keys="bl" data-category="Pressure%20Treated%20Lumber">
+          <span class="item-text">Treated Lumber (general)</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card multi-vendor">
+      <div class="card-header">
+        <div class="card-title">Doors</div>
+        <div class="badge-row"><span class="vendor-badge badge-dixie">Dixie Plywood</span><span class="vendor-badge badge-bluelinx">BlueLinx</span></div>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Neuma%20Doors%20%E2%80%94%20Hinged%20%26%20Sliding%2C%20Impact%20%26%20Non-Impact" data-keys="dx" data-category="Doors">
+          <span class="item-text">Neuma Doors — Hinged &amp; Sliding, Impact &amp; Non-Impact</span>
+          <span class="src-tags"><span class="src-label src-dx">DX</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Residential%20%26%20Commercial%20Doors%20(general)" data-keys="bl" data-category="Doors">
+          <span class="item-text">Residential &amp; Commercial Doors (general)</span>
+          <span class="src-tags"><span class="src-label src-bl">BL</span></span>
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Thermally Modified Wood</div>
+        <span class="vendor-badge badge-dixie">Dixie Plywood</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="UFP%20Edge%20%E2%80%94%20Smooth%20WP4%20T%26G%20Clear%20VG%20Fir%3A%201x6%209-12&#39;%20WP4%2C%201x4%20%26%201x6%20SQ%20Trim%20VG%20Fir" data-keys="dx" data-category="Thermally%20Modified%20Wood">
+          <span class="item-text">UFP Edge — Smooth WP4 T&amp;G Clear VG Fir: 1x6 9-12' WP4, 1x4 &amp; 1x6 SQ Trim VG Fir</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="UFP%20Edge%20%E2%80%94%20Pre-Finished%20Nicklegap%20Poplar%3A%201x6%20WP4%2C%20Nicklegap%20%26%20Trim%20Smooth" data-keys="dx" data-category="Thermally%20Modified%20Wood">
+          <span class="item-text">UFP Edge — Pre-Finished Nicklegap Poplar: 1x6 WP4, Nicklegap &amp; Trim Smooth</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="UFP%20Edge%20%E2%80%94%20Smooth%20Unfinished%20Stain%20Grade%20Poplar%3A%201x6%20WP4%2C%20Nicklegap%20%26%20Trim" data-keys="dx" data-category="Thermally%20Modified%20Wood">
+          <span class="item-text">UFP Edge — Smooth Unfinished Stain Grade Poplar: 1x6 WP4, Nicklegap &amp; Trim</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lunawood%20%E2%80%94%20Poplar%3A%206%2F4x6%20Triple" data-keys="dx" data-category="Thermally%20Modified%20Wood">
+          <span class="item-text">Lunawood — Poplar: 6/4x6 Triple</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lunawood%20%E2%80%94%20Nordic%20Pine%3A%201x6%20TGV%20WP4%2C%201x6%20Panel%20Nickle%20Gap%2C%206%2F4x6%20Triple" data-keys="dx" data-category="Thermally%20Modified%20Wood">
+          <span class="item-text">Lunawood — Nordic Pine: 1x6 TGV WP4, 1x6 Panel Nickle Gap, 6/4x6 Triple</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Specialty Panels &amp; Boards</div>
+        <span class="vendor-badge badge-dixie">Dixie Plywood</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Versatex%20Smooth%20PVC%20Panels%20%E2%80%94%201%2F4%22%2C%203%2F8%22%2C%205%2F8%22%2C%203%2F4%22%2C%201%22%20%26%201-1%2F2%22" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">Versatex Smooth PVC Panels — 1/4", 3/8", 5/8", 3/4", 1" &amp; 1-1/2"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Homasote%20%E2%80%94%201%2F2%20Homasote%20440" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">Homasote — 1/2 Homasote 440</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="FRP%20Panels%20%E2%80%94%204x8%20%26%204x10%20Panels%20%26%20Trim" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">FRP Panels — 4x8 &amp; 4x10 Panels &amp; Trim</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Hardboard%20%E2%80%94%201%2F8%20%26%201%2F4" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">Hardboard — 1/8 &amp; 1/4</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Specialty%20Panels%20%E2%80%94%20MDF%20%26%20Particleboard" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">Specialty Panels — MDF &amp; Particleboard</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Soundboard%20%E2%80%94%201%2F2%22%20%26%201%2F2%20Cork%201S" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">Soundboard — 1/2" &amp; 1/2 Cork 1S</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="JamesHardie%20Panels%20%E2%80%94%20Smooth%2C%20Cedarmill%2C%20Sierra-8%2C%20Stucco%20%26%20Architectural" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">JamesHardie Panels — Smooth, Cedarmill, Sierra-8, Stucco &amp; Architectural</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="JamesHardie%20Backer%20%E2%80%94%201%2F4%203x5%20%26%204x8%20%2F%201%2F2%203x5" data-keys="dx" data-category="Specialty%20Panels%20%26%20Boards">
+          <span class="item-text">JamesHardie Backer — 1/4 3x5 &amp; 4x8 / 1/2 3x5</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Spruce &amp; Finger Jointed Pine</div>
+        <span class="vendor-badge badge-dixie">Dixie Plywood</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Spruce%20%232%20%E2%80%94%201x4%2C%201x6%2C%201x8%2C%201x10%2C%201x12%20%2F%202x4%2C%202x6%2C%202x8%2C%202x10%2C%202x12" data-keys="dx" data-category="Spruce%20%26%20Finger%20Jointed%20Pine">
+          <span class="item-text">Spruce #2 — 1x4, 1x6, 1x8, 1x10, 1x12 / 2x4, 2x6, 2x8, 2x10, 2x12</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Finger%20Jointed%20Pine%20S4S%20Primed%20%E2%80%94%201x4%2C%201x6%2C%201x8%2C%201x10%2C%201x12" data-keys="dx" data-category="Spruce%20%26%20Finger%20Jointed%20Pine">
+          <span class="item-text">Finger Jointed Pine S4S Primed — 1x4, 1x6, 1x8, 1x10, 1x12</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Finger%20Jointed%20Pine%20T%26G%20V-Joint%20Primed%20%E2%80%94%201x6x16" data-keys="dx" data-category="Spruce%20%26%20Finger%20Jointed%20Pine">
+          <span class="item-text">Finger Jointed Pine T&amp;G V-Joint Primed — 1x6x16</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Fire Treated Products</div>
+        <span class="vendor-badge badge-dixie">Dixie Plywood</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Pro%20Wood%20FR%20%E2%80%94%20FT%20CDX%3A%2015%2F32%2C%2019%2F32%2C%2023%2F32%20%26%2023%2F32%20T%26G" data-keys="dx" data-category="Fire%20Treated%20Products">
+          <span class="item-text">Pro Wood FR — FT CDX: 15/32, 19/32, 23/32 &amp; 23/32 T&amp;G</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="FT%20AC%20Pine%20%E2%80%94%2015%2F32%20%26%2023%2F32" data-keys="dx" data-category="Fire%20Treated%20Products">
+          <span class="item-text">FT AC Pine — 15/32 &amp; 23/32</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="FT%20Boards%20%E2%80%94%201x4%20%26%201x6x16&#39;" data-keys="dx" data-category="Fire%20Treated%20Products">
+          <span class="item-text">FT Boards — 1x4 &amp; 1x6x16'</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="FT%20Lumber%20%E2%80%94%202x4%20%26%202x6%20x%208&#39;-10&#39;" data-keys="dx" data-category="Fire%20Treated%20Products">
+          <span class="item-text">FT Lumber — 2x4 &amp; 2x6 x 8'-10'</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Fire%20Treated%20Framing%20%E2%80%94%202x8%2C%202x10%2C%202x12%20(10&#39;%2C%2012&#39;%2C%2016&#39;)" data-keys="dx" data-category="Fire%20Treated%20Products">
+          <span class="item-text">Fire Treated Framing — 2x8, 2x10, 2x12 (10', 12', 16')</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Misc (Dixie)</div>
+        <span class="vendor-badge badge-dixie">Dixie Plywood</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Tamlyn%20%E2%80%94%20Z-Flashing%20%26%20H-Mold" data-keys="dx" data-category="Misc%20(Dixie)">
+          <span class="item-text">Tamlyn — Z-Flashing &amp; H-Mold</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Synergy Wood Products</div>
+        <span class="vendor-badge badge-logan">Logan Lumber</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Red%20Grandis" data-keys="ll" data-category="Synergy%20Wood%20Products">
+          <span class="item-text">Red Grandis</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="SYP" data-keys="ll" data-category="Synergy%20Wood%20Products">
+          <span class="item-text">SYP</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="E-Peck" data-keys="ll" data-category="Synergy%20Wood%20Products">
+          <span class="item-text">E-Peck</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Trim%20%26%20Crown" data-keys="ll" data-category="Synergy%20Wood%20Products">
+          <span class="item-text">Trim &amp; Crown</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Prefinished%20Ceilings%20%26%20Walls" data-keys="ll" data-category="Synergy%20Wood%20Products">
+          <span class="item-text">Prefinished Ceilings &amp; Walls</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Radiata Pine</div>
+        <span class="vendor-badge badge-logan">Logan Lumber</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="9%2F16%22%2C%201%22%20%26%205%2F4%22" data-keys="ll" data-category="Radiata%20Pine">
+          <span class="item-text">9/16", 1" &amp; 5/4"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Primed%20Fingerjoint" data-keys="ll" data-category="Radiata%20Pine">
+          <span class="item-text">Primed Fingerjoint</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Primed%20T%26G%20VJT%2C%20Nickel%20Joint" data-keys="ll" data-category="Radiata%20Pine">
+          <span class="item-text">Primed T&amp;G VJT, Nickel Joint</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1%22%20Solid%20Select%20S4S" data-keys="ll" data-category="Radiata%20Pine">
+          <span class="item-text">1" Solid Select S4S</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Solid%20Reversible%20T%26G%20VJT%2FNJ" data-keys="ll" data-category="Radiata%20Pine">
+          <span class="item-text">Solid Reversible T&amp;G VJT/NJ</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Packaging Products</div>
+        <span class="vendor-badge badge-logan">Logan Lumber</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Plywood%2C%20OSB" data-keys="ll" data-category="Packaging%20Products">
+          <span class="item-text">Plywood, OSB</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1%22%20%26%202%22%20Lumber" data-keys="ll" data-category="Packaging%20Products">
+          <span class="item-text">1" &amp; 2" Lumber</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Solid%20Fiber%20Sheets" data-keys="ll" data-category="Packaging%20Products">
+          <span class="item-text">Solid Fiber Sheets</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="4x4%20%232%2C%20%233" data-keys="ll" data-category="Packaging%20Products">
+          <span class="item-text">4x4 #2, #3</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Roofing</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Felt%204869%20%E2%80%94%2015%23%20%26%2030%23" data-keys="bl" data-category="Roofing">
+          <span class="item-text">Felt 4869 — 15# &amp; 30#</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Tarco%C2%AE%20Tough%20Guard%20%E2%80%94%20Embossed%20%2F%20Granular" data-keys="bl" data-category="Roofing">
+          <span class="item-text">Tarco® Tough Guard — Embossed / Granular</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Titanium%20Rhinoroof%C2%AE" data-keys="bl" data-category="Roofing">
+          <span class="item-text">Titanium Rhinoroof®</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Barricade%C2%AE%20%2F%20PROLinx%C2%AE%20UDL%2010%20Synthetic%20Felt%20%E2%80%94%2010sq%20Rolls" data-keys="bl" data-category="Roofing">
+          <span class="item-text">Barricade® / PROLinx® UDL 10 Synthetic Felt — 10sq Rolls</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="PROLinx%C2%AE%20UDL%2010" data-keys="bl" data-category="Roofing">
+          <span class="item-text">PROLinx® UDL 10</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Insulation</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="JM%20AP%20Foil%20%2F%20Polyiso" data-keys="bl" data-category="Insulation">
+          <span class="item-text">JM AP Foil / Polyiso</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="DuPont%20STYROFOAM%E2%84%A2" data-keys="bl" data-category="Insulation">
+          <span class="item-text">DuPont STYROFOAM™</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Shelter%20%E2%80%94%20Sill%20Seal" data-keys="bl" data-category="Insulation">
+          <span class="item-text">Shelter — Sill Seal</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Thermo%20Brace%C2%AE" data-keys="bl" data-category="Insulation">
+          <span class="item-text">Thermo Brace®</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Hardboard</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Tempered%20Hardboard" data-keys="bl" data-category="Hardboard">
+          <span class="item-text">Tempered Hardboard</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pegboard" data-keys="bl" data-category="Hardboard">
+          <span class="item-text">Pegboard</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Metal</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Coil%20Roofing%20Nails%20%2F%20Plastic%20Cap%20Nails" data-keys="bl" data-category="Metal">
+          <span class="item-text">Coil Roofing Nails / Plastic Cap Nails</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Metal%20Studs%20%26%20Accessories" data-keys="bl" data-category="Metal">
+          <span class="item-text">Metal Studs &amp; Accessories</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Rebar%20%26%20Remesh%20%2F%20Greenbar2X%E2%84%A2%20Fiberglass%20Rebar" data-keys="bl" data-category="Metal">
+          <span class="item-text">Rebar &amp; Remesh / Greenbar2X™ Fiberglass Rebar</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Strapping%20%26%20Accessories%20%2F%20Mesh%20Ups%20%2F%20Metal%20Lath" data-keys="bl" data-category="Metal">
+          <span class="item-text">Strapping &amp; Accessories / Mesh Ups / Metal Lath</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">MDF — Industrial &amp; Exterior Grade</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Industrial%20Grade%20%E2%80%94%201%2F8%2C%201%2F4%2C%203%2F8%2C%201%2F2%2C%203%2F4%204%C3%978%20(SYP%20core)" data-keys="bl" data-category="MDF%20%E2%80%94%20Industrial%20%26%20Exterior%20Grade">
+          <span class="item-text">Industrial Grade — 1/8, 1/4, 3/8, 1/2, 3/4 4×8 (SYP core)</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Roseburg%20Armorite%C2%AE%20Exterior%20%E2%80%94%201%2F2%2C%205%2F8%2C%203%2F4%204%C3%978" data-keys="bl" data-category="MDF%20%E2%80%94%20Industrial%20%26%20Exterior%20Grade">
+          <span class="item-text">Roseburg Armorite® Exterior — 1/2, 5/8, 3/4 4×8</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Armorite%C2%AE%20rot%2Fdecay%2Ftermite%20resistant%20%E2%80%94%2010%20Year%20Warranty" data-keys="bl" data-category="MDF%20%E2%80%94%20Industrial%20%26%20Exterior%20Grade">
+          <span class="item-text">Armorite® rot/decay/termite resistant — 10 Year Warranty</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Uses%3A%20signs%2C%20garage%20doors%2C%20outdoor%20cabinets%2C%20outdoor%20millwork" data-keys="bl" data-category="MDF%20%E2%80%94%20Industrial%20%26%20Exterior%20Grade">
+          <span class="item-text">Uses: signs, garage doors, outdoor cabinets, outdoor millwork</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Melamine &amp; Particle Board</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="White%20Melamine%20%E2%80%94%203%2F4%204%C3%978%20and%203%2F4%205%C3%978%20(SYP%20core)" data-keys="bl" data-category="Melamine%20%26%20Particle%20Board">
+          <span class="item-text">White Melamine — 3/4 4×8 and 3/4 5×8 (SYP core)</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Matching%20White%20Edge%20Tape" data-keys="bl" data-category="Melamine%20%26%20Particle%20Board">
+          <span class="item-text">Matching White Edge Tape</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="White%20Hardboard%20for%20backs%20%26%20drawer%20bottoms" data-keys="bl" data-category="Melamine%20%26%20Particle%20Board">
+          <span class="item-text">White Hardboard for backs &amp; drawer bottoms</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Particle%20Board%203%2F4%22%20%E2%80%94%204%C3%978%2C%205%C3%978%2C%2025%22%C3%9712&#39;%2C%2030%22%C3%9712&#39;" data-keys="bl" data-category="Melamine%20%26%20Particle%20Board">
+          <span class="item-text">Particle Board 3/4" — 4×8, 5×8, 25"×12', 30"×12'</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Forming Supplies</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="LP%C2%AE%20ArchForm%E2%84%A2" data-keys="bl" data-category="Forming%20Supplies">
+          <span class="item-text">LP® ArchForm™</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="BBOES" data-keys="bl" data-category="Forming%20Supplies">
+          <span class="item-text">BBOES</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Full%20array%20of%20concrete%20accessories" data-keys="bl" data-category="Forming%20Supplies">
+          <span class="item-text">Full array of concrete accessories</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Framing Lumber</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="European%20SPF" data-keys="bl" data-category="Framing%20Lumber">
+          <span class="item-text">European SPF</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Southern%20Pine" data-keys="bl" data-category="Framing%20Lumber">
+          <span class="item-text">Southern Pine</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Long%20Length%20FJ%20SPF" data-keys="bl" data-category="Framing%20Lumber">
+          <span class="item-text">Long Length FJ SPF</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Studs%20%E2%80%94%20Precut%20Euro" data-keys="bl" data-category="Framing%20Lumber">
+          <span class="item-text">Studs — Precut Euro</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Gypsum</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Georgia-Pacific%C2%AE%20DensGlass%C2%AE%20Sheathing" data-keys="bl" data-category="Gypsum">
+          <span class="item-text">Georgia-Pacific® DensGlass® Sheathing</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Georgia-Pacific%C2%AE%20DensGlass%C2%AE%20Shaftliner" data-keys="bl" data-category="Gypsum">
+          <span class="item-text">Georgia-Pacific® DensGlass® Shaftliner</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Vinyl Siding &amp; Accessories</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Georgia-Pacific%C2%AE%20Vinyl%20Siding%20%E2%80%94%20Soffit%20%26%20Accessories" data-keys="bl" data-category="Vinyl%20Siding%20%26%20Accessories">
+          <span class="item-text">Georgia-Pacific® Vinyl Siding — Soffit &amp; Accessories</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Ply%20Gem%20%E2%80%94%20Trim%20Coil%2C%20Gable%20Vents%2C%20J-Blocks%2C%20Shutters%20%26%20Accessories" data-keys="bl" data-category="Vinyl%20Siding%20%26%20Accessories">
+          <span class="item-text">Ply Gem — Trim Coil, Gable Vents, J-Blocks, Shutters &amp; Accessories</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Building Product Accessories</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Poly%20Film" data-keys="bl" data-category="Building%20Product%20Accessories">
+          <span class="item-text">Poly Film</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="DAP%20Sub%20Floor%20Adhesive" data-keys="bl" data-category="Building%20Product%20Accessories">
+          <span class="item-text">DAP Sub Floor Adhesive</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Nelson%20Shims" data-keys="bl" data-category="Building%20Product%20Accessories">
+          <span class="item-text">Nelson Shims</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Dunnage</div>
+        <span class="vendor-badge badge-bluelinx">BlueLinx</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Landscape%20Timbers%20%E2%80%94%203%C3%974%C3%978&#39;%20non-treated" data-keys="bl" data-category="Dunnage">
+          <span class="item-text">Landscape Timbers — 3×4×8' non-treated</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Red%20Oak%20%E2%80%94%204%C3%974%C3%978&#39;" data-keys="bl" data-category="Dunnage">
+          <span class="item-text">Red Oak — 4×4×8'</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Panel Products</div>
+        <span class="vendor-badge badge-wy">Weyerhaeuser</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="CDX%20Plywood%20%E2%80%94%203%2F8%22%2C%201%2F2%22%2C%205%2F8%22%2C%203%2F4%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">CDX Plywood — 3/8", 1/2", 5/8", 3/4"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="BC%20Pine%20Plywood%20%E2%80%94%201%2F4%22%2C%2011%2F32%22%2C%2015%2F32%22%2C%2019%2F32%22%2C%2023%2F32%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">BC Pine Plywood — 1/4", 11/32", 15/32", 19/32", 23/32"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Premium%20R%2FS%20No%20Groove%20Siding%20%E2%80%94%203%2F8%22%20%26%205%2F8%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">Premium R/S No Groove Siding — 3/8" &amp; 5/8"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Premium%20T1-11%20%E2%80%94%204%22%20%26%208%22%20OC%2C%205%2F8%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">Premium T1-11 — 4" &amp; 8" OC, 5/8"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Premium%20RB%26B%2012%22%20OC%20%E2%80%94%205%2F8%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">Premium RB&amp;B 12" OC — 5/8"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="3%2F8%20T1-11%204%22%20OC" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">3/8 T1-11 4" OC</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="D-Blaze%20Fire%20Treated%20Plywood%20%E2%80%94%204x8%201%2F2%22%2C%205%2F8%22%2C%203%2F4%22" data-keys="wy" data-category="Panel%20Products">
+          <span class="item-text">D-Blaze Fire Treated Plywood — 4x8 1/2", 5/8", 3/4"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Boards &amp; Pattern Stock</div>
+        <span class="vendor-badge badge-wy">Weyerhaeuser</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Woodtone%201x6%20%E2%80%94%2012&#39;%20FineLine%2FNickel%20Gap%20(10%20Semi-transparent%20Prestained%20Colors)" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Woodtone 1x6 — 12' FineLine/Nickel Gap (10 Semi-transparent Prestained Colors)</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Woodtone%201x6%20%E2%80%94%2012&#39;%20T%26G%20V-Groove%20(10%20Prestained%20Colors)" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Woodtone 1x6 — 12' T&amp;G V-Groove (10 Prestained Colors)</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weston%20Wood%20%E2%80%94%2016&#39;%20FJ%20Primed%20Radiata%20Pine%20(21%2F32%22%20%26%2023%2F32%22%202%22-12%22%2C%20also%204%22%2017&#39;)" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Weston Wood — 16' FJ Primed Radiata Pine (21/32" &amp; 23/32" 2"-12", also 4" 17')</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weston%20Wood%20%E2%80%94%205%2F4%22%20x%204%22%20%26%206%22" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Weston Wood — 5/4" x 4" &amp; 6"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weston%20Wood%20%E2%80%94%2016&#39;%20Reversible%20Prime%20Pattern" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Weston Wood — 16' Reversible Prime Pattern</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weston%20Wood%20%E2%80%94%2023%2F32%201x6%20Center%20Bead%2FT%26G%20V-Joint%20REV" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Weston Wood — 23/32 1x6 Center Bead/T&amp;G V-Joint REV</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weston%20Wood%20%E2%80%94%205%2F8x6%20%26%205%2F8x8%20Nickel%20Gap%2FT%26G%20V-Joint%20REV" data-keys="wy" data-category="Boards%20%26%20Pattern%20Stock">
+          <span class="item-text">Weston Wood — 5/8x6 &amp; 5/8x8 Nickel Gap/T&amp;G V-Joint REV</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Euro Spruce &amp; Pine Pattern Boards</div>
+        <span class="vendor-badge badge-wy">Weyerhaeuser</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Euro%20Spruce%20Boards%20%E2%80%94%201x4%20thru%201x12%20%232" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">Euro Spruce Boards — 1x4 thru 1x12 #2</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pine%20Pattern%20Boards%20%E2%80%94%201x6%20%232%20%26%20D%20Grade%20Pattern%20105%20%26%20122" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">Pine Pattern Boards — 1x6 #2 &amp; D Grade Pattern 105 &amp; 122</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pine%20Pattern%20Boards%20%E2%80%94%201x8%20D%20Grade%20Pattern%20105%20%26%20122" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">Pine Pattern Boards — 1x8 D Grade Pattern 105 &amp; 122</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1x4%20D%20Beaded%20Ceiling%20%2F%201x4%20D%20T%26G%20Flooring" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">1x4 D Beaded Ceiling / 1x4 D T&amp;G Flooring</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1x4%20%232%20Pine%20Boards" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">1x4 #2 Pine Boards</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="1x6%2010&#39;-16&#39;%20C%26Btr%20Pattern%20122" data-keys="wy" data-category="Euro%20Spruce%20%26%20Pine%20Pattern%20Boards">
+          <span class="item-text">1x6 10'-16' C&amp;Btr Pattern 122</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">SPF Framing Lumber</div>
+        <span class="vendor-badge badge-wy">Weyerhaeuser</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="SPF%20Pre-Cut%20%232%20%E2%80%94%2092-5%2F8%22%2C%20104-5%2F8%22%2C%20116-5%2F8%22" data-keys="wy" data-category="SPF%20Framing%20Lumber">
+          <span class="item-text">SPF Pre-Cut #2 — 92-5/8", 104-5/8", 116-5/8"</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="%232%20SPF%20%E2%80%94%202x4%2C%202x6%208&#39;-16&#39;" data-keys="wy" data-category="SPF%20Framing%20Lumber">
+          <span class="item-text">#2 SPF — 2x4, 2x6 8'-16'</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Weyerhaeuser%20Framer%20Series%20%E2%80%94%202x4%2C%202x6%2010&#39;-16&#39;%20%2F%20precut%20lengths%20(wider%20widths%20on%20request)" data-keys="wy" data-category="SPF%20Framing%20Lumber">
+          <span class="item-text">Weyerhaeuser Framer Series — 2x4, 2x6 10'-16' / precut lengths (wider widths on request)</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Foundation Products</div>
+        <span class="vendor-badge badge-wy">Weyerhaeuser</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Rebar%2020&#39;%20%E2%80%94%20Grade%2040%3A%20%233%2C%20%234%2C%20%235" data-keys="wy" data-category="Foundation%20Products">
+          <span class="item-text">Rebar 20' — Grade 40: #3, #4, #5</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Rebar%2020&#39;%20%E2%80%94%20Grade%2060%3A%20%234%2C%20%235%2C%20%236" data-keys="wy" data-category="Foundation%20Products">
+          <span class="item-text">Rebar 20' — Grade 60: #4, #5, #6</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Wire%20Mesh%20%E2%80%94%205%20x%20150" data-keys="wy" data-category="Foundation%20Products">
+          <span class="item-text">Wire Mesh — 5 x 150</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Out%20of%20Warehouse%20%2F%20Direct%20Trucks%20%26%20Special%20Order%20Available" data-keys="wy" data-category="Foundation%20Products">
+          <span class="item-text">Out of Warehouse / Direct Trucks &amp; Special Order Available</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Treated Southern Yellow Pine</div>
+        <span class="vendor-badge badge-uslumber">US Lumber</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="KDAT%20Boards%20and%20Dimension" data-keys="us" data-category="Treated%20Southern%20Yellow%20Pine">
+          <span class="item-text">KDAT Boards and Dimension</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="KDAT%20Patterns" data-keys="us" data-category="Treated%20Southern%20Yellow%20Pine">
+          <span class="item-text">KDAT Patterns</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Porch%20Flooring" data-keys="us" data-category="Treated%20Southern%20Yellow%20Pine">
+          <span class="item-text">Porch Flooring</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Pickets" data-keys="us" data-category="Treated%20Southern%20Yellow%20Pine">
+          <span class="item-text">Pickets</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Lattice" data-keys="us" data-category="Treated%20Southern%20Yellow%20Pine">
+          <span class="item-text">Lattice</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div><div class="card">
+      <div class="card-header">
+        <div class="card-title">Clear &amp; Specialty Pine</div>
+        <span class="vendor-badge badge-uslumber">US Lumber</span>
+      </div>
+      <ul class="item-list"><li>
+        <div class="item-row" data-product="Clear%20Radiata%20Pine%20%E2%80%94%20Solid%20and%20S4S%20Boards" data-keys="us" data-category="Clear%20%26%20Specialty%20Pine">
+          <span class="item-text">Clear Radiata Pine — Solid and S4S Boards</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Fir%20Log%20Cabin%20Siding" data-keys="us" data-category="Clear%20%26%20Specialty%20Pine">
+          <span class="item-text">Fir Log Cabin Siding</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Synergy%20Wood%20Products%20%E2%80%94%20Prefinished%20Ceilings%20%26%20Walls" data-keys="us" data-category="Clear%20%26%20Specialty%20Pine">
+          <span class="item-text">Synergy Wood Products — Prefinished Ceilings &amp; Walls</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li><li>
+        <div class="item-row" data-product="Gorman%20Premium%20Boards" data-keys="us" data-category="Clear%20%26%20Specialty%20Pine">
+          <span class="item-text">Gorman Premium Boards</span>
+          
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li></ul>
+    </div></div>
+
+<!-- ══ INQUIRY MODAL ═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">Product Inquiry</h2>
+        <p>Compose and send an inquiry to one or more vendors</p>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-product-name" id="modalProductDisplay">
+        <span>Product</span>
+        <span id="modalProductName">—</span>
+      </div>
+
+      <div class="form-row">
+        <label>Quantity / Unit</label>
+        <input type="text" id="inqQty" placeholder="e.g.  50 pcs,  2 bundles,  1 unit — price check">
+      </div>
+
+      <div class="form-row">
+        <label>Additional Notes (optional)</label>
+        <textarea id="inqNotes" placeholder="Dimensions, grade, color, delivery date, special requirements…"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label>Send inquiry to</label>
+        <div class="vendor-checks" id="vendorChecks"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btnCancel">Cancel</button>
+      <button class="btn-send" id="btnSend">Open in Email</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  VENDOR CONFIG  — update rep emails here any time
+// ══════════════════════════════════════════════════════════════
+const VENDORS = {
+  "BlueLinx": {
+    email: "Mike.Kisner@bluelinxco.com",
+    rep:   "Mike",
+    key:   "bl",
+    badge: "badge-bluelinx"
+  },
+  "US Lumber": {
+    email: "cooperbraet@uslumber.com",
+    rep:   "Cooper",
+    key:   "us",
+    badge: "badge-uslumber"
+  },
+  "Logan Lumber": {
+    email: "doug.reagan@loganlumber.com",
+    rep:   "Doug",
+    key:   "ll",
+    badge: "badge-logan"
+  },
+  "Dixie Plywood": {
+    email: "cmwest@dixieply.com",
+    rep:   "CM",
+    key:   "dx",
+    badge: "badge-dixie"
+  },
+  "Weyerhaeuser": {
+    email: "Tyler.Freeman@weyerhaeuser.com",
+    rep:   "Tyler",
+    key:   "wy",
+    badge: "badge-wy"
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  PRODUCT DATA
+// ══════════════════════════════════════════════════════════════
+const products = [
+
+  // ── SHARED ────────────────────────────────────────────────
+
+  {
+    vendors: ["BlueLinx","US Lumber","Logan Lumber","Dixie Plywood","Weyerhaeuser"],
+    category: "Composite Decking & Outdoor Living",
+    items: [
+      { text: "TimberTech AZEK — Vintage, Landmark, Harvest+, Harvest Collections", src: ["wy"] },
+      { text: "TimberTech Composite — Legacy, Reserve, Terrain+, Terrain, Prime+ Collections", src: ["wy"] },
+      { text: "TimberTech Railing — Classic Composite Series / Impression Rail Express® (IRX)", src: ["wy"] },
+      { text: "TimberTech Fasteners — CONCEALoc®, TOPLoc®, Cortex®, EdgeLoc®", src: ["wy"] },
+      { text: "Trex — Composite Decking, Pickets, Rail Posts, Railing, Hardware", src: ["us","ll"] },
+      { text: "Trex Signature, Lineage, Transcend, Select, Enhance Series", src: ["ll"] },
+      { text: "Trex Railing — Transcend, Signature, X-Series Cable Rail", src: ["ll"] },
+      { text: "NewTechWood Decking — Bell, Magellan, Cortes Series 1x6x16", src: ["dx"] },
+      { text: "NewTechWood Fascia 1x12x12 / Interior Panels / UH68 Shadowline", src: ["dx"] },
+      { text: "Lumberrock Coastal Collection — 5/4x6 & 2x6 Deck Boards / Fascia", src: ["dx"] },
+      { text: "Lumberrock Dimensional Lumber 2x4, 2x8, 4x4 — cut-to-length available", src: ["dx"] },
+      { text: "MoistureShield Decking & Railing / Joist Tape", src: ["bl"] },
+      { text: "Wild Hog Railing / RDI Finyl Line / RDI Elevation Cable Rail", src: ["us"] },
+      { text: "RDI® Railing / Freestyle™ Screens & Lattice", src: ["bl"] },
+      { text: "Aeratis PVC Porch Flooring", src: ["us"] },
+      { text: "Starborn Fasteners", src: ["bl"] },
+      { text: "Special Order: IPÉ Decking", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Dixie Plywood","Weyerhaeuser"],
+    category: "Siding & Trim",
+    items: [
+      { text: "JamesHardie — Color Plus Siding & Trim, Lap Siding (Cedarmill & Smooth)", src: ["dx"] },
+      { text: "JamesHardie — Artisan Siding, Shingles, Soffit, Cemplank", src: ["dx"] },
+      { text: "JamesHardie — Trim 4/4 & 5/4 Smooth & Rustic, 8/4 Artisan", src: ["dx"] },
+      { text: "Versatex PVC — Smooth & Reversible Trimboards, TrimLast Paint Grade", src: ["dx"] },
+      { text: "Versatex — T&G Profiles, Canvas Series T&G & Trimboards", src: ["dx"] },
+      { text: "Versatex — White & Canvas Moulding, Column Wraps 4\"/6\"/8\"", src: ["dx"] },
+      { text: "LP SmartSide®", src: ["bl","us"] },
+      { text: "Allura — Fiber Cement Siding, Trim, Soffit, Panels", src: ["bl","us"] },
+      { text: "PVC Trim & Panels / Plycem Trim", src: ["bl"] },
+      { text: "MiraTec / Royal PVC / TruExterior / Versetta Stone", src: ["us"] },
+      { text: "James Hardie — Largest SE Distributor, Every SKU Stocked", src: ["wy"] },
+      { text: "James Hardie — Dream Collection & Woodtone RusticSeries (Special Order)", src: ["wy"] },
+      { text: "AZEK Exteriors Trimboard — Traditional, Frontier, Beadboard, Sheet, Column Wrap", src: ["wy"] },
+      { text: "AZEK Reveal Shingle Panel (PaintPro) / AZEK Moulding", src: ["wy"] },
+      { text: "Miratec 16' Smooth Select & Reversible Composite Trim — 4/4\" & 5/4\" widths", src: ["wy"] },
+      { text: "Tamlyn — Exclusive Stocking Distributor, 40 Most Popular SKUs / Special Order all", src: ["wy"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber"],
+    category: "Millwork & Mouldings",
+    items: [
+      { text: "PFJ Pine Mouldings / Primed MDF Mouldings", src: ["bl"] },
+      { text: "PrimeLinx® FJ Radiata Primed — Trim Boards, Shadow Gap®, Edge & Ctr Bead", src: ["bl"] },
+      { text: "HB&G Columns", src: ["bl"] },
+      { text: "Fingerjoint & Raw Pine Mouldings / Solid Pine Moulding", src: ["us"] },
+      { text: "Interior and Exterior Door Shop Components", src: ["us"] },
+      { text: "TLC Harmony Light Weight MDF — Primed Mouldings, Boards, Panels", src: ["us"] },
+      { text: "Duration Mouldings / SBP Primed FJ Boards", src: ["us"] },
+      { text: "1×6 Primed VJ/Beaded Reversible 16' / Ship-lap, Nickel Gap", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Logan Lumber","Dixie Plywood","Weyerhaeuser"],
+    category: "Engineered Lumber (EWP)",
+    items: [
+      { text: "Weyerhaeuser TJI® 210 (9½\"–16\"), 230 (16\"), 360 (11⅞\"–20\"), 560 (11⅞\"–20\")", src: ["wy"] },
+      { text: "Weyerhaeuser TimberStrand® LSL 1.55E Beam — 1¾\" & 3½\" depths 9½\"–16\"", src: ["wy"] },
+      { text: "Weyerhaeuser TimberStrand® LSL 1.3E Rim Board — 1⅛\" depths 9½\"–18\"", src: ["wy"] },
+      { text: "Weyerhaeuser TimberStrand® LSL Wall Framing — 2x4, 2x6 Bright & Strandguard (Treated), 2x8", src: ["wy"] },
+      { text: "Weyerhaeuser Microllam® LVL 1.9E Headers & Beams — 1¾\" depths 5½\"–24\"", src: ["wy"] },
+      { text: "Weyerhaeuser Parallam® PSL 2.0E Headers & Beams — 3½\" & 5¼\" depths 9½\"–18\"", src: ["wy"] },
+      { text: "Weyerhaeuser Parallam® PSL 1.8E Columns — 3½\"x3½\" thru 7\"x7\"", src: ["wy"] },
+      { text: "Weyerhaeuser Treated Parallam® Plus PSL MCA — Beams & Columns", src: ["wy"] },
+      { text: "Boise Cascade — I-Joist, LVL, Rimboard, Versa Columns & Studs", src: ["dx"] },
+      { text: "BoozerBeam Glulams — Bright & Pressure", src: ["dx","us"] },
+      { text: "Trus Joist I-Joists — 210, 360, 560 Series (in stock)", src: ["ll"] },
+      { text: "Trus Joist LVL/Microlam — SSS Six-Sided Seal & WSO Water-Shed Overlay", src: ["ll"] },
+      { text: "PSL/Parallam Columns & Beams / MCA Treated PSL", src: ["ll"] },
+      { text: "LSL Timberstrand & Strandguard Wall Frame / Sill Plate / Rim Board", src: ["ll"] },
+      { text: "onCENTER® BLI Joists / LVL / Rim Board / TrimJoist® Open Web Trusses", src: ["bl"] },
+      { text: "Pacific Woodtech / Open Joist / Hangers / Treated PWT LVLs", src: ["us"] },
+      { text: "LP Structural Solutions — Legacy, FlameBlock, WeatherLogic", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Logan Lumber","Weyerhaeuser"],
+    category: "Western Red Cedar",
+    items: [
+      { text: "Weyerhaeuser CedarOne® — Siding: Bevel, Channel, T&G", src: ["wy"] },
+      { text: "Weyerhaeuser CedarOne® — Knotty Boards / Knotty Rough Dimension", src: ["wy"] },
+      { text: "Weyerhaeuser CedarOne® — Eastern White Shim Shingles", src: ["wy"] },
+      { text: "Weyerhaeuser CedarOne® — S4S Cedar Dimension (Special Order)", src: ["wy"] },
+      { text: "D&Btr / Knotty / Clear Boards & Dimension / Primed FJ Boards & Dimension", src: ["ll"] },
+      { text: "Cedar Timbers", src: ["ll"] },
+      { text: "Boards, Siding, Pattern, Timbers / Shakes and Shingles", src: ["us"] },
+      { text: "Western Red Cedar (general)", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber"],
+    category: "Cypress",
+    items: [
+      { text: "Boards / Pattern / Siding", src: ["us"] },
+      { text: "Special Order — Timbers, Dimension, Pecky", src: ["us"] },
+      { text: "Cypress (general)", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Logan Lumber","Dixie Plywood","Weyerhaeuser"],
+    category: "Southern Yellow Pine — Lumber & Boards",
+    items: [
+      { text: "Weyerhaeuser SYP #2 — 2x4 thru 2x12 Dimension", src: ["wy"] },
+      { text: "Weyerhaeuser Framer Series — 2x4, 2x6 10'–16' / 104⅝\", 116⅝\"", src: ["wy"] },
+      { text: "Weyerhaeuser D-Blaze Fire Treated Lumber — SWL SP KDAT S4S #2 / 2x4–2x8", src: ["wy"] },
+      { text: "#2 SYP — 2x4, 2x6, 2x8, 2x10, 2x12", src: ["dx"] },
+      { text: "#2 SYP S4S — 1x4, 1x6 / T&G V-Joint 1x6 / C&Btr 1x4–1x12", src: ["dx"] },
+      { text: "DSS 12ft: 2x6, 2x8 / DSS 16ft: 2x4, 2x8, 2x16", src: ["dx"] },
+      { text: "C&Btr / Knotty Boards and Patterns / Nickel Joint", src: ["ll"] },
+      { text: "#2&Btr Dimension / 1\", 2\", & 4\" Crating Lumber", src: ["ll"] },
+      { text: "SYP #2 Boards / Pattern Stock #122", src: ["bl"] },
+      { text: "Gorman Premium", src: ["bl","us","ll"] },
+      { text: "SYP Boards and Pattern Stock / Steptread / Spruce Boards & Furring", src: ["us"] },
+      { text: "Selkirk Platinum Premium Spruce Boards", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Dixie Plywood","Weyerhaeuser"],
+    category: "Housewrap & Moisture Control",
+    items: [
+      { text: "Weyerhaeuser HomeGuard® Housewrap — 9'x150' / 55 Rolls per Unit", src: ["wy"] },
+      { text: "Weyerhaeuser ThermoPly RED / Tape, Flashing & Sealant Accessories", src: ["wy"] },
+      { text: "Typar Housewrap — 9x100, 9x150, 10x100, 10x150 / Commercial / Drainage", src: ["dx"] },
+      { text: "Typar Tape & Flashing — All Temp, Butyl, Flex, Clear Acrylic / Sealant", src: ["dx"] },
+      { text: "Barricade® Housewrap & Tape", src: ["bl","us"] },
+      { text: "PROLinx® Building Wrap / Benjamin Obdyke — HydroGap®, HydroFlash®, Cedar Breather", src: ["bl"] },
+      { text: "Henry Fortifiber — Housewrap, Sealant, Flashing, Tape & Roof Underlayment", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","US Lumber","Logan Lumber","Dixie Plywood"],
+    category: "Hardwood Plywood & Sanded Plywood",
+    items: [
+      { text: "Import Plywood — Baltic Birch & Maple / Pre-Finished Birch & Maple", src: ["dx"] },
+      { text: "Domestic Plywood — Maple, Birch, Cherry, Cypress, Red Oak, White Oak, Walnut, Sapele", src: ["dx"] },
+      { text: "AC Radiata Pine — 1/4 thru 1\" / Specialty Beaded 2\" OC", src: ["dx","ll","bl"] },
+      { text: "AC-Fir / AB Marine — 1/4 thru 1\" / MDO Unprimed & Primed / HDO Plyform", src: ["dx"] },
+      { text: "Import Hardwood Plywood / Prefinished Birch / Cabinet Liner", src: ["bl"] },
+      { text: "Lauan 2.7MM & 5.2MM / Natural Birch / White Maple / Red Oak MDF Core", src: ["bl"] },
+      { text: "Birch Plywood", src: ["ll","us"] },
+      { text: "AC Arauco / Import Plywood / Patriot Timber — Rev Ply & Rev Bead", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","Dixie Plywood","Weyerhaeuser"],
+    category: "OSB & Structural Panels",
+    items: [
+      { text: "Weyerhaeuser OSB — Diamond® Premium / Edge Gold™ / Edge™ Green Panels", src: ["wy"] },
+      { text: "Weyerhaeuser OSB — SturdiStep™ Treads / Commodity 7/16, 15/32, 5/8", src: ["wy"] },
+      { text: "Weyerhaeuser OSB — 7/16 Cut to Size / Oversize", src: ["wy"] },
+      { text: "Huber ZIP System® — Wall/Roof 7/16, 1/2, 5/8 4x8 / ZIP Tape & Stretch Tape", src: ["dx","bl"] },
+      { text: "ZIP Liquid Flashing — 29oz Cartridge & 20oz Sausage Tube", src: ["dx"] },
+      { text: "AdvanTech® Subfloor 3/4\"", src: ["dx","bl"] },
+      { text: "OSB Sheathing / Radiant Barrier / OSB Long Lengths", src: ["bl"] },
+      { text: "Sanded AC & BC Pine / Rated Sheathing", src: ["bl"] },
+      { text: "Pine Siding — T1-11, RB&B, No Groove / Ply-Bead® / Fire Rated / AB Marine", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["BlueLinx","Dixie Plywood"],
+    category: "SYP Plywood",
+    items: [
+      { text: "SYP Sheathing — 3/8, 1/2, 5/8, 3/4 / SYP Solarply — 1/2 & 5/8", src: ["dx"] },
+      { text: "SYP T&G Flooring — Sturd-i-floor / SYP BBOES Plyform 3/4", src: ["dx"] },
+      { text: "SYP BC — 1/4 thru 3/4 / SYP AC — 1/2 & 3/4", src: ["dx"] },
+      { text: "Deco SYP Plywood Siding — 3/8 & 5/8 N/G, 4\"/8\"/12\" OC & RB&B", src: ["dx"] },
+      { text: "SYP Treated Plywood — Sheathing 1/2, 5/8, 3/4", src: ["dx"] },
+      { text: "SYP Structural Panels / Rated Sheathing (general)", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["US Lumber","Logan Lumber"],
+    category: "Gorman Spruce",
+    items: [
+      { text: "#2&Btr Elite Boards / #3 Craftsman Boards", src: ["ll"] },
+      { text: "T&G VJT/Beaded / Furring Strips / 2x2 Premium Spruce", src: ["ll"] },
+      { text: "Gorman Premium Boards (general)", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["US Lumber","Logan Lumber"],
+    category: "Hardwood Lumber",
+    items: [
+      { text: "1\" C&Btr S4S Oak / Rough Oak", src: ["ll"] },
+      { text: "Poplar", src: ["ll","us"] },
+      { text: "Red Oak / Maple / White Oak / Custom Milled Patterns", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["Logan Lumber","US Lumber"],
+    category: "Exotic Hardwood Decking & Fasteners",
+    items: [
+      { text: "Signature IPÉ / IPÉ Accessories / IPÉ Seal", src: ["ll"] },
+      { text: "Headcote Stainless Steel Colored Fasteners / IPÉ Extreme Clips", src: ["ll"] },
+      { text: "TREX Hidden Deck Fasteners / Tiger Claw Clips", src: ["ll"] },
+      { text: "Starborn Fasteners (general)", src: ["us"] }
+    ]
+  },
+
+  {
+    vendors: ["Dixie Plywood","BlueLinx"],
+    category: "Pressure Treated Lumber",
+    items: [
+      { text: "CDX PT Sheathing — 15/32, 19/32, 23/32", src: ["dx"] },
+      { text: "Borate Treated Boards — 1x2, 1x4, 1x6, 1x8", src: ["dx"] },
+      { text: "Borate Treated Lumber — 2x4 thru 2x12, 4x4, 6x6", src: ["dx"] },
+      { text: "Treated Lumber (general)", src: ["bl"] }
+    ]
+  },
+
+  {
+    vendors: ["Dixie Plywood","BlueLinx"],
+    category: "Doors",
+    items: [
+      { text: "Neuma Doors — Hinged & Sliding, Impact & Non-Impact", src: ["dx"] },
+      { text: "Residential & Commercial Doors (general)", src: ["bl"] }
+    ]
+  },
+
+  // ── DIXIE ONLY ────────────────────────────────────────────
+
+  {
+    vendor: "Dixie Plywood",
+    category: "Thermally Modified Wood",
+    items: [
+      "UFP Edge — Smooth WP4 T&G Clear VG Fir: 1x6 9-12' WP4, 1x4 & 1x6 SQ Trim VG Fir",
+      "UFP Edge — Pre-Finished Nicklegap Poplar: 1x6 WP4, Nicklegap & Trim Smooth",
+      "UFP Edge — Smooth Unfinished Stain Grade Poplar: 1x6 WP4, Nicklegap & Trim",
+      "Lunawood — Poplar: 6/4x6 Triple",
+      "Lunawood — Nordic Pine: 1x6 TGV WP4, 1x6 Panel Nickle Gap, 6/4x6 Triple"
+    ]
+  },
+
+  {
+    vendor: "Dixie Plywood",
+    category: "Specialty Panels & Boards",
+    items: [
+      "Versatex Smooth PVC Panels — 1/4\", 3/8\", 5/8\", 3/4\", 1\" & 1-1/2\"",
+      "Homasote — 1/2 Homasote 440",
+      "FRP Panels — 4x8 & 4x10 Panels & Trim",
+      "Hardboard — 1/8 & 1/4",
+      "Specialty Panels — MDF & Particleboard",
+      "Soundboard — 1/2\" & 1/2 Cork 1S",
+      "JamesHardie Panels — Smooth, Cedarmill, Sierra-8, Stucco & Architectural",
+      "JamesHardie Backer — 1/4 3x5 & 4x8 / 1/2 3x5"
+    ]
+  },
+
+  {
+    vendor: "Dixie Plywood",
+    category: "Spruce & Finger Jointed Pine",
+    items: [
+      "Spruce #2 — 1x4, 1x6, 1x8, 1x10, 1x12 / 2x4, 2x6, 2x8, 2x10, 2x12",
+      "Finger Jointed Pine S4S Primed — 1x4, 1x6, 1x8, 1x10, 1x12",
+      "Finger Jointed Pine T&G V-Joint Primed — 1x6x16"
+    ]
+  },
+
+  {
+    vendor: "Dixie Plywood",
+    category: "Fire Treated Products",
+    items: [
+      "Pro Wood FR — FT CDX: 15/32, 19/32, 23/32 & 23/32 T&G",
+      "FT AC Pine — 15/32 & 23/32",
+      "FT Boards — 1x4 & 1x6x16'",
+      "FT Lumber — 2x4 & 2x6 x 8'-10'",
+      "Fire Treated Framing — 2x8, 2x10, 2x12 (10', 12', 16')"
+    ]
+  },
+
+  {
+    vendor: "Dixie Plywood",
+    category: "Misc (Dixie)",
+    items: [ "Tamlyn — Z-Flashing & H-Mold" ]
+  },
+
+  // ── LOGAN ONLY ────────────────────────────────────────────
+
+  {
+    vendor: "Logan Lumber",
+    category: "Synergy Wood Products",
+    items: ["Red Grandis","SYP","E-Peck","Trim & Crown","Prefinished Ceilings & Walls"]
+  },
+
+  {
+    vendor: "Logan Lumber",
+    category: "Radiata Pine",
+    items: [
+      "9/16\", 1\" & 5/4\"",
+      "Primed Fingerjoint",
+      "Primed T&G VJT, Nickel Joint",
+      "1\" Solid Select S4S",
+      "Solid Reversible T&G VJT/NJ"
+    ]
+  },
+
+  {
+    vendor: "Logan Lumber",
+    category: "Packaging Products",
+    items: ["Plywood, OSB","1\" & 2\" Lumber","Solid Fiber Sheets","4x4 #2, #3"]
+  },
+
+  // ── BLUELINX ONLY ─────────────────────────────────────────
+
+  {
+    vendor: "BlueLinx",
+    category: "Roofing",
+    items: [
+      "Felt 4869 — 15# & 30#",
+      "Tarco® Tough Guard — Embossed / Granular",
+      "Titanium Rhinoroof®",
+      "Barricade® / PROLinx® UDL 10 Synthetic Felt — 10sq Rolls",
+      "PROLinx® UDL 10"
+    ]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Insulation",
+    items: ["JM AP Foil / Polyiso","DuPont STYROFOAM™","Shelter — Sill Seal","Thermo Brace®"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Hardboard",
+    items: ["Tempered Hardboard","Pegboard"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Metal",
+    items: [
+      "Coil Roofing Nails / Plastic Cap Nails",
+      "Metal Studs & Accessories",
+      "Rebar & Remesh / Greenbar2X™ Fiberglass Rebar",
+      "Strapping & Accessories / Mesh Ups / Metal Lath"
+    ]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "MDF — Industrial & Exterior Grade",
+    items: [
+      "Industrial Grade — 1/8, 1/4, 3/8, 1/2, 3/4 4×8 (SYP core)",
+      "Roseburg Armorite® Exterior — 1/2, 5/8, 3/4 4×8",
+      "Armorite® rot/decay/termite resistant — 10 Year Warranty",
+      "Uses: signs, garage doors, outdoor cabinets, outdoor millwork"
+    ]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Melamine & Particle Board",
+    items: [
+      "White Melamine — 3/4 4×8 and 3/4 5×8 (SYP core)",
+      "Matching White Edge Tape",
+      "White Hardboard for backs & drawer bottoms",
+      "Particle Board 3/4\" — 4×8, 5×8, 25\"×12', 30\"×12'"
+    ]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Forming Supplies",
+    items: ["LP® ArchForm™","BBOES","Full array of concrete accessories"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Framing Lumber",
+    items: ["European SPF","Southern Pine","Long Length FJ SPF","Studs — Precut Euro"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Gypsum",
+    items: ["Georgia-Pacific® DensGlass® Sheathing","Georgia-Pacific® DensGlass® Shaftliner"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Vinyl Siding & Accessories",
+    items: [
+      "Georgia-Pacific® Vinyl Siding — Soffit & Accessories",
+      "Ply Gem — Trim Coil, Gable Vents, J-Blocks, Shutters & Accessories"
+    ]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Building Product Accessories",
+    items: ["Poly Film","DAP Sub Floor Adhesive","Nelson Shims"]
+  },
+
+  {
+    vendor: "BlueLinx",
+    category: "Dunnage",
+    items: ["Landscape Timbers — 3×4×8' non-treated","Red Oak — 4×4×8'"]
+  },
+
+  // ── WEYERHAEUSER ONLY ────────────────────────────────────
+
+  {
+    vendor: "Weyerhaeuser",
+    category: "Panel Products",
+    items: [
+      "CDX Plywood — 3/8\", 1/2\", 5/8\", 3/4\"",
+      "BC Pine Plywood — 1/4\", 11/32\", 15/32\", 19/32\", 23/32\"",
+      "Premium R/S No Groove Siding — 3/8\" & 5/8\"",
+      "Premium T1-11 — 4\" & 8\" OC, 5/8\"",
+      "Premium RB&B 12\" OC — 5/8\"",
+      "3/8 T1-11 4\" OC",
+      "D-Blaze Fire Treated Plywood — 4x8 1/2\", 5/8\", 3/4\""
+    ]
+  },
+
+  {
+    vendor: "Weyerhaeuser",
+    category: "Boards & Pattern Stock",
+    items: [
+      "Woodtone 1x6 — 12' FineLine/Nickel Gap (10 Semi-transparent Prestained Colors)",
+      "Woodtone 1x6 — 12' T&G V-Groove (10 Prestained Colors)",
+      "Weston Wood — 16' FJ Primed Radiata Pine (21/32\" & 23/32\" 2\"-12\", also 4\" 17')",
+      "Weston Wood — 5/4\" x 4\" & 6\"",
+      "Weston Wood — 16' Reversible Prime Pattern",
+      "Weston Wood — 23/32 1x6 Center Bead/T&G V-Joint REV",
+      "Weston Wood — 5/8x6 & 5/8x8 Nickel Gap/T&G V-Joint REV"
+    ]
+  },
+
+  {
+    vendor: "Weyerhaeuser",
+    category: "Euro Spruce & Pine Pattern Boards",
+    items: [
+      "Euro Spruce Boards — 1x4 thru 1x12 #2",
+      "Pine Pattern Boards — 1x6 #2 & D Grade Pattern 105 & 122",
+      "Pine Pattern Boards — 1x8 D Grade Pattern 105 & 122",
+      "1x4 D Beaded Ceiling / 1x4 D T&G Flooring",
+      "1x4 #2 Pine Boards",
+      "1x6 10'-16' C&Btr Pattern 122"
+    ]
+  },
+
+  {
+    vendor: "Weyerhaeuser",
+    category: "SPF Framing Lumber",
+    items: [
+      "SPF Pre-Cut #2 — 92-5/8\", 104-5/8\", 116-5/8\"",
+      "#2 SPF — 2x4, 2x6 8'-16'",
+      "Weyerhaeuser Framer Series — 2x4, 2x6 10'-16' / precut lengths (wider widths on request)"
+    ]
+  },
+
+  {
+    vendor: "Weyerhaeuser",
+    category: "Foundation Products",
+    items: [
+      "Rebar 20' — Grade 40: #3, #4, #5",
+      "Rebar 20' — Grade 60: #4, #5, #6",
+      "Wire Mesh — 5 x 150",
+      "Out of Warehouse / Direct Trucks & Special Order Available"
+    ]
+  },
+
+  // ── US LUMBER ONLY ────────────────────────────────────────
+
+  {
+    vendor: "US Lumber",
+    category: "Treated Southern Yellow Pine",
+    items: ["KDAT Boards and Dimension","KDAT Patterns","Porch Flooring","Pickets","Lattice"]
+  },
+
+  {
+    vendor: "US Lumber",
+    category: "Clear & Specialty Pine",
+    items: [
+      "Clear Radiata Pine — Solid and S4S Boards",
+      "Fir Log Cabin Siding",
+      "Synergy Wood Products — Prefinished Ceilings & Walls",
+      "Gorman Premium Boards"
+    ]
+  }
+];
+
+// ══════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════
+function getVendors(cat) { return cat.vendor ? [cat.vendor] : (cat.vendors || []); }
+function isShared(cat)   { return getVendors(cat).length > 1; }
+
+function vendorMatchesFilter(cat, filter) {
+  if (filter === 'all')    return true;
+  if (filter === 'shared') return isShared(cat);
+  return getVendors(cat).includes(filter);
+}
+
+function srcKeysForItem(item, cat) {
+  // Returns array of vendor keys relevant to this item
+  if (typeof item === 'object' && item.src) return item.src;
+  // single-vendor card — return that vendor's key
+  const v = getVendors(cat)[0];
+  return v ? [Object.keys(VENDORS).find(k => k === v)].filter(Boolean).map(k => VENDORS[k].key) : [];
+}
+
+function vendorNamesFromKeys(keys) {
+  return Object.entries(VENDORS)
+    .filter(([,v]) => keys.includes(v.key))
+    .map(([name]) => name);
+}
+
+function badgeClass(v) {
+  if (v === 'BlueLinx')     return 'badge-bluelinx';
+  if (v === 'US Lumber')    return 'badge-uslumber';
+  if (v === 'Logan Lumber') return 'badge-logan';
+  if (v === 'Dixie Plywood')return 'badge-dixie';
+  if (v === 'Weyerhaeuser') return 'badge-wy';
+  return '';
+}
+
+function badgeHTML(cat) {
+  const vendors = getVendors(cat);
+  if (vendors.length === 1)
+    return `<span class="vendor-badge ${badgeClass(vendors[0])}">${vendors[0]}</span>`;
+  return `<div class="badge-row">${vendors.map(v =>
+    `<span class="vendor-badge ${badgeClass(v)}">${v}</span>`
+  ).join('')}</div>`;
+}
+
+function srcTagsHTML(srcs) {
+  if (!srcs || !srcs.length) return '';
+  return `<span class="src-tags">${srcs.map(s => {
+    const cls = {bl:'src-bl',us:'src-us',ll:'src-ll',dx:'src-dx'}[s] || '';
+    const lbl = {bl:'BL',us:'US',ll:'LL',dx:'DX'}[s] || s.toUpperCase();
+    return `<span class="src-label ${cls}">${lbl}</span>`;
+  }).join('')}</span>`;
+}
+
+function itemText(item) { return typeof item === 'string' ? item : item.text; }
+function itemSrc(item)  { return typeof item === 'object' && item.src ? item.src : null; }
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER GRID
+// ══════════════════════════════════════════════════════════════
+const grid         = document.getElementById('grid');
+const searchInput  = document.getElementById('searchInput');
+const filterBtns   = document.querySelectorAll('.filter-btn');
+const visibleCount = document.getElementById('visibleCount');
+
+let activeVendor = 'all';
+let searchTerm   = '';
+
+function render() {
+  grid.innerHTML = '';
+  let shown = 0;
+  const term = searchTerm.toLowerCase();
+
+  products.forEach(cat => {
+    if (!vendorMatchesFilter(cat, activeVendor)) return;
+
+    const catMatch    = cat.category.toLowerCase().includes(term);
+    const matchedItems = term ? cat.items.filter(i => itemText(i).toLowerCase().includes(term)) : cat.items;
+    if (term && !catMatch && matchedItems.length === 0) return;
+
+    const card = document.createElement('div');
+    card.className = 'card' + (isShared(cat) ? ' multi-vendor' : '');
+
+    const displayItems = (term && !catMatch) ? matchedItems : cat.items;
+
+    // Determine which vendor keys appear in this card (for the modal)
+    const catVendorKeys = getVendors(cat).map(v => VENDORS[v] ? VENDORS[v].key : null).filter(Boolean);
+
+    const itemsHTML = displayItems.map(i => {
+      const txt  = itemText(i);
+      const src  = itemSrc(i);
+      const hl   = term && txt.toLowerCase().includes(term) ? ' highlight' : '';
+      const tags = (isShared(cat) && src) ? srcTagsHTML(src) : '';
+      // Which keys to pre-select: item's own src keys if shared, else card vendor keys
+      const inquiryKeys = (isShared(cat) && src) ? src : catVendorKeys;
+      return `<li>
+        <div class="item-row" data-product="${encodeURIComponent(txt)}" data-keys="${inquiryKeys.join(',')}" data-category="${encodeURIComponent(cat.category)}">
+          <span class="item-text${hl}">${txt}</span>
+          ${tags}
+          <button class="inquiry-btn" tabindex="-1">Inquire</button>
+        </div>
+      </li>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title">${cat.category}</div>
+        ${badgeHTML(cat)}
+      </div>
+      <ul class="item-list">${itemsHTML}</ul>
+    `;
+
+    grid.appendChild(card);
+    shown++;
+  });
+
+  if (shown === 0) {
+    grid.innerHTML = `<div class="empty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>No products match your search.</p>
+    </div>`;
+  }
+  visibleCount.textContent = shown;
+
+  // Attach click handlers for inquiry
+  grid.querySelectorAll('.item-row').forEach(row => {
+    row.addEventListener('click', () => openModal(row));
+  });
+}
+
+document.getElementById('total-products').textContent = products.reduce((a,c) => a + c.items.length, 0);
+document.getElementById('total-cats').textContent     = products.length;
+
+searchInput.addEventListener('input', e => { searchTerm = e.target.value; render(); });
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeVendor = btn.dataset.vendor;
+    render();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL LOGIC
+// ══════════════════════════════════════════════════════════════
+const overlay         = document.getElementById('modalOverlay');
+const modalProductName= document.getElementById('modalProductName');
+const modalClose      = document.getElementById('modalClose');
+const btnCancel       = document.getElementById('btnCancel');
+const btnSend         = document.getElementById('btnSend');
+const vendorChecks    = document.getElementById('vendorChecks');
+const inqQty          = document.getElementById('inqQty');
+const inqNotes        = document.getElementById('inqNotes');
+
+let currentProduct = '';
+let currentCategory= '';
+
+function openModal(row) {
+  currentProduct  = decodeURIComponent(row.dataset.product);
+  currentCategory = decodeURIComponent(row.dataset.category);
+  const keys      = (row.dataset.keys || '').split(',').filter(Boolean);
+
+  modalProductName.textContent = currentProduct;
+  inqQty.value   = '';
+  inqNotes.value = '';
+
+  // Build vendor checkboxes — pre-check vendors that carry this item
+  vendorChecks.innerHTML = Object.entries(VENDORS).map(([name, v]) => {
+    const checked = keys.includes(v.key) ? 'checked' : '';
+    return `<label class="vendor-check-row">
+      <input type="checkbox" value="${name}" ${checked}>
+      <div class="vendor-check-info">
+        <div class="vendor-check-name">${name}</div>
+        <div class="vendor-check-email">${v.email}</div>
+      </div>
+      <span class="vendor-check-badge vendor-badge ${v.badge}">${v.key.toUpperCase()}</span>
+    </label>`;
+  }).join('');
+
+  overlay.classList.add('open');
+  inqQty.focus();
+}
+
+function closeModal() {
+  overlay.classList.remove('open');
+}
+
+modalClose.addEventListener('click', closeModal);
+btnCancel.addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+btnSend.addEventListener('click', () => {
+  const checked = [...vendorChecks.querySelectorAll('input[type=checkbox]:checked')];
+  if (!checked.length) { alert('Please select at least one vendor.'); return; }
+
+  const qty   = inqQty.value.trim();
+  const notes = inqNotes.value.trim();
+
+  // Build one email with all selected vendors in the To field
+  const toAddresses = checked.map(cb => VENDORS[cb.value].email).join(', ');
+  const greeting    = checked.length === 1
+    ? `Hi ${VENDORS[checked[0].value].rep || 'there'},`
+    : null;
+
+  const subject = `Product Inquiry — ${currentProduct}`;
+  const body = [
+    greeting,
+    ``,
+    `I am inquiring about the following product:`,
+    ``,
+    `  Product:   ${currentProduct}`,
+    `  Category:  ${currentCategory}`,
+    qty   ? `  Quantity:  ${qty}`   : null,
+    notes ? `  Notes:     ${notes}` : null,
+    ``,
+    `Please provide availability and pricing at your earliest convenience.`,
+    ``,
+    `Thank you,`,
+    `Lance Hopper`,
+    `Norwood Supply`,
+    `6200 Norwood Ave, Jacksonville, FL 32208`,
+    `(904) 768-6818`,
+    `lance087@gmail.com`
+  ].filter(l => l !== null).join('\n');
+
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(toAddresses)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(gmailUrl, '_blank');
+
+  closeModal();
+});
+
+render();
+</script>
+
+
+</body></html>
