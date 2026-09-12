@@ -719,6 +719,7 @@ tr:hover td{background:#fdf9f3}
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-gh" onclick="backToBuilder()">← Back</button>
       <button class="btn btn-p" onclick="window.print()">🖨️ Print Invoice</button>
+      <button class="btn" onclick="downloadInvoicePDF()" style="background:#1B5E20;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:5px;cursor:pointer;border:none;">⬇️ Download PDF</button>
       <button class="btn" onclick="nsPrintYardPullSheet(currentInvoiceRecordId)" style="background:#1E70B8;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer">🧾 Yard Pull Sheet</button>
       <button class="btn btn-g" onclick="newQuote()">🔄 New Quote</button>
       <button class="btn" onclick="showPOBuilder()" style="background:#2980d4;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600">📦 Create PO</button>
@@ -737,6 +738,7 @@ tr:hover td{background:#fdf9f3}
     <div class="no-print" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn btn-gh" onclick="showView(&#39;invoice-view&#39;)">← Back to Invoice</button>
       <button class="btn btn-p" onclick="window.print()">🖨️ Print PO</button>
+      <button class="btn" onclick="downloadPOPDF()" style="background:#1B5E20;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:5px;cursor:pointer;border:none;">⬇️ Download PDF</button>
       <button class="btn" onclick="emailPO()" style="background:#c0392b;color:#fff" id="gmail-draft-btn">📧 Copy PO for Gmail</button>
       <button class="btn" onclick="savePOToLog()" style="background:#2d6a30;color:#fff">💾 Save to PO Log</button>
       <button class="btn btn-g" onclick="newQuote()">🔄 New Quote</button>
@@ -6875,6 +6877,103 @@ function downloadQuotePDF() {
     btn.textContent = '⬇️ Download PDF';
     btn.disabled = false;
     alert('PDF generation failed. Use Print / PDF instead.');
+  });
+}
+
+function downloadInvoicePDF() {
+  var el = document.getElementById('invoice-content');
+  if (!el || !el.innerHTML.trim()) { alert('No invoice loaded.'); return; }
+  var btn = event.target;
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+
+  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function(canvas) {
+    var imgData = canvas.toDataURL('image/png');
+    var pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    var pageW = pdf.internal.pageSize.getWidth();
+    var pageH = pdf.internal.pageSize.getHeight();
+    var margin = 10;
+    var imgW = pageW - margin * 2;
+    var imgH = (canvas.height * imgW) / canvas.width;
+    if (imgH <= pageH - margin * 2) {
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+    } else {
+      var pageImgH = pageH - margin * 2;
+      var totalPages = Math.ceil(imgH / pageImgH);
+      for (var p = 0; p < totalPages; p++) {
+        if (p > 0) pdf.addPage();
+        var srcY = p * pageImgH * (canvas.height / imgH);
+        var srcH = Math.min(pageImgH * (canvas.height / imgH), canvas.height - srcY);
+        var sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = srcH;
+        var ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+        var sliceData = sliceCanvas.toDataURL('image/png');
+        pdf.addImage(sliceData, 'PNG', margin, margin, imgW, Math.min(pageImgH, imgH - p * pageImgH));
+      }
+    }
+    var custName = 'Invoice';
+    try { var cc = getCustomer(); if (cc && cc.name) custName = cc.name.replace(/[^a-zA-Z0-9_]/g, '_'); } catch(e) {}
+    var invLabel = currentInvNum || 'Invoice';
+    var today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+    pdf.save('Norwood_' + invLabel + '_' + custName + '_' + today + '.pdf');
+    btn.textContent = '⬇️ Download PDF';
+    btn.disabled = false;
+  }).catch(function(err) {
+    console.error(err);
+    btn.textContent = '⬇️ Download PDF';
+    btn.disabled = false;
+    alert('PDF generation failed. Use Print Invoice instead.');
+  });
+}
+
+function downloadPOPDF() {
+  var el = document.getElementById('po-content');
+  if (!el || !el.innerHTML.trim()) { alert('No PO loaded.'); return; }
+  var btn = event.target;
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+
+  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function(canvas) {
+    var imgData = canvas.toDataURL('image/png');
+    var pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    var pageW = pdf.internal.pageSize.getWidth();
+    var pageH = pdf.internal.pageSize.getHeight();
+    var margin = 10;
+    var imgW = pageW - margin * 2;
+    var imgH = (canvas.height * imgW) / canvas.width;
+    if (imgH <= pageH - margin * 2) {
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+    } else {
+      var pageImgH = pageH - margin * 2;
+      var totalPages = Math.ceil(imgH / pageImgH);
+      for (var p = 0; p < totalPages; p++) {
+        if (p > 0) pdf.addPage();
+        var srcY = p * pageImgH * (canvas.height / imgH);
+        var srcH = Math.min(pageImgH * (canvas.height / imgH), canvas.height - srcY);
+        var sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = srcH;
+        var ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+        var sliceData = sliceCanvas.toDataURL('image/png');
+        pdf.addImage(sliceData, 'PNG', margin, margin, imgW, Math.min(pageImgH, imgH - p * pageImgH));
+      }
+    }
+    var poLabel = 'PO';
+    try { var numEl = document.querySelector('.po-banner-num'); if (numEl) poLabel = numEl.textContent.replace('#','').trim(); } catch(e) {}
+    var vendName = 'Vendor';
+    try { var vEl = document.querySelector('.po-info-name'); if (vEl) vendName = vEl.textContent.trim().replace(/[^a-zA-Z0-9_]/g, '_'); } catch(e) {}
+    var today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+    pdf.save('Norwood_' + poLabel + '_' + vendName + '_' + today + '.pdf');
+    btn.textContent = '⬇️ Download PDF';
+    btn.disabled = false;
+  }).catch(function(err) {
+    console.error(err);
+    btn.textContent = '⬇️ Download PDF';
+    btn.disabled = false;
+    alert('PDF generation failed. Use Print PO instead.');
   });
 }
 
