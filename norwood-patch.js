@@ -825,4 +825,279 @@ document.addEventListener('DOMContentLoaded', function() {
   // Run after a short delay so index.html has fully rendered its inputs
   setTimeout(nwCentsFix, 800);
 
+
+  // ── QUOTE / INVOICE ACTIVITY LOG ─────────────────────────────────────────
+  // Adds one-click, timestamped customer follow-up history to every saved
+  // quote and invoice. Activity is stored on the existing record so the
+  // normal Firestore synchronization carries it to every device.
+
+  var NW_ACTIVITY_LABELS = {
+    quote_sent: 'Quote sent',
+    quote_resent: 'Quote resent',
+    followed_up: 'Followed up',
+    customer_responded: 'Customer responded',
+    customer_called: 'Customer called for status',
+    eta_updated: 'ETA updated',
+    customer_notified: 'Customer notified',
+    material_arrived: 'Material arrived',
+    ready: 'Ready for pickup / delivery'
+  };
+  var _nwActivityRecordId = null;
+  var _nwActivityType = 'quote';
+
+  function nwActivityEscape(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
+
+  function nwActivityRecords() {
+    try {
+      if (typeof window.getSavedQuotes === 'function') {
+        var records = window.getSavedQuotes();
+        if (Array.isArray(records)) return records;
+      }
+      return JSON.parse(localStorage.getItem('ns_quotes') || '[]');
+    } catch (e) {
+      console.warn('[ACTIVITY] Could not read saved records', e);
+      return [];
+    }
+  }
+
+  function nwActivityRecordById(id) {
+    var wanted = String(id == null ? '' : id);
+    return nwActivityRecords().find(function(q) {
+      return String(q.id) === wanted ||
+        String(q.quoteNum || '') === wanted ||
+        String(q.invoiceNum || q.invNum || '') === wanted;
+    }) || null;
+  }
+
+  function nwActivityResolve(value, type) {
+    var direct = nwActivityRecordById(value);
+    if (direct) return direct;
+
+    // showInvoice sometimes receives an invoice number rather than the saved ID.
+    var visible = type === 'invoice'
+      ? document.getElementById('invoice-content')
+      : document.getElementById('qp-content');
+    var text = visible ? visible.textContent : '';
+    var records = nwActivityRecords();
+    return records.find(function(q) {
+      var number = type === 'invoice'
+        ? (q.invoiceNum || q.invNum || '')
+        : (q.quoteNum || '');
+      return number && text.indexOf(String(number)) > -1;
+    }) || null;
+  }
+
+  function nwActivitySave(record) {
+    var records = nwActivityRecords();
+    var index = records.findIndex(function(q) { return String(q.id) === String(record.id); });
+    if (index < 0) return false;
+    records[index] = record;
+    if (typeof window.saveQuotesToStorage === 'function') {
+      window.saveQuotesToStorage(records);
+    } else {
+      localStorage.setItem('ns_quotes', JSON.stringify(records));
+    }
+    // Save this exact record immediately as well; this keeps activity reliable
+    // even if an older page version has not patched saveQuotesToStorage yet.
+    if (window._db) {
+      window._db.collection('ns_quotes').doc(String(record.id)).set(record)
+        .catch(function(e) { console.error('[ACTIVITY] Cloud save error', e); });
+    }
+    return true;
+  }
+
+  function nwActivityDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString([], {
+      month:'short', day:'numeric', year:'numeric',
+      hour:'numeric', minute:'2-digit'
+    });
+  }
+
+  function nwActivityRender() {
+    var list = document.getElementById('nw-activity-list');
+    var summary = document.getElementById('nw-activity-summary');
+    var record = nwActivityRecordById(_nwActivityRecordId);
+    if (!list || !record) return;
+    var activity = Array.isArray(record.activity) ? record.activity.slice() : [];
+    activity.sort(function(a,b) { return String(b.at || '').localeCompare(String(a.at || '')); });
+
+    var sentCount = activity.filter(function(a) {
+      return a.action === 'quote_sent' || a.action === 'quote_resent';
+    }).length;
+    var latest = activity[0];
+    summary.textContent = sentCount
+      ? 'Sent ' + sentCount + ' time' + (sentCount === 1 ? '' : 's') +
+        (latest ? ' · Latest activity ' + nwActivityDate(latest.at) : '')
+      : (latest ? 'Latest activity ' + nwActivityDate(latest.at) : 'No activity recorded yet');
+
+    if (!activity.length) {
+      list.innerHTML = '<div class="nw-activity-empty">No activity yet. Use a button above to add the first update.</div>';
+      return;
+    }
+    list.innerHTML = activity.map(function(a) {
+      return '<div class="nw-activity-entry">' +
+        '<div><strong>' + nwActivityEscape(a.label || NW_ACTIVITY_LABELS[a.action] || 'Update') + '</strong>' +
+        (a.note ? '<div class="nw-activity-note">' + nwActivityEscape(a.note) + '</div>' : '') + '</div>' +
+        '<time>' + nwActivityEscape(nwActivityDate(a.at)) + '</time>' +
+      '</div>';
+    }).join('');
+  }
+
+  window.NWActivity = {
+    add: function(action, askForNote) {
+      var record = nwActivityRecordById(_nwActivityRecordId);
+      if (!record) {
+        if (typeof showToast === 'function') showToast('Save this quote or invoice first.', '#b45309');
+        return;
+      }
+      var note = '';
+      if (askForNote) {
+        note = prompt(action === 'eta_updated'
+          ? 'Enter the updated ETA or arrival information:'
+          : 'Add an optional note:') || '';
+      }
+      var activity = Array.isArray(record.activity) ? record.activity.slice() : [];
+      if (action === 'quote_sent' && activity.some(function(a) {
+        return a.action === 'quote_sent' || a.action === 'quote_resent';
+      })) action = 'quote_resent';
+      activity.push({
+        id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        action: action,
+        label: NW_ACTIVITY_LABELS[action] || 'Update',
+        note: note.trim(),
+        at: new Date().toISOString()
+      });
+      record.activity = activity;
+      record.lastActivityAt = activity[activity.length - 1].at;
+      record.lastActivityLabel = activity[activity.length - 1].label;
+      if (action === 'eta_updated' && note.trim()) record.eta = note.trim();
+      if (!nwActivitySave(record)) return;
+      nwActivityRender();
+      if (typeof renderHistory === 'function') renderHistory();
+      if (typeof showToast === 'function') showToast('✓ ' + activity[activity.length - 1].label + ' recorded', '#2d6a30');
+    },
+    note: function() {
+      var note = prompt('Enter a note for this quote or invoice:');
+      if (!note || !note.trim()) return;
+      var record = nwActivityRecordById(_nwActivityRecordId);
+      if (!record) return;
+      var activity = Array.isArray(record.activity) ? record.activity.slice() : [];
+      activity.push({
+        id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        action: 'note',
+        label: 'Note added',
+        note: note.trim(),
+        at: new Date().toISOString()
+      });
+      record.activity = activity;
+      record.lastActivityAt = activity[activity.length - 1].at;
+      record.lastActivityLabel = 'Note added';
+      nwActivitySave(record);
+      nwActivityRender();
+      if (typeof showToast === 'function') showToast('✓ Note saved', '#2d6a30');
+    },
+    toggle: function() {
+      var list = document.getElementById('nw-activity-list');
+      var btn = document.getElementById('nw-activity-history-btn');
+      if (!list || !btn) return;
+      var opening = list.style.display === 'none';
+      list.style.display = opening ? 'block' : 'none';
+      btn.textContent = opening ? 'Hide Full History' : 'View Full History';
+    }
+  };
+
+  function nwActivityButtons(type) {
+    if (type === 'invoice') {
+      return [
+        ['customer_called','☎ Customer Called',false],
+        ['eta_updated','📅 Update ETA',true],
+        ['customer_notified','✓ Customer Notified',false],
+        ['material_arrived','📦 Material Arrived',false],
+        ['ready','🚚 Ready',false]
+      ];
+    }
+    return [
+      ['quote_sent','✉ Quote Sent',false],
+      ['followed_up','☎ Followed Up',true],
+      ['customer_responded','💬 Customer Responded',true]
+    ];
+  }
+
+  function nwActivityInject(value, type) {
+    var record = nwActivityResolve(value, type);
+    if (!record) return;
+    _nwActivityRecordId = record.id;
+    _nwActivityType = type;
+
+    var content = type === 'invoice'
+      ? document.getElementById('invoice-content')
+      : document.getElementById('qp-content');
+    if (!content) return;
+    var old = document.getElementById('nw-activity-panel');
+    if (old) old.remove();
+
+    var panel = document.createElement('section');
+    panel.id = 'nw-activity-panel';
+    panel.className = 'nw-activity-panel';
+    var buttons = nwActivityButtons(type).map(function(b) {
+      return '<button type="button" onclick="NWActivity.add(\'' + b[0] + '\',' + b[2] + ')">' + b[1] + '</button>';
+    }).join('');
+    panel.innerHTML =
+      '<div class="nw-activity-heading"><div><strong>Activity &amp; Status</strong>' +
+      '<div id="nw-activity-summary"></div></div>' +
+      '<button type="button" id="nw-activity-history-btn" class="nw-history-btn" onclick="NWActivity.toggle()">View Full History</button></div>' +
+      '<div class="nw-activity-actions">' + buttons +
+      '<button type="button" onclick="NWActivity.note()">＋ Add Note</button></div>' +
+      '<div id="nw-activity-list" style="display:none"></div>';
+
+    content.parentNode.insertBefore(panel, content);
+    nwActivityRender();
+  }
+
+  var activityStyle = document.createElement('style');
+  activityStyle.textContent =
+    '.nw-activity-panel{margin:12px 0 16px;padding:14px;background:#fffaf0;border:1px solid #dfd0ad;border-radius:9px;font-family:system-ui,sans-serif}' +
+    '.nw-activity-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}' +
+    '.nw-activity-heading strong{font-size:15px;color:#1a2438}.nw-activity-heading #nw-activity-summary{font-size:11px;color:#77684d;margin-top:2px}' +
+    '.nw-activity-actions{display:flex;gap:7px;flex-wrap:wrap}.nw-activity-actions button,.nw-history-btn{border:1px solid #c7b78f;background:#fff;color:#26354b;border-radius:6px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer}' +
+    '.nw-activity-actions button:hover,.nw-history-btn:hover{background:#edf5fb;border-color:#1e70b8}.nw-history-btn{white-space:nowrap;background:#1a2438;color:#fff;border-color:#1a2438}' +
+    '#nw-activity-list{margin-top:12px;border-top:1px solid #e5d9bd}.nw-activity-entry{display:flex;justify-content:space-between;gap:14px;padding:9px 2px;border-bottom:1px solid #eee4cf;font-size:12px}' +
+    '.nw-activity-entry time{color:#786b55;white-space:nowrap}.nw-activity-note{font-weight:400;color:#544a39;margin-top:3px}.nw-activity-empty{padding:12px 2px;color:#83765e;font-size:12px}' +
+    '@media(max-width:600px){.nw-activity-heading{align-items:flex-start}.nw-activity-entry{display:block}.nw-activity-entry time{display:block;margin-top:4px}.nw-activity-actions button{flex:1 1 44%}}' +
+    '@media print{#nw-activity-panel{display:none!important}}';
+  document.head.appendChild(activityStyle);
+
+  function nwActivityHook(tries) {
+    tries = tries || 0;
+    if (tries > 30) return;
+    var quoteFn = window.showQuote;
+    var invoiceFn = window.showInvoice;
+    if (typeof quoteFn !== 'function' || typeof invoiceFn !== 'function') {
+      setTimeout(function(){ nwActivityHook(tries + 1); }, 300);
+      return;
+    }
+    if (window._nwActivityHooked) return;
+    window._nwActivityHooked = true;
+
+    window.showQuote = function(value) {
+      var result = quoteFn.apply(this, arguments);
+      setTimeout(function(){ nwActivityInject(value, 'quote'); }, 120);
+      return result;
+    };
+    window.showInvoice = function(value) {
+      var result = invoiceFn.apply(this, arguments);
+      setTimeout(function(){ nwActivityInject(value, 'invoice'); }, 180);
+      return result;
+    };
+    console.log('[ACTIVITY] Quote/invoice activity log ready');
+  }
+  setTimeout(function(){ nwActivityHook(0); }, 1200);
+
+
 }); // end DOMContentLoaded
