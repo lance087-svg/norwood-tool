@@ -4463,35 +4463,20 @@ function addSpecialOrderDoor() {
 
 // ── NEW QUOTE ─────────────────────────────────────────────────────────────────
 function newQuote() {
-  const hasData=lines.length>0||(document.getElementById('c-name')&&document.getElementById('c-name').value);
-  if(hasData) {
-    const overlay=document.createElement('div');
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-    const box = document.createElement('div');
-    box.style.cssText = 'background:#fff;border-radius:10px;padding:28px 32px;max-width:360px;width:90%;text-align:center';
-    const title = document.createElement('div');
-    title.style.cssText = 'font-size:18px;font-weight:700;color:#1a1008;margin-bottom:10px';
-    title.textContent = 'Start New Quote?';
-    const msg = document.createElement('div');
-    msg.style.cssText = 'font-size:14px;color:#6b5a3a;margin-bottom:22px;line-height:1.6';
-    msg.textContent = 'This will clear all line items and customer info.';
-    const btns = document.createElement('div');
-    btns.style.cssText = 'display:flex;gap:10px;justify-content:center';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.style.cssText = 'padding:10px 24px;border-radius:6px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = function() { overlay.remove(); };
-    const confirmBtn = document.createElement('button');
-    confirmBtn.style.cssText = 'padding:10px 24px;border-radius:6px;border:none;background:#c8952a;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit';
-    confirmBtn.textContent = 'Yes, Start New';
-    confirmBtn.onclick = function() { overlay.remove(); doNewQuote(); };
-    btns.appendChild(cancelBtn); btns.appendChild(confirmBtn);
-    box.appendChild(title); box.appendChild(msg); box.appendChild(btns);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-  } else {
-    doNewQuote();
+  // Never discard work: if there are line items on screen, save the current quote/invoice to history first,
+  // then start fresh. Nothing to save (no items) -> just start fresh. No warning dialog either way.
+  var savedLabel = null;
+  if(lines.length > 0) {
+    try {
+      var nameEl = document.getElementById('c-name');
+      var custName = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+      var isInv = !!currentInvNum;
+      saveCurrentQuote(isInv ? 'invoice' : 'quote');
+      savedLabel = (isInv ? currentInvNum : quoteNum) + (custName ? ' for ' + custName : '');
+    } catch(e) { console.warn('New Quote auto-save failed:', e); }
   }
+  doNewQuote();
+  if(savedLabel) setTimeout(function(){ showToast('\u2713 Saved ' + savedLabel + ' \u00b7 new quote started', '#2d6a30'); }, 50);
 }
 function doNewQuote() {
   lines=[]; manualGM=null; selProd=null;
