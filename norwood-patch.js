@@ -97,7 +97,38 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(snap) {
           var quotes = [];
           snap.forEach(function(doc) { quotes.push(doc.data()); });
-          localStorage.setItem('ns_quotes', JSON.stringify(quotes));
+          // SAFETY (added 2026-09-22): never overwrite the device's list with an
+          // empty or partial cloud read. Before this, a cold/offline Firestore
+          // read (e.g. right after a build-update reload) returned [] and the
+          // line below wiped every quote on the device; the old March seed in
+          // index.html then refilled it with 27 stale records and the sync
+          // cursor hid the loss. Now: empty read = leave local alone; otherwise
+          // MERGE by id (newer timestamp wins), never shrink, newest first.
+          var local = [];
+          try { local = JSON.parse(localStorage.getItem('ns_quotes') || '[]'); if (!Array.isArray(local)) local = []; } catch (e) { local = []; }
+          if (!quotes.length) {
+            console.warn('[SYNC] cloud returned 0 quotes - local list left alone (' + local.length + ' kept)');
+            if (typeof callback === 'function') callback(null);
+            return;
+          }
+          function stampOf(q) { return Number(q && (q.timestamp || q.id)) || 0; }
+          var byId = {}, order = [];
+          function add(q) {
+            if (!q || q.id === undefined || q.id === null) return;
+            var k = String(q.id);
+            if (!byId[k]) { byId[k] = q; order.push(k); }
+            else if (stampOf(q) > stampOf(byId[k])) { byId[k] = q; }
+          }
+          local.forEach(add); quotes.forEach(add);
+          var merged = order.map(function(k) { return byId[k]; });
+          merged.sort(function(a, b) { return stampOf(b) - stampOf(a); });
+          if (merged.length < local.length) {
+            console.warn('[SYNC] merge would shrink the local list (' + local.length + ' -> ' + merged.length + ') - skipped');
+            if (typeof callback === 'function') callback(quotes);
+            return;
+          }
+          if (typeof window.nsSafeSetQuotes === 'function') { window.nsSafeSetQuotes(merged); }
+          else { try { localStorage.setItem('ns_quotes', JSON.stringify(merged)); } catch (e) { console.warn('[SYNC] local write failed', e); } }
           if (typeof callback === 'function') callback(quotes);
         })
         .catch(function(e) {
@@ -277,6 +308,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ? '<span style="background:#1565C0;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">🧾 INVOICES</span> Showing invoices only'
         : '<span style="background:#2E7D32;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;">📋 QUOTES</span> Showing quotes only';
       this._filterCards(type);
+      var cs = document.getElementById('ns-converted-section'); // converted-quotes section belongs to the Quotes tab only
+      if (cs) cs.style.display = isInvoice ? 'none' : '';
     },
     _filterCards: function(type) {
       var tries = 0;
