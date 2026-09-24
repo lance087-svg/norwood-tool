@@ -4737,6 +4737,19 @@ function getDeletedQuotes() {
 // failed save or a "FAILED: 22" sync error. On failure it clears old daily
 // backups first, then trims to the most recent 200 quotes and retries —
 // the cloud always has the complete history, so nothing is actually lost.
+// Storage-full warnings are expected/recurring on devices whose local
+// quote cache is already past the quota (the cloud always has the full
+// history, so nothing is lost) — cap each warning to once per calendar
+// day per message so it doesn't nag on every open/sync (added 2026-09-24).
+function nsShouldShowStorageToast(key) {
+  try {
+    var today = new Date().toISOString().slice(0, 10);
+    var k = 'ns_storage_toast_' + key;
+    if (localStorage.getItem(k) === today) return false;
+    localStorage.setItem(k, today);
+    return true;
+  } catch (e) { return true; }
+}
 function nsSafeSetQuotes(list) {
   function trySet(arr) {
     try { localStorage.setItem('ns_quotes', JSON.stringify(arr)); return true; }
@@ -4751,7 +4764,7 @@ function nsSafeSetQuotes(list) {
     }
   } catch (e) {}
   if (trySet(list)) {
-    if (typeof showToast === 'function') showToast('⚠️ Storage was nearly full — cleared old backups to make room.', '#b35309');
+    if (typeof showToast === 'function' && nsShouldShowStorageToast('backups_cleared')) showToast('⚠️ Storage was nearly full — cleared old backups to make room.', '#b35309');
     return true;
   }
 
@@ -4760,7 +4773,7 @@ function nsSafeSetQuotes(list) {
   });
   var trimmed = sorted.slice(0, 200);
   if (trySet(trimmed)) {
-    if (typeof showToast === 'function') showToast('⚠️ Local storage was full — kept your 200 most recent quotes on this device, older ones are still safe in the cloud.', '#b35309');
+    if (typeof showToast === 'function' && nsShouldShowStorageToast('trimmed_200')) showToast('⚠️ Local storage was full — kept your 200 most recent quotes on this device, older ones are still safe in the cloud.', '#b35309');
     return true;
   }
 
