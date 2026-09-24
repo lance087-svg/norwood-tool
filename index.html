@@ -3409,6 +3409,8 @@ function populateSpecOtherSelect(prefix, field, knownValues, storedValue) {
 // mismatch before it becomes a wrong-door delivery.
 function doorSpecChipHTML(spec) {
   var parts = [];
+  if(spec.nominalSize) parts.push('Door ' + spec.nominalSize);
+  if(spec.sizingEstimate) parts.push('Sizing estimate — verify supplier');
   if(spec.hand) parts.push(spec.hand);
   if(spec.swing) parts.push(spec.swing);
   if(spec.roughOpening) parts.push('RO ' + spec.roughOpening);
@@ -3431,6 +3433,7 @@ function openDoorSpecEdit(lineId) {
   document.getElementById('ds-swing').value = s.swing || '';
   document.getElementById('ds-rough-opening').value = s.roughOpening || '';
   document.getElementById('ds-net-size').value = s.netSize || '';
+  if(window.nsDoorSizingLoad) nsDoorSizingLoad('ds', s);
   populateSpecOtherSelect('ds', 'jamb-width', ['4-9/16"','6-9/16"'], s.jambWidth || '');
   document.getElementById('ds-jamb-material').value = s.jambMaterial || '';
   document.getElementById('ds-texture').value = s.texture || '';
@@ -3450,6 +3453,7 @@ function saveDoorSpecEdit() {
     swing: document.getElementById('ds-swing').value,
     roughOpening: document.getElementById('ds-rough-opening').value.trim(),
     netSize: document.getElementById('ds-net-size').value.trim(),
+    ...window.nsDoorSizingRead('ds'),
     jambWidth: resolveSpecSelect('ds', 'jamb-width'),
     jambMaterial: document.getElementById('ds-jamb-material').value,
     texture: document.getElementById('ds-texture').value,
@@ -3660,6 +3664,8 @@ function orderConfirmationHTML(lineArr, prefix) {
       var s = l.doorSpec, parts = [];
       if(s.hand) parts.push(s.hand);
       if(s.swing) parts.push(s.swing);
+      if(s.nominalSize) parts.push('Door ' + s.nominalSize);
+      if(s.sizingEstimate) parts.push('Sizing estimate — verify supplier');
       if(s.roughOpening) parts.push('RO ' + s.roughOpening);
       if(s.netSize) parts.push('Net ' + s.netSize);
       if(s.jambWidth) parts.push(s.jambWidth + (s.jambMaterial ? ' ' + s.jambMaterial : '') + ' jamb');
@@ -4198,6 +4204,7 @@ function closeModal() { document.getElementById('edit-modal').classList.add('hid
 
 // ── CUSTOM ITEM ───────────────────────────────────────────────────────────────
 function showCustomItem() {
+  if(window.nsDoorSizingLoad) nsDoorSizingLoad('ci', {});
   document.getElementById('ci-desc').value='';
   document.getElementById('ci-cost').value='';
   document.getElementById('ci-qty').value=1;
@@ -4279,6 +4286,7 @@ function addCustomItem() {
       swing:document.getElementById('ci-swing').value,
       roughOpening:document.getElementById('ci-rough-opening').value.trim(),
       netSize:document.getElementById('ci-net-size').value.trim(),
+      ...window.nsDoorSizingRead('ci'),
       jambWidth:resolveSpecSelect('ci','jamb-width'),
       jambMaterial:document.getElementById('ci-jamb-material').value,
       texture:document.getElementById('ci-texture').value,
@@ -4366,6 +4374,7 @@ function handleSODPhotoUpload(input) {
   input.value = '';
 }
 function showSpecialOrderDoor() {
+  if(window.nsDoorSizingLoad) nsDoorSizingLoad('sod', {});
   document.getElementById('sod-category').value='';
   document.getElementById('sod-group').value='';
   populateSODStyles();
@@ -4429,6 +4438,7 @@ function addSpecialOrderDoor() {
     swing: document.getElementById('sod-swing').value,
     roughOpening: document.getElementById('sod-rough-opening').value.trim(),
     netSize: document.getElementById('sod-net-size').value.trim(),
+    ...window.nsDoorSizingRead('sod'),
     jambWidth: resolveSpecSelect('sod','jamb-width'),
     jambMaterial: document.getElementById('sod-jamb-material').value,
     texture: document.getElementById('sod-texture').value,
@@ -4446,7 +4456,9 @@ function addSpecialOrderDoor() {
   var specBits = [];
   if(spec.hand) specBits.push(spec.hand);
   if(spec.swing) specBits.push(spec.swing);
-  if(spec.netSize) specBits.push(spec.netSize);
+  if(spec.nominalSize) specBits.push('Door ' + spec.nominalSize);
+  if(spec.netSize) specBits.push('Net unit ' + spec.netSize);
+  if(spec.sizingEstimate) specBits.push('sizing estimate — verify supplier');
   if(specBits.length) desc += ', ' + specBits.join(', ');
   if(notes) desc += ' — ' + notes;
 
@@ -9810,6 +9822,7 @@ console.log('[PICKUP] active');
 })();
 </script>
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
+  <script src="door-size-presets.js?v=20260924"></script>
   <script src="ns-version.js"></script>
 </body>
 </html>
