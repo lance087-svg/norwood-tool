@@ -59,3 +59,17 @@ test('lumber display recalculates markup when cost changes despite a stale fixed
  const {ctx,elements}=app([p]);ctx.renderLumber();
  assert.match(elements['lumber-tbody'].innerHTML,/\$39</);assert.match(elements['lumber-tbody'].innerHTML,/30% markup/);
 });
+
+test('screenshot regression: three saved copies of SKU 9507 become one inventory/count row',()=>{
+ const {ctx,values,elements}=app();
+ const birch=inventory.find(p=>p.sku==='9507');
+ values.ns_edits=JSON.stringify({'2468':{...birch,item:birch.name},'2469':{...birch,item:birch.name}});
+ values.ns_lumber_counts=JSON.stringify({'9507':18});
+ ctx.init();
+ assert.equal(ctx.products.filter(p=>p.sku==='9507').length,1);
+ assert.equal(ctx.getOnHand(ctx.products.find(p=>p.sku==='9507')),18);
+ ctx.printCountSheet('ALL');
+ assert.equal((elements['count-sheet-content'].innerHTML.match(/data-count-sku="9507"/g)||[]).length,1);
+ assert.equal(values.ns_lumber_counts,'{"9507":18}');
+ assert.ok(JSON.parse(values.ns_edits)['2468']);
+});

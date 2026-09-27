@@ -2517,14 +2517,14 @@ function init() {
       console.log('Norwood FJ board price migration applied: ' + migrated + ' items updated to ' + FJ_BOARD_PRICE_DATE);
     }
   } catch(err) { console.warn('FJ board price migration failed:', err); }
-  products = uniqueLumberProducts([...doorProds, ...invProds]).map(p => {
+  products = uniqueLumberProducts([...doorProds, ...invProds].map(p => {
     if (savedEdits[p.id]) {
       const edit = {...savedEdits[p.id]};
       delete edit.imageUrl; // Always use the imageUrl baked into the file
       return {...p, ...edit};
     }
     return p;
-  });
+  }));
 
   // ── CATEGORY NORMALIZATION ────────────────────────────────────────────────
   // Collapses near-duplicate categories on the Catalog/quote-builder page:
