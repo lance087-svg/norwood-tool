@@ -185,6 +185,8 @@ def main():
         else:
             skipped.append(name); continue
         it['cost']=newcost; it['pricePerM']=str(int(newM) if float(newM).is_integer() else newM)
+        if it.get('group') == 'Plywood':
+            it['fixedRetail'] = round(newcost * 1.30, 2)
         updated+=1
     # banner date  M.DD.YYYY -> M/DD/YYYY
     disp=None
