@@ -9092,7 +9092,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
     <img id="img-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
     <div id="img-lightbox-cap" style="color:#fff;text-align:center;margin-top:10px;font-size:13px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.8)"></div>
     </div></div>
-<script src="norwood-patch.js?v=20260929-quote-sync"></script>
+<script src="norwood-patch.js?v=20260929-sync-safety"></script>
 <script src="norwood-delivery-patch.js?v=20260927-0843"></script>
 <script src="norwood-quote-import.js?v=20260927-0843"></script>
 <script>
@@ -9111,7 +9111,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   } catch (e) { /* localStorage unavailable — nothing to do */ }
 })();
 </script>
-<script src="norwood-sync-guard.js?v=20260929-quote-sync"></script>
+<script src="norwood-sync-guard.js?v=20260929-sync-safety"></script>
 <script>
 /* norwood-quote-pull v1.1 - embedded inline so it cannot go missing.
    v1.1 (2026-08-30):
@@ -9167,9 +9167,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   var CURSOR_KEY = 'ns_quotes_last_sync_ts';
   var FULL_RECONCILE_KEY = 'ns_quotes_last_full_reconcile';
   var MERGED_COUNT_KEY = 'ns_quotes_last_merged_count'; // how many quotes this device held after its last successful merge
-  var FULL_RECONCILE_MS = 20 * 60 * 60 * 1000; // 20 hours
+  var FULL_RECONCILE_MS = 30 * 60 * 1000; // check all records when a long-lived tab returns
   var THROTTLE_MS = 60 * 1000; // 60 seconds
   var lastAttempt = 0;
+  var reconciledThisPage = false;
 
   function readLocal() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
@@ -9281,6 +9282,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   var running = false;
 
   function needsFullReconcile() {
+    // A persisted cursor cannot prove that this browser's local cache is
+    // complete. Check the server once on every new page load.
+    if (!reconciledThisPage) { return true; }
     var cursor = Number(localStorage.getItem(CURSOR_KEY)) || 0;
     if (!cursor) { return true; } // never synced on this device
     // Sanity check (added 2026-09-22): if this device's local list is far
@@ -9362,6 +9366,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
       localStorage.setItem(CURSOR_KEY, String(stamp));
       localStorage.setItem(FULL_RECONCILE_KEY, String(Date.now()));
       rememberMergedCount();
+      reconciledThisPage = true;
 
       console.log('[QUOTE PULL] full | local ' + local.length + ' | cloud ' + cloud.length +
         ' | merged ' + merged.length + ' | pulled down ' + added + ' | pushed up ' + toPush.length);
@@ -9884,6 +9889,6 @@ console.log('[PICKUP] active');
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
-  <script src="ns-version.js?v=20260929-quote-sync"></script>
+  <script src="ns-version.js?v=20260929-sync-safety"></script>
 </body>
 </html>
