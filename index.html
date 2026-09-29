@@ -9092,7 +9092,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
     <img id="img-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
     <div id="img-lightbox-cap" style="color:#fff;text-align:center;margin-top:10px;font-size:13px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.8)"></div>
     </div></div>
-<script src="norwood-patch.js?v=20260927-0843"></script>
+<script src="norwood-patch.js?v=20260929-quote-sync"></script>
 <script src="norwood-delivery-patch.js?v=20260927-0843"></script>
 <script src="norwood-quote-import.js?v=20260927-0843"></script>
 <script>
@@ -9111,7 +9111,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   } catch (e) { /* localStorage unavailable — nothing to do */ }
 })();
 </script>
-<script src="norwood-sync-guard.js?v=20260927-0843"></script>
+<script src="norwood-sync-guard.js?v=20260929-quote-sync"></script>
 <script>
 /* norwood-quote-pull v1.1 - embedded inline so it cannot go missing.
    v1.1 (2026-08-30):
@@ -9315,7 +9315,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   // every ~20 hours after that; catches anything an incremental pull
   // could possibly miss (e.g. a doc saved with a bad/missing timestamp).
   function fullPull(db, announce, done) {
-    db.collection(QUOTES_COL).get().then(function (snap) {
+    db.collection(QUOTES_COL).get({ source: 'server' }).then(function (snap) {
       var cloud = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -9344,10 +9344,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
       }
 
       var added = merged.length - local.length;
-      if (added > 0 || announce) {
-        writeLocal(merged);
-        refreshUI();
-      }
+      // An existing quote can change without changing the list length. Always
+      // apply the merged records so edits from another device become visible.
+      if (!writeLocal(merged)) { done(); return; }
+      refreshUI();
 
       var cloudKeys = {};
       cloud.forEach(function (q) { var k = keyOf(q); if (k) { cloudKeys[k] = true; } });
@@ -9358,7 +9358,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
         });
       });
 
-      var stamp = maxStamp(merged, Date.now());
+      var stamp = maxStamp(merged, 0);
       localStorage.setItem(CURSOR_KEY, String(stamp));
       localStorage.setItem(FULL_RECONCILE_KEY, String(Date.now()));
       rememberMergedCount();
@@ -9390,7 +9390,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
   // pull automatically if the query itself errors out for any reason.
   function incrementalPull(db, announce, done) {
     var cursor = Number(localStorage.getItem(CURSOR_KEY)) || 0;
-    db.collection(QUOTES_COL).where('timestamp', '>', cursor).get().then(function (snap) {
+    db.collection(QUOTES_COL).where('timestamp', '>', cursor).get({ source: 'server' }).then(function (snap) {
       var changed = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -9409,7 +9409,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 
       var merged = merge(local, changed);
       var added = merged.length - local.length;
-      writeLocal(merged);
+      if (!writeLocal(merged)) { done(); return; }
       refreshUI();
 
       var stamp = maxStamp(changed, cursor);
@@ -9443,7 +9443,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 
     waitForDB(function (db) {
       function finish() { running = false; }
-      if (needsFullReconcile()) {
+      if (announce || needsFullReconcile()) {
         fullPull(db, announce, finish);
       } else {
         incrementalPull(db, announce, finish);
@@ -9884,6 +9884,6 @@ console.log('[PICKUP] active');
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
-  <script src="ns-version.js?v=20260927-0843"></script>
+  <script src="ns-version.js?v=20260929-quote-sync"></script>
 </body>
 </html>
