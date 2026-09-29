@@ -148,9 +148,20 @@ document.addEventListener('DOMContentLoaded', function() {
     _patchedStorage = true;
     var _origSave = window.saveQuotesToStorage;
     window.saveQuotesToStorage = function(quotes) {
+      // Upload only records changed by this save. Re-sending the entire local
+      // cache can overwrite newer edits made on another device when this
+      // device has been offline or has an old quote list.
+      var before = {};
+      try {
+        JSON.parse(localStorage.getItem('ns_quotes') || '[]').forEach(function(q) {
+          if (q && q.id != null) before[String(q.id)] = JSON.stringify(q);
+        });
+      } catch (e) {}
       _origSave.apply(this, arguments);
       if (_syncEnabled && Array.isArray(quotes)) {
-        quotes.forEach(function(q) { if (q && q.id) syncSaveQuote(q); });
+        quotes.forEach(function(q) {
+          if (q && q.id && before[String(q.id)] !== JSON.stringify(q)) syncSaveQuote(q);
+        });
       }
     };
     console.log('[SYNC] Storage functions patched');
