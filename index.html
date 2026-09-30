@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#1a2438">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norwood Supply — Pricing Tool</title>
+<link rel="stylesheet" href="norwood-operations.css?v=20260930-operations">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -4882,6 +4883,7 @@ function saveCurrentQuote(type) {
     // Preserve any payments already recorded so re-saving (edits, refreshes) never wipes them
     record.paymentHistory = (prior.paymentHistory || []).slice();
     if(prior.dueDate) record.dueDate = prior.dueDate;
+    if(prior.ops) record.ops = Object.assign({}, prior.ops); // Keep operations follow-up settings on edits
     // Legacy record (paid before payment history existed): carry the amount forward as one visible, undoable entry
     if(!record.paymentHistory.length && (prior.amountPaid||0) > 0) {
       record.paymentHistory.push({date: prior.date, timestamp: prior.timestamp || Date.now(), type:'full', amount: prior.amountPaid, method:'Paid at time of invoice', notes:'', legacy:true});
@@ -8428,7 +8430,7 @@ function renderPOLog() {
       var photoTag = (po.receiving.photos && po.receiving.photos.length) ? ' 📷' + po.receiving.photos.length : '';
       recvBadge = '<span style="font-size:10px;background:' + rc.bg + ';color:' + rc.color + ';padding:2px 8px;border-radius:10px;font-weight:600;margin-left:4px">' + po.receiving.overallStatus + photoTag + '</span>';
     }
-    var itemsHtml = (po.items||[]).map(function(it) {
+    var itemsHtml = window.NWOperations ? window.NWOperations.lineTable(po) : (po.items||[]).map(function(it) {
       return '<div style="font-size:11px;color:#6b5a3a;padding:2px 0">- ' + it.qty + 'x ' + it.item + (it.size?' ('+it.size+')':'') + '  $' + (it.unitCost*it.qty).toFixed(2) + '</div>';
     }).join('');
     var ackHtml = po.ack ? '<div style="margin-top:10px;padding:10px;background:#f0fff4;border-radius:6px;border:1px solid #b7dfc4;font-size:12px"><strong>Ack:</strong> ' + (po.ack.date||'') + ' Ref: ' + (po.ack.ref||'-') + ' ETA: ' + (po.ack.eta||'-') + (po.ack.notes?'<br>'+po.ack.notes:'') + (hasDis?'<div style="color:#c04040;margin-top:4px">Issues: ' + po.ack.discrepancies.join('; ') + '</div>':'') + '</div>' : '';
@@ -9889,6 +9891,7 @@ console.log('[PICKUP] active');
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
-  <script src="ns-version.js?v=20260929-sync-safety"></script>
+  <script src="norwood-operations.js?v=20260930-operations"></script>
+  <script src="ns-version.js?v=20260930-operations"></script>
 </body>
 </html>
