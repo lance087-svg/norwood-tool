@@ -8,8 +8,8 @@
   <meta name="theme-color" content="#1a2438">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norwood Supply — Pricing Tool</title>
-<link rel="stylesheet" href="norwood-operations.css?v=20260930-delivery">
-<link rel="stylesheet" href="norwood-fulfillment.css?v=20260930-delivery">
+<link rel="stylesheet" href="norwood-operations.css?v=20260930-customer-receipt">
+<link rel="stylesheet" href="norwood-fulfillment.css?v=20260930-customer-receipt">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -5055,7 +5055,7 @@ function renderHistory() {
     
     return '<div class="hcard" onclick="loadQuote(' + q.id + ')">' +
       '<div style="flex:1">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">' +
           '<div class="hcard-num">' + q.quoteNum + '</div>' +
           '<span class="hbadge ' + badgeClass + '">' + badgeText + '</span>' +
           (window.NWFulfillment ? window.NWFulfillment.deliveryBadge(q) : '') +
@@ -5067,7 +5067,7 @@ function renderHistory() {
           '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'quote\')" style="background:#f5f0e8;color:#2c2416;border:1px solid #d5c8a8;font-size:11px;padding:4px 10px;border-radius:4px">📄 View Quote</button>' +
           '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'invoice\')" style="background:#1a1008;color:#f5e8c8;font-size:11px;padding:4px 10px;border-radius:4px">' + (q.type === 'invoice' ? '🧾 View Invoice' : '🧾 Make Invoice…') + '</button>' +
           '<button class="btn" onclick="event.stopPropagation();loadIntoBuilder(' + q.id + ')" style="background:#2980d4;color:#fff;font-size:11px;padding:4px 10px;border-radius:4px">✏️ Edit</button>' +
-          (window.NWFulfillment ? window.NWFulfillment.action(q) : '') +
+          (window.NWFulfillment ? window.NWFulfillment.action(q) + window.NWFulfillment.customerCheck(q, true) : '') +
           '<button class="btn" onclick="event.stopPropagation();deleteQuote(' + q.id + ')" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:11px;padding:4px 10px;border-radius:4px">🗑️</button>' +
         '</div>' +
       '</div>' +
@@ -9904,9 +9904,9 @@ console.log('[PICKUP] active');
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
-  <script src="norwood-operations.js?v=20260930-delivery"></script>
-  <script src="norwood-navigation.js?v=20260930-delivery"></script>
-  <script src="norwood-fulfillment.js?v=20260930-delivery"></script>
-  <script src="ns-version.js?v=20260930-delivery"></script>
+  <script src="norwood-operations.js?v=20260930-customer-receipt"></script>
+  <script src="norwood-navigation.js?v=20260930-customer-receipt"></script>
+  <script src="norwood-fulfillment.js?v=20260930-customer-receipt"></script>
+  <script src="ns-version.js?v=20260930-customer-receipt"></script>
 </body>
 </html>
