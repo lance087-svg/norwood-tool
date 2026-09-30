@@ -1,0 +1,46 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {JSDOM}=require('jsdom');const core=require('../norwood-fulfillment.js');
+const paid={id:106,type:'invoice',quoteNum:'INV-SAMPLE-106',date:'Sep 30, 2026',grand:100,amountPaid:100,customer:{name:'Pine Bay Homes (sample)',rep:'Lance',payment:'PAID IN FULL'},paymentHistory:[{amount:100,type:'full'}],activity:[],lines:[]};
+assert.deepEqual(core.completion(paid,{}, {balance:0}),{paid:true,delivered:false,complete:false,release:null});
+assert.equal(core.completion(paid,{status:'Delivered'},{balance:0}).complete,true);assert.equal(core.completion(paid,{status:'Delivered'},{balance:10}).complete,false);assert.equal(core.completion({...paid,release:{by:'Lance'}},{status:'Received'},{balance:0}).delivered,false);
+const st={ok:true,balance:0,tone:'green'},r={by:'Lance',pickedUpBy:'Pine Bay driver'};
+const change=core.deliveryChange(paid,{eta:'2026-10-01',linkedPO:'PO-SAMPLE'},st,r,Date.parse('2026-09-30T17:00:00Z'),false);assert.equal(change.meta.status,'Delivered');assert.equal(change.meta.linkedPO,'PO-SAMPLE');assert.equal(change.fields.activity[0].label,'Delivered');assert.equal(paid.activity.length,0);
+assert.throws(()=>core.deliveryChange(paid,{}, {ok:false,balance:100},r,Date.now(),false),/Collect payment/);assert.throws(()=>core.deliveryChange(paid,{status:'Delivered'},st,r,Date.now(),false),/already/);
+const source=fs.readFileSync(__dirname+'/../index.html','utf8');
+function section(a,b){const start=source.indexOf(a);assert.ok(start>=0,a);const end=source.indexOf(b,start);assert.ok(end>start,b);return source.slice(start,end);}
+const dom=new JSDOM(source,{url:'https://isolated.test/',runScripts:'outside-only'}),w=dom.window;
+const statusNode=w.document.createElement('div');statusNode.id='mock-status';w.document.body.appendChild(statusNode);
+w.eval(fs.readFileSync(__dirname+'/mock-host.js','utf8'));
+function syncRecord(q){const all=w.getSavedQuotesRaw().filter(x=>x.id!==q.id).concat(q);w.nsSafeSetQuotes(all);w.NWTestDB.docs['ns_quotes/'+q.id]=JSON.parse(JSON.stringify(q));}
+syncRecord(paid);w.NS_STAFF_NAMES=['Lance','Garon','Cleve','Associate'];w.NS_OVERRIDE_NAMES=['Lance','Garon','Cleve'];w.nsSetActingAs=()=>{};w.nsEsc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));w.nsFindInvoiceByNum=n=>w.getSavedQuotes().find(q=>q.type==='invoice'&&q.quoteNum===n);w.nsUpdateOwingBar=()=>{};w.renderPickup=()=>{};w.nsDeviceLabel=()=> 'isolated-device';w.nsReleaseReturnTo=null;w.nsReleaseReturnMode=null;
+const originalPay=w.nsPayState;w.nsPayState=q=>({...originalPay(q),status:q.customer?.payment==='NET 30'?'NET 30':originalPay(q).balance<=.01?'PAID IN FULL':'BALANCE DUE'});
+w.eval(section('function nsReleaseState(q)', '// ── Pickup tag'));
+w.eval(section('function nsReleaseOrder(invNum, opts)', '\nfunction nsCommitRelease'));
+w.eval(section('function buildOrderList()', '\nfunction resetOrderTracker'));
+w.getDeletedQuotes=()=>w.getSavedQuotesRaw().filter(q=>q.removed);w.nsConvertedQuoteMap=()=>({byQuote:{},byInvoice:{}});w.updateOweBadge=()=>{};w.renderConvertedSection=()=>{};w.renderDeletedBin=()=>{};
+w.eval(section('function renderHistory() {','\nfunction loadQuote'));
+w.eval(fs.readFileSync(__dirname+'/../norwood-navigation.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../norwood-fulfillment.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+const tick=()=>new Promise(r=>setTimeout(r,10));
+(async()=>{
+ assert.equal(w.NWTestDB.writes.length,0);assert.equal(w.buildOrderList().find(o=>o.invNum===paid.quoteNum).status,'Pending','Paid does not imply delivered');
+ const invButton=w.document.getElementById('tab-inventory');assert.match(invButton.nextElementSibling.textContent,/New Quote/);const frame=w.document.getElementById('norwood-inventory-frame');assert.equal(frame.getAttribute('src'),null);w.NWNavigation.openInventory();assert.match(frame.getAttribute('src'),/inventory.html\?embedded=1/);assert.equal(w.document.getElementById('page-inventory').classList.contains('active'),true);
+ w.showPage('history',w.document.getElementById('tab-history'));w.renderHistory();assert.match(w.document.getElementById('history-list').textContent,/Delivery pending/);
+ const mark=w.document.querySelector('[data-ns-deliver="106"]');mark.click();assert.equal(w.document.querySelector('#ns-rel-pickedby').value,paid.customer.name);assert.equal(w.document.querySelector('#ns-rel-ok').textContent,'Mark delivered');w.document.querySelector('#ns-rel-ok').click();await tick();
+ assert.equal(w.document.getElementById('ns-release-modal'),null);assert.equal(w.NWTestDB.docs['ns_sync/ns_order_meta'].data[paid.quoteNum].status,'Delivered');assert.equal(w.NWTestDB.docs['ns_quotes/106'].release.by,'Lance');assert.deepEqual(w.NWTestDB.docs['ns_quotes/106'].paymentHistory,paid.paymentHistory);assert.equal(w.getSavedQuotesRaw().find(q=>q.id===103).removed,true);assert.equal(w.NWTestDB.docs['ns_sync/ns_order_meta'].data['INV-OTHER'].eta,'2026-10-12');assert.match(w.document.getElementById('history-list').textContent,/Complete — paid & delivered/);assert.equal(w.NWFulfillment.status(w.getSavedQuotes().find(q=>q.id===106)).complete,true);
+ const count=w.NWTestDB.writes.length;await assert.rejects(()=>w.NWFulfillment.commitDelivery(106,r),/already/);assert.equal(w.NWTestDB.writes.length,count);
+ await w.NWFulfillment.undoDelivery(106,'Wrong invoice selected','Lance');assert.equal(w.NWTestDB.docs['ns_quotes/106'].release,null);assert.deepEqual(w.NWTestDB.docs['ns_quotes/106'].paymentHistory,paid.paymentHistory);assert.equal(w.NWFulfillment.status(w.getSavedQuotes().find(q=>q.id===106)).complete,false);
+ // Live payment state is re-read inside the shared transaction.
+ w.NWFulfillment.markDelivered(106);w.NWTestDB.docs['ns_quotes/106'].paymentHistory=[];w.document.querySelector('#ns-rel-ok').click();await tick();assert.match(w.document.getElementById('mock-status').textContent,/Collect payment/);assert.equal(w.NWTestDB.docs['ns_quotes/106'].release,null);w.document.querySelector('#ns-rel-cancel').click();
+ await assert.rejects(()=>w.NWFulfillment.commitDelivery(101,{...r,by:'Associate',reason:'Paying later'}),/Collect payment/);
+ await w.NWFulfillment.commitDelivery(101,{...r,reason:'Approved invoice terms'});assert.equal(w.NWFulfillment.status(w.getSavedQuotes().find(q=>q.id===101)).delivered,true);assert.equal(w.NWFulfillment.status(w.getSavedQuotes().find(q=>q.id===101)).complete,false);
+ // Balance settlement subsequently turns delivered into Complete without another delivery write.
+ const owing=w.getSavedQuotes().find(q=>q.id===101);owing.paymentHistory.push({type:'full',amount:2000});syncRecord(owing);assert.equal(w.NWFulfillment.status(owing).complete,true);
+ await w.NWFulfillment.undoDelivery(101,'Correction test','Lance');w.NWTestDB.failNext();await assert.rejects(()=>w.NWFulfillment.commitDelivery(101,r),/Simulated/);assert.equal(w.getOrderMeta()[owing.quoteNum].status,'Received');
+ // Entire Inventory startup runs against sample documents and performs zero writes.
+ const invSource=fs.readFileSync(__dirname+'/../inventory.html','utf8');const invScripts=[...invSource.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].filter(m=>m[1].trim());invScripts.forEach(m=>new vm.Script(m[1]));
+ const invDom=new JSDOM(invSource,{url:'https://isolated.test/inventory.html',runScripts:'outside-only'}),iw=invDom.window;let writes=0,reads=0;
+ const idb={collection(){return{limit(){return{async get(){reads++;return{docs:[{id:'sample-door',data:()=>({sku:'SAMPLE-DOOR',category:'DR',description:'Fiberglass door (sample)',qoh:4,cost:'100.00',price:'142.86'})}]}}}},doc(){writes++;throw Error('Startup must not write inventory')}}}};
+ iw.firebase={apps:[{}],firestore:()=>idb};invScripts.forEach(m=>iw.eval(m[1]));await tick();assert.match(iw.document.getElementById('inventoryList').textContent,/Fiberglass door \(sample\)/);assert.match(iw.document.getElementById('inventoryList').textContent,/100.00/);assert.equal(writes,0);assert.ok(reads>0);iw.close();
+ const scripts=[...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].filter(m=>m[1].trim());scripts.forEach(m=>new vm.Script(m[1]));
+ console.log('PASS: paid and delivered are independent; Complete requires both; delivery UI, shared atomic save, audit stamps, payment/deletion preservation, duplicate protection, correction, concurrent payment check, manager gate, failed transaction, embedded Inventory, adjacent New Quote, Inventory loading with numeric-string prices and zero startup writes.');w.close();
+})().catch(e=>{console.error(e);w.close();process.exitCode=1});

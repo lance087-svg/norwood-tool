@@ -1,5 +1,5 @@
 {
   "private": true,
-  "scripts": {"test": "node operations.cjs"},
+  "scripts": {"test": "node operations.cjs && node fulfillment.cjs"},
   "devDependencies": {"jsdom": "30.1.1"}
 }

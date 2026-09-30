@@ -10,10 +10,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <!-- JsBarcode for barcode generation -->
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
 <!-- html5-qrcode for camera barcode scanning -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
   :root {
@@ -1236,6 +1236,9 @@ let db, firebaseReady = false;
 
 function initFirebase() {
   try {
+    if (typeof firebase === 'undefined' && window.parent !== window) {
+      try { if (window.parent.firebase) window.firebase = window.parent.firebase; } catch(e) {}
+    }
     if (typeof firebase === 'undefined') {
       setTimeout(initFirebase, 200);
       return;
@@ -1247,14 +1250,6 @@ function initFirebase() {
     firebaseReady = true;
     document.getElementById('configBanner').style.display = 'none';
     console.log('Firebase connected — Norwood Supply');
-    // Quick rules test
-    db.collection('norwood').doc('__rules_test__').set({ ts: Date.now() })
-      .then(() => db.collection('norwood').doc('__rules_test__').delete())
-      .catch(err => {
-        if (err.code === 'permission-denied') {
-          showToast('Firestore rules are blocking saves. Go to Firebase Console > Firestore > Rules and set: allow read, write: if true;', 'error', 12000);
-        }
-      });
     loadInventory();
   } catch(e) {
     console.warn('Firebase init error:', e);
@@ -1961,7 +1956,8 @@ async function loadInventory() {
   }
   list.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
   try {
-    const snap = await db.collection('norwood').limit(500).get();
+    let timeout;
+    const snap = await Promise.race([db.collection('norwood').limit(500).get(), new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Inventory is taking too long. Check your connection and tap refresh to retry.')), 15000); })]).finally(() => clearTimeout(timeout));
     const validCats = ['DR','MW','LB','HW'];
     const base = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -2025,8 +2021,8 @@ function renderItems() {
           <div class="inv-item-sku">${itemNoDisplay}${item.sku}</div>
           <div class="inv-item-desc">${item.description || '—'}</div>
           <div class="inv-item-meta" style="flex-wrap:wrap;gap:8px;align-items:center;">
-            <span>Cost: <strong>$${(item.cost||0).toFixed(2)}</strong></span>
-            <span>Sell: <strong>$${(item.price||0).toFixed(2)}</strong></span>
+            <span>Cost: <strong>$${(Number(item.cost)||0).toFixed(2)}</strong></span>
+            <span>Sell: <strong>$${(Number(item.price)||0).toFixed(2)}</strong></span>
             <span>${item.location || ''}</span>
           </div>
           <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -2105,8 +2101,8 @@ function openItem(sku) {
   // Text fields
   document.getElementById('detailDesc').textContent = item.description || '—';
   document.getElementById('detailSKU').textContent = item.sku;
-  document.getElementById('detailPrice').textContent = '$' + (item.price||0).toFixed(2);
-  document.getElementById('detailCost').textContent = '$' + (item.cost||0).toFixed(2);
+  document.getElementById('detailPrice').textContent = '$' + (Number(item.price)||0).toFixed(2);
+  document.getElementById('detailCost').textContent = '$' + (Number(item.cost)||0).toFixed(2);
   document.getElementById('detailQOH').textContent = item.qoh ?? 0;
 
   // Meta
@@ -2810,7 +2806,7 @@ window.onload = () => {
 };
 </script>
   <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
-  <script src="ns-version.js?v=20260927-0843"></script>
+  <script src="ns-version.js?v=20260930-delivery"></script>
 </body>
 </html>
 <!-- API KEY MODAL -->

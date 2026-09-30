@@ -8,7 +8,8 @@
   <meta name="theme-color" content="#1a2438">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Norwood Supply — Pricing Tool</title>
-<link rel="stylesheet" href="norwood-operations.css?v=20260930-operations-r2">
+<link rel="stylesheet" href="norwood-operations.css?v=20260930-delivery">
+<link rel="stylesheet" href="norwood-fulfillment.css?v=20260930-delivery">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -472,7 +473,8 @@ tr:hover td{background:#fdf9f3}
   </div>
   <nav class="nav" style="overflow-x:auto;padding-bottom:0;justify-content:flex-start">
     <button class="tab active" id="tab-quote" onclick="showPage(&#39;quote&#39;,this)">📋 Quote Builder</button>
-    <button class="tab" onclick="window.open('inventory.html','_blank')" title="Open Inventory Manager in new tab">📦 Inventory</button>
+    <button class="tab" id="tab-inventory" onclick="showPage('inventory',this)" title="Open Inventory Manager">📦 Inventory</button>
+    <button class="tab tab-new" onclick="newQuote()">🔄 New Quote</button>
     <button class="tab" id="df-tab-btn" onclick="nsOpenDoorFinder()" title="Customer Door Finder requests">📷 Door Finder<span class="df-notify-dot" id="df-notify-dot"></span></button>
     <button class="tab" onclick="window.open('activity.html','_blank')" title="Today's emails, texts, Marketplace leads, quotes and payments on one page">📇 Activity</button>
     <button class="tab" id="tab-history" onclick="showPage(&#39;history&#39;,this)">🗂️ Saved Quotes</button>
@@ -485,7 +487,6 @@ tr:hover td{background:#fdf9f3}
     <button class="tab" id="tab-polog" onclick="showPage(&#39;polog&#39;,this)">📋 PO Log</button>
     
     <button class="tab" id="tab-reports" onclick="showPage(&#39;reports&#39;,this)">📊 Reports</button>
-    <button class="tab tab-new" onclick="newQuote()">🔄 New Quote</button>
     <button onclick="exportAllData()" style="margin-left:8px;padding:5px 11px;border-radius:5px 5px 0 0;border:1px solid #4a5a70;border-bottom:none;background:rgba(255,255,255,0.07);color:#9baab8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" title="Export all data to backup file">⬇️ Export</button>
     <label for="import-file-input" style="padding:5px 11px;border-radius:5px 5px 0 0;border:1px solid #4a5a70;border-bottom:none;background:rgba(255,255,255,0.07);color:#9baab8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap" title="Import data from backup file">⬆️ Import</label>
     <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importAllData(this)">
@@ -5057,6 +5058,7 @@ function renderHistory() {
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
           '<div class="hcard-num">' + q.quoteNum + '</div>' +
           '<span class="hbadge ' + badgeClass + '">' + badgeText + '</span>' +
+          (window.NWFulfillment ? window.NWFulfillment.deliveryBadge(q) : '') +
         '</div>' +
         '<div class="hcard-cust">' + (q.customer.name || '—') + (q.customer.co ? ' — ' + q.customer.co : '') + '</div>' +
         '<div class="hcard-date">' + q.date + (q.customer.etaDate ? ' &nbsp;·&nbsp; ETA: ' + q.customer.etaDate : '') + (q.type === 'invoice' && (q.fromQuoteNum || conv.byInvoice[q.quoteNum]) ? ' &nbsp;·&nbsp; <span style="color:#2d6a30">from ' + nsEsc(q.fromQuoteNum || conv.byInvoice[q.quoteNum]) + '</span>' : '') + '</div>' +
@@ -5065,6 +5067,7 @@ function renderHistory() {
           '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'quote\')" style="background:#f5f0e8;color:#2c2416;border:1px solid #d5c8a8;font-size:11px;padding:4px 10px;border-radius:4px">📄 View Quote</button>' +
           '<button class="btn" onclick="event.stopPropagation();loadAndPrint(' + q.id + ',\'invoice\')" style="background:#1a1008;color:#f5e8c8;font-size:11px;padding:4px 10px;border-radius:4px">' + (q.type === 'invoice' ? '🧾 View Invoice' : '🧾 Make Invoice…') + '</button>' +
           '<button class="btn" onclick="event.stopPropagation();loadIntoBuilder(' + q.id + ')" style="background:#2980d4;color:#fff;font-size:11px;padding:4px 10px;border-radius:4px">✏️ Edit</button>' +
+          (window.NWFulfillment ? window.NWFulfillment.action(q) : '') +
           '<button class="btn" onclick="event.stopPropagation();deleteQuote(' + q.id + ')" style="background:transparent;color:#c04040;border:1px solid #e08080;font-size:11px;padding:4px 10px;border-radius:4px">🗑️</button>' +
         '</div>' +
       '</div>' +
@@ -7368,7 +7371,7 @@ function buildOrderList(){
     var c=inv.customer||{};
     var invNum=inv.quoteNum||'INV-?????';
     var m=meta[invNum]||{};
-    var defaultStatus=(c.payment==='PAID IN FULL'?'Delivered':'Pending');
+    var defaultStatus='Pending'; // Payment alone does not confirm delivery
     orders.push({
       id:inv.id||Date.now()+i,
       invNum:invNum,
@@ -7378,7 +7381,7 @@ function buildOrderList(){
       items:(inv.lines||[]).map(function(l){return{name:l.item||l.description||'',qty:l.qty||1,retail:l.retail||0,size:l.size||''};}),
       total:inv.grand||0,
       eta:m.eta||c.etaDate||'',
-      status:m.status||defaultStatus,
+      status:m.status||(inv.release?'Delivered':defaultStatus),
       notes:m.notes!=null?m.notes:(c.notes||''),
       linkedPO:m.linkedPO||'',
       payment:c.payment||''
@@ -9570,8 +9573,10 @@ function nsPickupButtons(o) {
 
 // ── Release gate ──────────────────────────────────────────────────────────────
 var nsReleaseReturnTo = null; // invNum to re-open after Take Payment closes
+var nsReleaseReturnMode = null;
 function nsReleaseOrder(invNum, opts) {
   opts = opts || {};
+  var isDelivery = opts.mode === 'delivery';
   var q = nsFindInvoiceByNum(invNum);
   if (!q) { showToast('Invoice ' + invNum + ' not found', '#c04040'); return; }
   var st = nsReleaseState(q);
@@ -9596,9 +9601,9 @@ function nsReleaseOrder(invNum, opts) {
           (q.lines||[]).map(function(l){ return '<div><b>' + (l.qty||1) + 'x</b> ' + nsEsc(l.item || l.description || '') + (l.size ? ' (' + nsEsc(l.size) + ')' : '') + '</div>'; }).join('') +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' +
-          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">Picked up by (customer / driver)</div>' +
-            '<input id="ns-rel-pickedby" placeholder="e.g. Joe, or Joe\'s helper Mike" style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:15px;font-family:inherit;box-sizing:border-box"></div>' +
-          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">Released by</div>' +
+          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">' + (isDelivery ? 'Delivered to (customer / driver)' : 'Picked up by (customer / driver)') + '</div>' +
+            '<input id="ns-rel-pickedby"' + (isDelivery ? ' value="' + nsEsc(c.name || '') + '"' : '') + ' placeholder="e.g. Joe, or Joe\'s helper Mike" style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:15px;font-family:inherit;box-sizing:border-box"></div>' +
+          '<div><div style="font-size:11px;font-weight:700;color:#4a3a20;margin-bottom:4px">' + (isDelivery ? 'Delivery recorded by' : 'Released by') + '</div>' +
             '<div id="ns-rel-who" style="display:flex;gap:5px;flex-wrap:wrap">' +
               NS_STAFF_NAMES.map(function(n){ var on = n === who; return '<button type="button" data-n="' + n + '" style="padding:8px 12px;border-radius:20px;border:1.5px solid ' + (on?'#1a1008':'#d5c8a8') + ';background:' + (on?'#1a1008':'#fff') + ';color:' + (on?'#fff':'#2c2416') + ';font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">' + n + '</button>'; }).join('') +
             '</div></div>' +
@@ -9615,7 +9620,7 @@ function nsReleaseOrder(invNum, opts) {
           '</div>' : '') +
         '<div style="display:flex;gap:10px;justify-content:flex-end">' +
           '<button type="button" id="ns-rel-cancel" style="padding:11px 18px;border-radius:8px;border:1.5px solid #d5c8a8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Cancel</button>' +
-          '<button type="button" id="ns-rel-ok" style="padding:11px 22px;border-radius:8px;border:none;background:' + (st.ok ? '#1e7b32' : '#c0392b') + ';color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">' + (st.ok ? '✅ Release — picked up' : '⚠️ Override & Release') + '</button>' +
+          '<button type="button" id="ns-rel-ok" style="padding:11px 22px;border-radius:8px;border:none;background:' + (st.ok ? '#1e7b32' : '#c0392b') + ';color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">' + (isDelivery ? (st.ok ? 'Mark delivered' : 'Override & mark delivered') : (st.ok ? '✅ Release — picked up' : '⚠️ Override & Release')) + '</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -9633,17 +9638,25 @@ function nsReleaseOrder(invNum, opts) {
   box.querySelectorAll('#ns-rel-who button').forEach(function(b){ b.onclick = function(){ who = b.getAttribute('data-n'); nsSetActingAs(who); paintWho(); }; });
   box.querySelector('#ns-rel-cancel').onclick = function(){ box.remove(); if (opts.onCancel) opts.onCancel(); };
   var payBtn = box.querySelector('#ns-rel-pay');
-  if (payBtn) payBtn.onclick = function(){ nsReleaseReturnTo = invNum; box.remove(); openPaymentModal(q.id); };
+  if (payBtn) payBtn.onclick = function(){ nsReleaseReturnTo = invNum; nsReleaseReturnMode = isDelivery ? 'delivery' : null; box.remove(); openPaymentModal(q.id); };
   okBtn.onclick = function() {
     if (!who) { showToast('Pick who is releasing it', '#b35309'); return; }
     var pickedBy = (box.querySelector('#ns-rel-pickedby').value || '').trim();
-    if (!pickedBy) { showToast('Who is picking it up? Type a name.', '#b35309'); box.querySelector('#ns-rel-pickedby').focus(); return; }
+    if (!pickedBy) { showToast(isDelivery ? 'Who received the delivery? Type a name.' : 'Who is picking it up? Type a name.', '#b35309'); box.querySelector('#ns-rel-pickedby').focus(); return; }
     var reason = '';
     if (!st.ok) {
       if (!canOverride) { showToast('Only Cleve, Lance, or Garon can release product that still owes', '#c0392b'); return; }
       reason = (box.querySelector('#ns-rel-reason').value || '').trim();
       if (!reason) { showToast('Type the reason for releasing without payment', '#c0392b'); box.querySelector('#ns-rel-reason').focus(); return; }
       if (!confirm('Release $' + st.balance.toFixed(2) + ' of unpaid product to ' + pickedBy + '?\n\nReason: ' + reason + '\n\nThis will show in red on the daily report until it is paid.')) return;
+    }
+    if (isDelivery) {
+      if (!window.NWFulfillment) { showToast('Delivery controls are still loading. Try again.', '#b35309'); return; }
+      okBtn.disabled = true;
+      NWFulfillment.commitDelivery(q.id, { by: who, pickedUpBy: pickedBy, reason: reason })
+        .then(function(){ box.remove(); })
+        .catch(function(e){ okBtn.disabled = false; showToast(e.message || 'Could not save delivery. Try again.', '#c04040', 6000); });
+      return;
     }
     box.remove();
     nsCommitRelease(q, { by: who, pickedUpBy: pickedBy, reason: reason, override: !st.ok, balance: st.balance, net30: st.tone === 'amber' });
@@ -9708,7 +9721,7 @@ function nsTagPrompt(invNum, msg) {
       var q = getSavedQuotes().find(function(x){ return x.id === id; });
       if (!q) return;
       nsUpdateOwingBar();
-      if (nsReleaseReturnTo === q.quoteNum) { nsReleaseReturnTo = null; setTimeout(function(){ nsReleaseOrder(q.quoteNum); }, 250); return; }
+      if (nsReleaseReturnTo === q.quoteNum) { var mode = nsReleaseReturnMode; nsReleaseReturnTo = null; nsReleaseReturnMode = null; setTimeout(function(){ nsReleaseOrder(q.quoteNum, {mode:mode}); }, 250); return; }
       var m = nsOrderMetaFor(q.quoteNum);
       if ((m.status === 'Received' || m.status === 'In Transit') && nsReleaseState(q).ok) nsTagPrompt(q.quoteNum, q.quoteNum + ' is now paid — print a green tag to swap onto the product?');
     }
@@ -9717,7 +9730,7 @@ function nsTagPrompt(invNum, msg) {
   window.closePaymentModal = function() {
     _cp.apply(this, arguments);
     // cancelled out of Take Payment while releasing → back to the release sheet
-    if (nsReleaseReturnTo) { var inv = nsReleaseReturnTo; nsReleaseReturnTo = null; setTimeout(function(){ if (!document.getElementById('ns-release-modal')) nsReleaseOrder(inv); }, 200); }
+    if (nsReleaseReturnTo) { var inv = nsReleaseReturnTo, mode = nsReleaseReturnMode; nsReleaseReturnTo = null; nsReleaseReturnMode = null; setTimeout(function(){ if (!document.getElementById('ns-release-modal')) nsReleaseOrder(inv, {mode:mode}); }, 200); }
   };
 })();
 
@@ -9730,7 +9743,7 @@ function renderPickup() {
   var inv = getSavedQuotes().filter(function(q){ return q.type === 'invoice'; });
   var rows = inv.map(function(q) {
     var m = meta[q.quoteNum] || {};
-    var status = m.status || ((q.customer||{}).payment === 'PAID IN FULL' ? 'Delivered' : 'Pending');
+    var status = m.status || (q.release ? 'Delivered' : 'Pending');
     return { q: q, m: m, status: status, st: nsReleaseState(q), rel: m.release || q.release || null };
   }).filter(function(r){ return !r.m.hidden; });
   var cutoff30 = Date.now() - 30 * 86400000;
@@ -9891,7 +9904,9 @@ console.log('[PICKUP] active');
 <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
-  <script src="norwood-operations.js?v=20260930-operations-r2"></script>
-  <script src="ns-version.js?v=20260930-operations-r2"></script>
+  <script src="norwood-operations.js?v=20260930-delivery"></script>
+  <script src="norwood-navigation.js?v=20260930-delivery"></script>
+  <script src="norwood-fulfillment.js?v=20260930-delivery"></script>
+  <script src="ns-version.js?v=20260930-delivery"></script>
 </body>
 </html>
