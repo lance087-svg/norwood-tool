@@ -1232,6 +1232,77 @@ const firebaseConfig = {
 // ════════════════════════════════════════════
 
 // Init Firebase
+// ── INVENTORY BACKUP ROUTE (build 20261002-inv-fallback) ──────────────────
+// If the Firestore SDK connection is blocked (Edge Tracking Prevention,
+// stale cache, flaky network) it can hang forever with no error. This reads
+// the same 'norwood' collection over a plain HTTPS request instead.
+if (!window.nsInvRestLoad) {
+  window.nsInvRestLoad = async function () {
+    var K = 'AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig';
+    var base = 'https://firestore.googleapis.com/v1/projects/norwood-supply/databases/(default)/documents/norwood?pageSize=300&key=' + K;
+    function conv(v) {
+      if (!v || typeof v !== 'object') return null;
+      if ('stringValue' in v) return v.stringValue;
+      if ('integerValue' in v) return Number(v.integerValue);
+      if ('doubleValue' in v) return Number(v.doubleValue);
+      if ('booleanValue' in v) return v.booleanValue;
+      if ('nullValue' in v) return null;
+      if ('timestampValue' in v) {
+        var ms = Date.parse(v.timestampValue);
+        return { seconds: Math.floor(ms / 1000), nanoseconds: 0,
+          toDate: function () { return new Date(ms); }, toMillis: function () { return ms; } };
+      }
+      if ('arrayValue' in v) return (v.arrayValue.values || []).map(conv);
+      if ('mapValue' in v) { var o = {}, f = v.mapValue.fields || {}; for (var k in f) o[k] = conv(f[k]); return o; }
+      if ('referenceValue' in v) return v.referenceValue;
+      if ('geoPointValue' in v) return v.geoPointValue;
+      return null;
+    }
+    var out = [], tok = null, guard = 0;
+    do {
+      var ctl = window.AbortController ? new AbortController() : null;
+      var t = ctl ? setTimeout(function () { ctl.abort(); }, 20000) : null;
+      var r = await fetch(base + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''), { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      if (t) clearTimeout(t);
+      if (!r.ok) throw new Error('Backup route HTTP ' + r.status);
+      var j = await r.json();
+      (j.documents || []).forEach(function (d) {
+        var o = {}, f = d.fields || {};
+        for (var k in f) o[k] = conv(f[k]);
+        o.id = d.name.split('/').pop();
+        out.push(o);
+      });
+      tok = j.nextPageToken;
+    } while (tok && ++guard < 20);
+    return out;
+  };
+  // Try the normal SDK read first; if it errors or hasn't answered in
+  // timeoutMs, use the backup route. Resolves to {docs:[{id,...data}], via}.
+  window.nsInvLoadDocs = async function (sdkGetFn, timeoutMs) {
+    timeoutMs = timeoutMs || 10000;
+    if (typeof sdkGetFn === 'function') {
+      try {
+        var timer;
+        var sdkP = Promise.resolve().then(sdkGetFn);
+        sdkP.catch(function () {});
+        window.nsInvSdkPending = sdkP;
+        var snap = await Promise.race([
+          sdkP,
+          new Promise(function (_, rej) { timer = setTimeout(function () { rej(new Error('sdk-timeout')); }, timeoutMs); })
+        ]).finally(function () { clearTimeout(timer); });
+        var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        // An empty answer from a blocked/cold cache is not trustworthy — double-check
+        if (docs.length) return { docs: docs, via: 'live' };
+      } catch (e) { console.warn('[inventory] live connection failed, using backup route:', e && e.message); }
+    }
+    var rest = await window.nsInvRestLoad();
+    window.nsInvLastVia = 'backup';
+    // If the live connection was only slow (busy page), report when it catches up
+    var late = window.nsInvSdkPending ? window.nsInvSdkPending.then(function (s) { return !!(s && s.docs && s.docs.length); }, function () { return false; }) : Promise.resolve(false);
+    return { docs: rest, via: 'backup', liveLater: late };
+  };
+}
+
 let db, firebaseReady = false;
 
 function initFirebase() {
@@ -1240,6 +1311,8 @@ function initFirebase() {
       try { if (window.parent.firebase) window.firebase = window.parent.firebase; } catch(e) {}
     }
     if (typeof firebase === 'undefined') {
+      initFirebase._t = (initFirebase._t || 0) + 200;
+      if (initFirebase._t === 6000) loadInventory(); // scripts blocked — backup route
       setTimeout(initFirebase, 200);
       return;
     }
@@ -1710,7 +1783,7 @@ async function saveItem(andPrint = false) {
     // If duplicating, check the SKU hasn't changed — warn user before overwriting
     if (window._duplicatingFrom && sku === window._duplicatingFrom) {
       hideLoading();
-      showToast('SKU is the same as original — change Hand, Size, or another field first!', 'error', 6000);
+      showToast('SKU is the same as original — change Hand, Size, or another field first!', 'error', 10000);
       return;
     }
     await db.collection('norwood').doc(sku).set(item, { merge: true });
@@ -1731,7 +1804,7 @@ async function saveItem(andPrint = false) {
     if (err.code === 'permission-denied') {
       msg = 'Permission denied — check Firestore rules (allow read, write: if true)';
     }
-    showToast('❌ Save failed: ' + msg, 'error', 6000);
+    showToast('❌ Save failed: ' + msg, 'error', 10000);
   }
   hideLoading();
 }
@@ -1950,17 +2023,13 @@ async function printLabel() {
 // ── BROWSE / LOAD INVENTORY ──
 async function loadInventory() {
   const list = document.getElementById('inventoryList');
-  if (!firebaseReady) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚙️</div><p>Configure Firebase to load inventory.</p></div>';
-    return;
-  }
   list.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
   try {
-    let timeout;
-    const snap = await Promise.race([db.collection('norwood').limit(500).get(), new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Inventory is taking too long. Check your connection and tap refresh to retry.')), 15000); })]).finally(() => clearTimeout(timeout));
+    const res = await window.nsInvLoadDocs(firebaseReady && db ? () => db.collection('norwood').limit(500).get() : null, 10000);
+    nsInvShowVia(res.via);
+    if (res.liveLater) res.liveLater.then(ok => { if (ok) nsInvShowVia('live'); });
     const validCats = ['DR','MW','LB','HW'];
-    const base = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
+    const base = res.docs
       .filter(d => {
         if (d.id.startsWith('__')) return false;
         // Exclude salvage items — managed in the standalone salvage tool
@@ -1976,7 +2045,18 @@ async function loadInventory() {
     renderItems();
     renderRemoved();
   } catch(e) {
-    list.innerHTML = '<div class="empty-state"><p>Error loading: ' + e.message + '</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:#c62828;font-weight:700">Couldn\'t reach the inventory database.</p><p style="font-size:12px;color:#777">' + String(e.message||e).replace(/</g,'&lt;') + '</p><button class="btn" style="margin-top:10px;background:#1E70B8;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:700;cursor:pointer" onclick="loadInventory()">↻ Retry</button></div>';
+  }
+}
+function nsInvShowVia(via) {
+  let b = document.getElementById('nsInvViaTag');
+  if (via !== 'backup') { if (b) b.remove(); return; }
+  if (!b) {
+    b = document.createElement('div'); b.id = 'nsInvViaTag';
+    b.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9999;background:#fff8e1;color:#8a5a00;border:1px solid #ffe082;border-radius:12px;padding:3px 10px;font:600 11px system-ui;';
+    b.title = 'This browser is blocking the live database connection, so the list was loaded through the backup route. Viewing works; edits may not save on this device until the browser block is cleared.';
+    b.textContent = 'via backup';
+    document.body.appendChild(b);
   }
 }
 
@@ -2462,7 +2542,7 @@ async function saveReturn() {
     if (glassSwapped && glassNew) { upd.description = updatedDesc; if (glassPriceAdj>0) upd.price = updatedPrice; }
     await db.collection('norwood').doc(currentReturnItem.id).update(upd);
     if (frequentFlag) {
-      showToast('WARNING: ' + (custName||custPhone) + ' has 2+ prior returns!', 'error', 6000);
+      showToast('WARNING: ' + (custName||custPhone) + ' has 2+ prior returns!', 'error', 10000);
     } else if (glassSwapped && glassNew) {
       showToast('Return saved — glass updated. Print new label!', 'success', 5000);
       setTimeout(() => showPrintModal(currentReturnItem.id, updatedDesc, currentReturnItem.cost||0, updatedPrice), 600);
@@ -2731,7 +2811,7 @@ async function restoreItem(sku) {
     renderRemoved();
     showToast(sku + ' restored by ' + by, 'success', 2500);
   } catch(e) {
-    showToast('Restore failed: ' + (e.message || 'Unknown error'), 'error', 6000);
+    showToast('Restore failed: ' + (e.message || 'Unknown error'), 'error', 10000);
   }
   hideLoading();
 }

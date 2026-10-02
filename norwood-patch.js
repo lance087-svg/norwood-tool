@@ -1,3 +1,74 @@
+// ── INVENTORY BACKUP ROUTE (build 20261002-inv-fallback) ──────────────────
+// If the Firestore SDK connection is blocked (Edge Tracking Prevention,
+// stale cache, flaky network) it can hang forever with no error. This reads
+// the same 'norwood' collection over a plain HTTPS request instead.
+if (!window.nsInvRestLoad) {
+  window.nsInvRestLoad = async function () {
+    var K = 'AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig';
+    var base = 'https://firestore.googleapis.com/v1/projects/norwood-supply/databases/(default)/documents/norwood?pageSize=300&key=' + K;
+    function conv(v) {
+      if (!v || typeof v !== 'object') return null;
+      if ('stringValue' in v) return v.stringValue;
+      if ('integerValue' in v) return Number(v.integerValue);
+      if ('doubleValue' in v) return Number(v.doubleValue);
+      if ('booleanValue' in v) return v.booleanValue;
+      if ('nullValue' in v) return null;
+      if ('timestampValue' in v) {
+        var ms = Date.parse(v.timestampValue);
+        return { seconds: Math.floor(ms / 1000), nanoseconds: 0,
+          toDate: function () { return new Date(ms); }, toMillis: function () { return ms; } };
+      }
+      if ('arrayValue' in v) return (v.arrayValue.values || []).map(conv);
+      if ('mapValue' in v) { var o = {}, f = v.mapValue.fields || {}; for (var k in f) o[k] = conv(f[k]); return o; }
+      if ('referenceValue' in v) return v.referenceValue;
+      if ('geoPointValue' in v) return v.geoPointValue;
+      return null;
+    }
+    var out = [], tok = null, guard = 0;
+    do {
+      var ctl = window.AbortController ? new AbortController() : null;
+      var t = ctl ? setTimeout(function () { ctl.abort(); }, 20000) : null;
+      var r = await fetch(base + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''), { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      if (t) clearTimeout(t);
+      if (!r.ok) throw new Error('Backup route HTTP ' + r.status);
+      var j = await r.json();
+      (j.documents || []).forEach(function (d) {
+        var o = {}, f = d.fields || {};
+        for (var k in f) o[k] = conv(f[k]);
+        o.id = d.name.split('/').pop();
+        out.push(o);
+      });
+      tok = j.nextPageToken;
+    } while (tok && ++guard < 20);
+    return out;
+  };
+  // Try the normal SDK read first; if it errors or hasn't answered in
+  // timeoutMs, use the backup route. Resolves to {docs:[{id,...data}], via}.
+  window.nsInvLoadDocs = async function (sdkGetFn, timeoutMs) {
+    timeoutMs = timeoutMs || 10000;
+    if (typeof sdkGetFn === 'function') {
+      try {
+        var timer;
+        var sdkP = Promise.resolve().then(sdkGetFn);
+        sdkP.catch(function () {});
+        window.nsInvSdkPending = sdkP;
+        var snap = await Promise.race([
+          sdkP,
+          new Promise(function (_, rej) { timer = setTimeout(function () { rej(new Error('sdk-timeout')); }, timeoutMs); })
+        ]).finally(function () { clearTimeout(timer); });
+        var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        // An empty answer from a blocked/cold cache is not trustworthy — double-check
+        if (docs.length) return { docs: docs, via: 'live' };
+      } catch (e) { console.warn('[inventory] live connection failed, using backup route:', e && e.message); }
+    }
+    var rest = await window.nsInvRestLoad();
+    window.nsInvLastVia = 'backup';
+    // If the live connection was only slow (busy page), report when it catches up
+    var late = window.nsInvSdkPending ? window.nsInvSdkPending.then(function (s) { return !!(s && s.docs && s.docs.length); }, function () { return false; }) : Promise.resolve(false);
+    return { docs: rest, via: 'backup', liveLater: late };
+  };
+}
+
 // ============================================================
 //  NORWOOD PATCH v3.1 — loads after index.html
 //  Contains:
@@ -17,9 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof firebase !== 'undefined') { callback(); return; }
     var s1 = document.createElement('script');
     s1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+    s1.onerror = function() { try { callback(); } catch(e) {} }; // blocked CDN — let callers fall back
     s1.onload = function() {
       var s2 = document.createElement('script');
       s2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js';
+      s2.onerror = function() { try { callback(); } catch(e) {} };
       s2.onload = callback;
       document.head.appendChild(s2);
     };
@@ -524,6 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
   addInvButton();
 
   var _inv = [];
+  var _invVia = 'live';
   var _invCat = 'ALL';
 
   window.setInvCat = function(cat, el) {
@@ -618,7 +692,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateSubtitle() {
     var n = _inv.filter(function(i) { return (i.qoh || 0) > 0; }).length;
     var el = document.getElementById('invSubtitle');
-    if (el) el.textContent = n + ' item' + (n === 1 ? '' : 's') + ' in stock';
+    if (el) el.textContent = n + ' item' + (n === 1 ? '' : 's') + ' in stock' + (_invVia === 'backup' ? ' · via backup' : '');
   }
 
   function openInv() {
@@ -634,22 +708,24 @@ document.addEventListener('DOMContentLoaded', function() {
   async function loadInv() {
     var listEl = document.getElementById('invList');
     listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-family:system-ui;">Connecting to inventory...</div>';
-    await new Promise(function(resolve) { loadFirebaseSDK(resolve); });
+    // Don't wait forever on the Firebase scripts — a blocked CDN used to leave this stuck
+    await new Promise(function(resolve) { var done = false; function fin(){ if(!done){ done = true; resolve(); } } loadFirebaseSDK(fin); setTimeout(fin, 5000); });
     try {
-      if (typeof firebase === 'undefined') {
-        listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Could not load Firebase. Check your internet connection.</div>';
-        return;
+      var sdkGet = null;
+      if (typeof firebase !== 'undefined' && firebase.firestore) {
+        sdkGet = function() {
+          var _fbApp;
+          try { _fbApp = firebase.app('norwood-inv'); }
+          catch(e) { _fbApp = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
+          return _fbApp.firestore().collection('norwood').limit(500).get();
+        };
       }
-      var _fbApp;
-      try { _fbApp = firebase.app('norwood-inv'); }
-      catch(e) { _fbApp = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
-      var db = _fbApp.firestore();
-      var snap = await db.collection('norwood').limit(500).get();
+      var res = await window.nsInvLoadDocs(sdkGet, 10000);
       var valid = ['DR', 'MW', 'LB', 'HW'];
-      _inv = snap.docs
-        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+      _inv = res.docs
         .filter(function(d) {
-          if (d.id.indexOf('__') === 0) return false;
+          if (String(d.id).indexOf('__') === 0) return false;
+          if (d.removed) return false; // soft-deleted items never go on a quote
           if (d.isSalvage || d.type === 'salvage' || d.salvageType || String(d.sku||'').indexOf('SALVAGE-') === 0) return false;
           return valid.indexOf(d.category) > -1 || (d.sku && d.description);
         })
@@ -659,12 +735,18 @@ document.addEventListener('DOMContentLoaded', function() {
           if (qa === 0 && qb > 0) return 1;
           return (a.description || '').localeCompare(b.description || '');
         });
+      _invVia = res.via;
+      if (res.liveLater) res.liveLater.then(function(ok) { if (ok) { _invVia = 'live'; updateSubtitle(); } });
       filterInv();
       updateSubtitle();
     } catch(e) {
-      listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;">Error: ' + e.message + '</div>';
+      listEl.innerHTML = '<div style="color:#c62828;padding:20px;font-family:system-ui;text-align:center;">' +
+        '<div style="font-weight:700;margin-bottom:6px;">Couldn\'t reach the inventory database.</div>' +
+        '<div style="font-size:12px;color:#777;margin-bottom:12px;">' + String((e && e.message) || e).replace(/</g,'&lt;') + '</div>' +
+        '<button onclick="nsInvRetry()" style="background:#1E70B8;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:700;cursor:pointer;">↻ Retry</button></div>';
     }
   }
+  window.nsInvRetry = function() { loadInv(); };
 
   function pickInv(sku) {
     var item = _inv.find(function(i) { return i.sku === sku; });

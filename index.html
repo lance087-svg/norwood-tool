@@ -4588,23 +4588,97 @@ const firebaseConfig = {
   appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3",
   measurementId: "G-6QWRWPECGH"
 };
+// ── INVENTORY BACKUP ROUTE (build 20261002-inv-fallback) ──────────────────
+// If the Firestore SDK connection is blocked (Edge Tracking Prevention,
+// stale cache, flaky network) it can hang forever with no error. This reads
+// the same 'norwood' collection over a plain HTTPS request instead.
+if (!window.nsInvRestLoad) {
+  window.nsInvRestLoad = async function () {
+    var K = 'AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig';
+    var base = 'https://firestore.googleapis.com/v1/projects/norwood-supply/databases/(default)/documents/norwood?pageSize=300&key=' + K;
+    function conv(v) {
+      if (!v || typeof v !== 'object') return null;
+      if ('stringValue' in v) return v.stringValue;
+      if ('integerValue' in v) return Number(v.integerValue);
+      if ('doubleValue' in v) return Number(v.doubleValue);
+      if ('booleanValue' in v) return v.booleanValue;
+      if ('nullValue' in v) return null;
+      if ('timestampValue' in v) {
+        var ms = Date.parse(v.timestampValue);
+        return { seconds: Math.floor(ms / 1000), nanoseconds: 0,
+          toDate: function () { return new Date(ms); }, toMillis: function () { return ms; } };
+      }
+      if ('arrayValue' in v) return (v.arrayValue.values || []).map(conv);
+      if ('mapValue' in v) { var o = {}, f = v.mapValue.fields || {}; for (var k in f) o[k] = conv(f[k]); return o; }
+      if ('referenceValue' in v) return v.referenceValue;
+      if ('geoPointValue' in v) return v.geoPointValue;
+      return null;
+    }
+    var out = [], tok = null, guard = 0;
+    do {
+      var ctl = window.AbortController ? new AbortController() : null;
+      var t = ctl ? setTimeout(function () { ctl.abort(); }, 20000) : null;
+      var r = await fetch(base + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''), { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      if (t) clearTimeout(t);
+      if (!r.ok) throw new Error('Backup route HTTP ' + r.status);
+      var j = await r.json();
+      (j.documents || []).forEach(function (d) {
+        var o = {}, f = d.fields || {};
+        for (var k in f) o[k] = conv(f[k]);
+        o.id = d.name.split('/').pop();
+        out.push(o);
+      });
+      tok = j.nextPageToken;
+    } while (tok && ++guard < 20);
+    return out;
+  };
+  // Try the normal SDK read first; if it errors or hasn't answered in
+  // timeoutMs, use the backup route. Resolves to {docs:[{id,...data}], via}.
+  window.nsInvLoadDocs = async function (sdkGetFn, timeoutMs) {
+    timeoutMs = timeoutMs || 10000;
+    if (typeof sdkGetFn === 'function') {
+      try {
+        var timer;
+        var sdkP = Promise.resolve().then(sdkGetFn);
+        sdkP.catch(function () {});
+        window.nsInvSdkPending = sdkP;
+        var snap = await Promise.race([
+          sdkP,
+          new Promise(function (_, rej) { timer = setTimeout(function () { rej(new Error('sdk-timeout')); }, timeoutMs); })
+        ]).finally(function () { clearTimeout(timer); });
+        var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        // An empty answer from a blocked/cold cache is not trustworthy — double-check
+        if (docs.length) return { docs: docs, via: 'live' };
+      } catch (e) { console.warn('[inventory] live connection failed, using backup route:', e && e.message); }
+    }
+    var rest = await window.nsInvRestLoad();
+    window.nsInvLastVia = 'backup';
+    // If the live connection was only slow (busy page), report when it catches up
+    var late = window.nsInvSdkPending ? window.nsInvSdkPending.then(function (s) { return !!(s && s.docs && s.docs.length); }, function () { return false; }) : Promise.resolve(false);
+    return { docs: rest, via: 'backup', liveLater: late };
+  };
+}
+
 let liveInvDb = null;
 let liveInvReady = false;
 function initLiveInventory() {
   try {
-    if (typeof firebase === 'undefined') { setTimeout(initLiveInventory, 200); return; }
+    if (typeof firebase === 'undefined') {
+      initLiveInventory._t = (initLiveInventory._t || 0) + 200;
+      if (initLiveInventory._t === 6000) loadLiveInventory(); // scripts blocked — backup route
+      setTimeout(initLiveInventory, 200); return;
+    }
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     liveInvDb = firebase.firestore();
     loadLiveInventory();
   } catch (e) { console.warn('Live inventory init failed:', e); }
 }
 function loadLiveInventory() {
-  if (!liveInvDb) return;
-  liveInvDb.collection('norwood').limit(500).get().then(function (snap) {
+  var sdkGet = liveInvDb ? function () { return liveInvDb.collection('norwood').limit(500).get(); } : null;
+  window.nsInvLoadDocs(sdkGet, 10000).then(function (res) {
     const bySku = {};
-    snap.docs.forEach(function (d) {
-      const data = d.data();
-      if (data && data.sku && typeof data.qoh === 'number') bySku[String(data.sku)] = data.qoh;
+    res.docs.forEach(function (data) {
+      if (data && !data.removed && data.sku && typeof data.qoh === 'number') bySku[String(data.sku)] = data.qoh;
     });
     let updated = 0;
     products.forEach(function (p) {
@@ -4614,13 +4688,13 @@ function loadLiveInventory() {
       }
     });
     liveInvReady = true;
-    console.log('Live inventory synced: ' + updated + ' item(s) updated from Firestore');
+    console.log('Live inventory synced (' + res.via + '): ' + updated + ' item(s) updated');
     // Refresh whatever is currently on screen so the new counts show up
     const catalogPage = document.getElementById('page-catalog');
     if (catalogPage && catalogPage.classList.contains('active')) renderCatalog();
     if (selProd) showPreview();
   }).catch(function (e) {
-    console.warn('Live inventory load failed:', e);
+    console.warn('Live inventory load failed (live + backup):', e);
   });
 }
 initLiveInventory();
@@ -4628,7 +4702,7 @@ initLiveInventory();
 document.addEventListener('DOMContentLoaded', function () {
   setTimeout(function(){ try { updateOweBadge(); } catch(e) {} }, 1200); // after norwood-patch.js splits the tabs
   const catTab = document.getElementById('tab-catalog');
-  if (catTab) catTab.addEventListener('click', function () { if (liveInvDb) loadLiveInventory(); });
+  if (catTab) catTab.addEventListener('click', function () { loadLiveInventory(); });
 });
 
 // ── LIVE CLOUD SYNC ─────────────────────────────────────────────────────────
@@ -9098,7 +9172,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
     <img id="img-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
     <div id="img-lightbox-cap" style="color:#fff;text-align:center;margin-top:10px;font-size:13px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.8)"></div>
     </div></div>
-<script src="norwood-patch.js?v=20260929-sync-safety"></script>
+<script src="norwood-patch.js?v=20261002-inv-fallback"></script>
 <script src="norwood-delivery-patch.js?v=20260927-0843"></script>
 <script src="norwood-quote-import.js?v=20260927-0843"></script>
 <script>
@@ -9656,7 +9730,7 @@ function nsReleaseOrder(invNum, opts) {
       okBtn.disabled = true;
       NWFulfillment.commitDelivery(q.id, { by: who, pickedUpBy: pickedBy, reason: reason })
         .then(function(){ box.remove(); })
-        .catch(function(e){ okBtn.disabled = false; showToast(e.message || 'Could not save delivery. Try again.', '#c04040', 6000); });
+        .catch(function(e){ okBtn.disabled = false; showToast(e.message || 'Could not save delivery. Try again.', '#c04040', 10000); });
       return;
     }
     box.remove();
@@ -9906,7 +9980,7 @@ console.log('[PICKUP] active');
   <script src="door-size-presets.js?v=20260927-0843"></script>
   <script src="door-render.js?v=20260927-1430"></script>
   <script src="norwood-operations.js?v=20260930-customer-receipt"></script>
-  <script src="norwood-navigation.js?v=20261001-clear-glass"></script>
+  <script src="norwood-navigation.js?v=20261002-inv-fallback"></script>
   <script src="norwood-fulfillment.js?v=20260930-customer-receipt"></script>
   <script src="ns-version.js?v=20260930-customer-receipt"></script>
 </body>
