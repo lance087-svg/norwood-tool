@@ -13,7 +13,7 @@ function mount(){
   first.parentNode.insertBefore(pictures,first);
   D.getElementById('pictures-back-to-quote').onclick=function(){root.showPage('quote',D.getElementById('tab-quote'));};
   var show=root.showPage;
-  root.showPage=function(name,button){show(name,button);if(name==='door-pictures'){var picturesFrame=D.getElementById('norwood-door-pictures-frame');if(!picturesFrame.getAttribute('src'))picturesFrame.src='door-pictures.html?embedded=1&v=20261001-door-pictures';}if(name==='inventory'){var frame=D.getElementById('norwood-inventory-frame');if(!frame.getAttribute('src'))frame.src='inventory.html?embedded=1&v=20260930-customer-receipt';}};
+  root.showPage=function(name,button){show(name,button);if(name==='door-pictures'){var picturesFrame=D.getElementById('norwood-door-pictures-frame');if(!picturesFrame.getAttribute('src'))picturesFrame.src='door-pictures.html?embedded=1&v=20261001-clear-glass';}if(name==='inventory'){var frame=D.getElementById('norwood-inventory-frame');if(!frame.getAttribute('src'))frame.src='inventory.html?embedded=1&v=20260930-customer-receipt';}};
   root.NWNavigation={openInventory:openInventory};
 }
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mount();
