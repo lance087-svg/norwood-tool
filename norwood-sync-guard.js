@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     catch (e) { return []; }
   }
 
+  function setQuotesSilently(quotes) {
      try { if (typeof window.nsSafeSetQuotes === 'function') { window.nsSafeSetQuotes(quotes); return; } localStorage.setItem('ns_quotes', JSON.stringify(quotes)); } catch (e) { console.warn('[SYNC GUARD] storage full', e); }
   }
 
