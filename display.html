@@ -3,675 +3,253 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Norwood Supply — Live Inventory Board</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Norwood Supply — Stock List &amp; Recount</title>
 <style>
-  /* ══════════════════════════════════════════════════
-     NORWOOD SUPPLY — LIVE INVENTORY BOARD
-     Customer-facing display for showroom TV.
-     Shows: Item #, Description, Location, Stock, Price
-     Never shows: cost, GM, vendor, notes
-     ══════════════════════════════════════════════════ */
-  :root {
-    --board-bg: #0d1b2a;          /* deep navy, easy on eyes across a room */
-    --board-bg2: #10233a;
-    --panel: #14283f;
-    --line: rgba(255,255,255,0.08);
-    --norwood-blue: #1E70B8;
-    --norwood-blue-bright: #4da3e8;
-    --text: #f2f6fa;
-    --text-dim: #9db2c7;
-    --green: #35c46a;
-    --green-dark: rgba(53,196,106,0.16);
-    --amber: #ffb84d;
-    --amber-dark: rgba(255,184,77,0.16);
-    --price: #ffffff;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { height:100%; }
-  body {
-    background: linear-gradient(180deg, var(--board-bg) 0%, var(--board-bg2) 100%);
-    color: var(--text);
-    font-family: 'Barlow', Arial, sans-serif;
-    overflow: hidden;
-  }
-
-  /* ── HEADER BAR ── */
-  header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding: 1.2vh 2.5vw;
-    background: rgba(0,0,0,0.25);
-    border-bottom: 3px solid var(--norwood-blue);
-  }
-  .brand { display:flex; align-items:baseline; gap:1.2vw; }
-  .brand .name {
-    font-family:'Barlow Condensed', Arial, sans-serif;
-    font-weight:700; font-size:3.4vh; letter-spacing:0.04em;
-    text-transform:uppercase; color:#fff;
-  }
-  .brand .live {
-    display:flex; align-items:center; gap:0.5vw;
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:2.2vh; letter-spacing:0.14em;
-    text-transform:uppercase; color: var(--norwood-blue-bright);
-  }
-  .dot {
-    width:1.3vh; height:1.3vh; border-radius:50%;
-    background: var(--green);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(53,196,106,0.55); }
-    70% { box-shadow: 0 0 0 1.2vh rgba(53,196,106,0); }
-    100% { box-shadow: 0 0 0 0 rgba(53,196,106,0); }
-  }
-  .meta { text-align:right; }
-  /* ── SEARCH ── */
-  .search-wrap {
-    position:relative; display:flex; align-items:center;
-    width: 26vw; min-width: 220px;
-  }
-  #search {
-    width:100%;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 100px;
-    color:#fff;
-    font-family:'Barlow', sans-serif;
-    font-size:2.3vh; font-weight:500;
-    padding: 1.1vh 4.5vh 1.1vh 2vw;
-    outline:none;
-  }
-  #search::placeholder { color: var(--text-dim); }
-  #search:focus { border-color: var(--norwood-blue-bright); background: rgba(255,255,255,0.12); }
-  #searchClear {
-    position:absolute; right:1vh;
-    width:3.2vh; height:3.2vh; border-radius:50%;
-    border:none; cursor:pointer;
-    background: rgba(255,255,255,0.15); color:#fff;
-    font-size:1.8vh; line-height:1;
-    display:none;
-  }
-  #searchClear.show { display:block; }
-  .search-count {
-    position:absolute; right:-0.5vw; top: calc(100% + 0.5vh);
-    font-family:'Barlow Condensed', sans-serif;
-    font-size:1.8vh; letter-spacing:0.08em; text-transform:uppercase;
-    color: var(--norwood-blue-bright); white-space:nowrap;
-  }
-  .meta .clock {
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:3vh; color:#fff;
-    font-variant-numeric: tabular-nums;
-  }
-  .meta .contact { font-size:1.7vh; color: var(--text-dim); margin-top:0.3vh; }
-
-  /* ── COLUMN HEADINGS (fixed) ── */
-  .colhead {
-    display:grid;
-    grid-template-columns: 9vw 1fr 14vw 15vw 13vw;
-    gap: 1.5vw;
-    padding: 1vh 2.5vw 0.8vh;
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:2.2vh; letter-spacing:0.12em;
-    text-transform:uppercase; color: var(--text-dim);
-    border-bottom: 1px solid var(--line);
-  }
-  .colhead .r { text-align:right; }
-  .colhead .c { text-align:center; }
-
-  /* ── SCROLLING BOARD ── */
-  #board {
-    height: calc(100vh - 15vh);
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  #board::-webkit-scrollbar { display:none; }
-
-  .cat-band {
-    display:flex; align-items:center; gap:1.5vw;
-    padding: 1.6vh 2.5vw 1vh;
-    margin-top: 1vh;
-  }
-  .cat-band .label {
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:700; font-size:3.7vh; letter-spacing:0.1em;
-    text-transform:uppercase; color: var(--norwood-blue-bright);
-    white-space:nowrap;
-  }
-  .cat-band .rule { flex:1; height:2px; background: linear-gradient(90deg, var(--norwood-blue), transparent); }
-  .cat-band.salvage .label { color: var(--amber); }
-  .cat-band.salvage .rule { background: linear-gradient(90deg, var(--amber), transparent); }
-  .tag-salvage {
-    display:inline-block; margin-left:0.8vw; vertical-align:middle;
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:700; font-size:2vh; letter-spacing:0.12em;
-    color: var(--amber); border:1px solid rgba(255,184,77,0.5);
-    border-radius:4px; padding:0.2vh 0.6vw; text-transform:uppercase;
-  }
-  .cat-band .count {
-    font-size:1.9vh; color: var(--text-dim); white-space:nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .row {
-    display:grid;
-    grid-template-columns: 9vw 1fr 14vw 15vw 13vw;
-    gap: 1.5vw;
-    align-items:center;
-    padding: 1.8vh 2.5vw;
-    border-bottom: 1px solid var(--line);
-    cursor: pointer;
-  }
-  .row:hover { background: rgba(77,163,232,0.10); }
-  .row:nth-child(even) { background: rgba(255,255,255,0.02); }
-
-  .itemno {
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:2.9vh;
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-  }
-  .desc-wrap { display:flex; align-items:center; gap:1.2vw; min-width:0; }
-  .thumb {
-    width:8.5vh; height:8.5vh; border-radius:6px;
-    object-fit:cover; background: var(--panel);
-    flex-shrink:0; border:1px solid var(--line);
-  }
-  .thumb.empty { display:flex; align-items:center; justify-content:center;
-    font-size:3.6vh; color: rgba(255,255,255,0.15); }
-  .desc {
-    font-weight:600; font-size:3.1vh; line-height:1.25;
-    overflow:hidden; display:-webkit-box;
-    -webkit-line-clamp:2; -webkit-box-orient:vertical;
-  }
-  .loc {
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:2.9vh; letter-spacing:0.05em;
-    color: var(--text); text-align:center;
-    text-transform:uppercase;
-  }
-  .loc.none { color: rgba(255,255,255,0.2); }
-
-  .stock { text-align:center; }
-  .pill {
-    display:inline-block;
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:700; font-size:2.6vh; letter-spacing:0.06em;
-    padding: 0.7vh 1.3vw; border-radius: 100px;
-    font-variant-numeric: tabular-nums;
-    white-space:nowrap;
-  }
-  .pill.in { background: var(--green-dark); color: var(--green); border:1px solid rgba(53,196,106,0.4); }
-  .pill.low { background: var(--amber-dark); color: var(--amber); border:1px solid rgba(255,184,77,0.4); }
-
-  .price {
-    text-align:right;
-    font-weight:700; font-size:3.9vh; color: var(--price);
-    font-variant-numeric: tabular-nums;
-  }
-  .price .cents { font-size:2.4vh; vertical-align:super; }
-
-  /* ── FOOTER TICKER ── */
-  footer {
-    position:fixed; bottom:0; left:0; right:0;
-    height: 4.6vh;
-    display:flex; align-items:center; justify-content:center; gap:2vw;
-    background: rgba(0,0,0,0.4);
-    border-top: 1px solid var(--line);
-    font-size:1.9vh; color: var(--text-dim);
-  }
-  footer b { color:#fff; font-weight:600; }
-
-  /* ── ITEM DETAIL OVERLAY ── */
-  #detail {
-    position:fixed; inset:0; z-index:40;
-    display:none; align-items:center; justify-content:center;
-    background: rgba(4,10,18,0.82);
-  }
-  #detail.open { display:flex; }
-  .detail-card {
-    width: 72vw; max-height: 84vh;
-    background: var(--panel);
-    border: 1px solid rgba(77,163,232,0.35);
-    border-radius: 14px;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-    display:grid; grid-template-columns: 42% 1fr;
-    overflow:hidden;
-  }
-  .detail-photo {
-    background:#0a1522; display:flex; align-items:center; justify-content:center;
-    min-height: 46vh;
-  }
-  .detail-photo img { width:100%; height:100%; max-height:84vh; object-fit:cover; }
-  .detail-photo .nopic { color: rgba(255,255,255,0.15); font-size:8vh; }
-  .detail-info { padding: 4vh 2.5vw; display:flex; flex-direction:column; gap:1.8vh; min-width:0; }
-  .detail-eyebrow {
-    font-family:'Barlow Condensed', sans-serif; font-weight:600;
-    font-size:2vh; letter-spacing:0.14em; text-transform:uppercase;
-    color: var(--norwood-blue-bright);
-  }
-  .detail-eyebrow.salv { color: var(--amber); }
-  .detail-title { font-weight:700; font-size:4vh; line-height:1.2; }
-  .detail-meta { display:flex; flex-wrap:wrap; gap:1.2vh 2.5vw; margin-top:0.5vh; }
-  .detail-meta .m .k {
-    font-family:'Barlow Condensed', sans-serif; font-weight:600;
-    font-size:1.8vh; letter-spacing:0.12em; text-transform:uppercase;
-    color: var(--text-dim); margin-bottom:0.4vh;
-  }
-  .detail-meta .m .v { font-size:2.8vh; font-weight:600; }
-  .detail-price {
-    margin-top:auto; font-weight:700; font-size:6.5vh; color:#fff;
-    font-variant-numeric: tabular-nums;
-  }
-  .detail-price .cents { font-size:3.4vh; vertical-align:super; }
-  .detail-tax { font-size:1.9vh; color: var(--text-dim); margin-top:-1vh; }
-  .detail-close {
-    position:absolute; top:3vh; right:3vw;
-    width:6.5vh; height:6.5vh; border-radius:50%;
-    background: rgba(255,255,255,0.1); color:#fff;
-    border: 1px solid rgba(255,255,255,0.25);
-    font-size:3vh; cursor:pointer; line-height:1;
-  }
-  .detail-close:hover { background: rgba(255,255,255,0.22); }
-
-  /* ── PAUSED INDICATOR ── */
-  #pausedBadge {
-    position:fixed; bottom:6.5vh; right:2.5vw; z-index:30;
-    display:none; align-items:center; gap:0.8vw;
-    background: rgba(0,0,0,0.55); border:1px solid var(--line);
-    border-radius:100px; padding: 0.9vh 1.5vw;
-    font-family:'Barlow Condensed', sans-serif;
-    font-weight:600; font-size:2vh; letter-spacing:0.08em;
-    text-transform:uppercase; color: var(--text-dim);
-  }
-  #pausedBadge.show { display:flex; }
-
-  /* ── STATES ── */
-  #status {
-    position:fixed; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:2vh;
-    background: var(--board-bg); z-index:50;
-    font-family:'Barlow Condensed', sans-serif;
-    font-size:3.5vh; letter-spacing:0.08em; text-transform:uppercase;
-    color: var(--text-dim);
-  }
-  #status.hidden { display:none; }
-  .spinner {
-    width:6vh; height:6vh; border-radius:50%;
-    border: 0.6vh solid var(--line);
-    border-top-color: var(--norwood-blue-bright);
-    animation: spin 1s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dot { animation:none; }
-  }
+:root{--blue:#1E70B8;--deep:#134570;--ink:#222;--bg:#f4f5f7;--line:#dde1e6;--mut:#6b7280;--green:#2e7d32;--amber:#b26a00;--red:#c62828}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+header{background:var(--deep);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+header h1{font-size:18px;margin:0;flex:1}
+header select{font:inherit;padding:6px 8px;border-radius:6px;border:0}
+header a{color:#cfe3f6;font-size:13px}
+.tabs{display:flex;gap:6px;padding:10px 14px 0;max-width:1100px;margin:0 auto}
+.tab{flex:1;padding:12px;border:1px solid var(--line);border-bottom:0;background:#e9edf2;border-radius:10px 10px 0 0;font:inherit;font-weight:600;cursor:pointer}
+.tab.on{background:#fff}
+.pane{display:none;background:#fff;max-width:1100px;margin:0 auto 40px;border:1px solid var(--line);border-radius:0 0 10px 10px;padding:14px}
+.pane.on{display:block}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+input[type=search],input[type=text],input[type=tel],select,textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+input[type=search]{flex:1 1 200px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:18px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn{border:0;border-radius:8px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--blue);color:#fff}
+.btn.sec{background:#e9edf2;color:var(--ink)}
+.btn.green{background:var(--green)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.list{border:1px solid var(--line);border-radius:8px;max-height:52vh;overflow:auto}
+.it{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef0f3;cursor:pointer}
+.it:last-child{border-bottom:0}
+.it input{width:20px;height:20px;flex:none}
+.it .d{flex:1;font-size:14px}
+.it .p{font-weight:700;white-space:nowrap}
+.pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;white-space:nowrap}
+.pill.in{background:#e7f3e8;color:var(--green)}.pill.low{background:#fff1dc;color:var(--amber)}.pill.call{background:#e8f0f8;color:var(--deep)}.pill.red{background:#fde8e8;color:var(--red)}
+.split{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+textarea{width:100%;min-height:300px;font-size:13px;line-height:1.45}
+.mut{color:var(--mut);font-size:13px}
+.grp{background:#f0f3f7;font-weight:700;font-size:13px;padding:7px 10px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.rc{display:grid;grid-template-columns:1fr auto;gap:6px 10px;padding:10px;border-bottom:1px solid #eef0f3;align-items:center}
+.rc .why{font-size:12px;color:var(--mut)}
+.rc .act{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.rc input[type=number]{width:64px;font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px}
+.rc.done{background:#f3faf3}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.3s;z-index:99;pointer-events:none}
+.toast.show{opacity:1}
+.printonly{display:none}
+@media(max-width:760px){.split{grid-template-columns:1fr}.rc{grid-template-columns:1fr}.rc .act{justify-content:flex-start}header h1{font-size:16px}.list{max-height:40vh}textarea{min-height:220px}}
+@media print{header,.tabs,.bar,.noprint{display:none!important}.pane{border:0;padding:0}#recount .act{display:none}.printonly{display:block}.rc{grid-template-columns:1fr 90px}.rc .box{display:block;border:1px solid #000;height:26px}body{background:#fff}}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="brand">
-    <span class="name">Norwood Supply</span>
-    <span class="live"><span class="dot"></span>Live Inventory</span>
-  </div>
-  <div class="search-wrap">
-    <input id="search" type="text" placeholder="Search doors, item #, location…" autocomplete="off">
-    <button id="searchClear" aria-label="Clear search" onclick="clearSearch()">✕</button>
-    <span class="search-count" id="searchCount"></span>
-  </div>
-  <div class="meta">
-    <div class="clock" id="clock">—</div>
-    <div class="contact">6200 Norwood Ave, Jacksonville &nbsp;·&nbsp; (904) 768-6818</div>
-  </div>
+  <h1>📦 Stock List &amp; Recount</h1>
+  <label style="font-size:13px">Acting as
+    <select id="who"><option value="">— pick —</option><option>Phil</option><option>Garon</option><option>Cleve</option><option>Lance</option></select>
+  </label>
+  <a href="board.html" target="_blank" title="Old showroom TV board">TV board</a>
+  <a href="index.html">← Tool</a>
 </header>
 
-<div class="colhead">
-  <div>Item #</div>
-  <div>Description</div>
-  <div class="c">Location</div>
-  <div class="c">Stock</div>
-  <div class="r">Price</div>
+<div class="tabs">
+  <button class="tab on" data-p="send">📤 Send Stock List</button>
+  <button class="tab" data-p="recount">🔢 Recount List</button>
 </div>
 
-<div id="board"></div>
+<!-- ═════════ SEND STOCK LIST ═════════ -->
+<section class="pane on" id="send">
+  <div class="bar">
+    <input type="search" id="sq" placeholder="Filter: 36, 2/8, fiberglass, LH, 6-panel…">
+    <span class="chip on" data-f="all">All</span><span class="chip" data-f="ext">Exterior</span><span class="chip" data-f="int">Interior</span><span class="chip" data-f="salv">Salvage</span>
+  </div>
+  <div class="split">
+    <div>
+      <div class="bar"><button class="btn sec sm" id="selAll">Select all shown</button><button class="btn sec sm" id="selNone">Clear</button><span class="mut" id="selCount"></span></div>
+      <div class="list" id="slist"><div class="it mut">Loading live stock…</div></div>
+      <p class="mut">Prices and availability come live from inventory. Tick the doors to include — or leave none ticked to send everything shown.</p>
+    </div>
+    <div>
+      <div class="bar">
+        <input type="text" id="cname" placeholder="Customer first name" style="flex:1">
+        <input type="tel" id="cphone" placeholder="Cell (for Text)" style="flex:1">
+      </div>
+      <textarea id="msg"></textarea>
+      <div class="bar" style="margin-top:8px">
+        <button class="btn" id="bText">💬 Text</button>
+        <button class="btn" id="bShare">📲 Share</button>
+        <button class="btn sec" id="bCopy">📋 Copy</button>
+        <button class="btn sec" id="bEmail">✉️ Email</button>
+      </div>
+      <p class="mut">The message links to the live page with photos: norwoodsupply.com/stock</p>
+    </div>
+  </div>
+</section>
 
-<footer>
-  <span><b>Doors · Millwork · Building Materials</b></span>
-  <span>Mon–Fri 7:30–5 &nbsp;·&nbsp; Sat 8:30–12</span>
-  <span>norwoodsupply.com</span>
-  <span id="itemCount"></span>
-  <span style="opacity:0.35;font-variant-numeric:tabular-nums;">v7</span>
-</footer>
+<!-- ═════════ RECOUNT LIST ═════════ -->
+<section class="pane" id="recount">
+  <div class="bar">
+    <label class="mut">Not verified in
+      <select id="days"><option value="30">30 days</option><option value="60" selected>60 days</option><option value="90">90 days</option></select>
+    </label>
+    <label class="mut"><input type="checkbox" id="incZero" checked> include 0-qty items</label>
+    <input type="search" id="rq" placeholder="Filter by location or item">
+    <button class="btn sec" onclick="window.print()">🖨 Print count sheet</button>
+  </div>
+  <p class="mut noprint" id="rsum"></p>
+  <div class="printonly"><h2 style="margin:0">Norwood Supply — Recount Sheet</h2><p id="pdate"></p></div>
+  <div id="rlist"></div>
+</section>
 
-<div id="detail" onclick="if(event.target===this)closeDetail()">
-  <button class="detail-close" onclick="closeDetail()" aria-label="Close">✕</button>
-  <div class="detail-card" id="detailCard"></div>
-</div>
+<div class="toast" id="toast"></div>
 
-<div id="pausedBadge">⏸ Paused — auto-scroll resumes shortly</div>
-
-<div id="status">
-  <div class="spinner"></div>
-  <div>Loading live inventory…</div>
-</div>
-
-<!-- Firebase v8 (same as inventory.html) -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-// ════════════════════════════════════════════
-//  FIRESTORE CONFIG (same project as the tool)
-// ════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",
-  authDomain: "norwood-supply.firebaseapp.com",
-  projectId: "norwood-supply",
-  storageBucket: "norwood-supply.firebasestorage.app",
-  messagingSenderId: "933963197210",
-  appId: "1:933963197210:web:c362a02d3d1a8d010d9aa3",
-  measurementId: "G-6QWRWPECGH"
-};
+firebase.initializeApp({apiKey:"AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig",authDomain:"norwood-supply.firebaseapp.com",projectId:"norwood-supply",storageBucket:"norwood-supply.firebasestorage.app",messagingSenderId:"933963197210",appId:"1:933963197210:web:c362a02d3d1a8d010d9aa3"});
+var db=firebase.firestore();
+var STOCK_URL='https://www.norwoodsupply.com/stock/';
+var ALL=[],SEL={},FILTER='all',DONE={};
 
-let db;
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-} catch(e) {
-  document.getElementById('status').innerHTML = '<div>Could not connect — check WiFi</div>';
-}
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function money(p){var n=parseFloat(p)||0;return '$'+n.toLocaleString(undefined,{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}
+function toast(t){var e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show')},2600)}
+function isSalv(d){return d.isSalvage===true||d.type==='salvage'||!!d.salvageType||String(d.sku||'').indexOf('SALVAGE-')===0}
+function kind(d){if(isSalv(d))return'salv';var s=(d.sku||d._id||'')+' '+(d.description||'');if(/DR-INT|interior|bifold|slab/i.test(s)&&!/DR-EXT|exterior/i.test(s))return'int';return'ext'}
+function qty(d){return parseInt(isSalv(d)?d.qty:d.qoh)||0}
+function title(d){return isSalv(d)?(d.title||d.description||''):(d.description||'')}
+function tier(n){if(n>=4)return['in','In stock'];if(n>=2)return['low','Low stock'];return['call','Last one']}
 
-// ── CATEGORY LABELS & ORDER ──
-const CATS = { DR:'Doors', MW:'Millwork', LB:'Lumber', HW:'Hardware' };
-const CAT_ORDER = ['DR','MW','LB','HW'];
+// ── who (shared with inventory.html / index.html) ──
+function who(){try{return localStorage.getItem('ns_inv_actingAs')||''}catch(e){return''}}
+$('who').value=who();
+$('who').onchange=function(){try{localStorage.setItem('ns_inv_actingAs',this.value)}catch(e){}};
+function needWho(){var w=who();if(!w){toast('Pick who you are (top right) first');$('who').focus();}return w}
 
-// ── OPTIONS (tweak via URL if ever needed) ──
-const params = new URLSearchParams(location.search);
-const SHOW_PHOTOS = params.get('photos') !== 'off';   // display.html?photos=off to disable
-const LOW_STOCK_AT = 5;                               // qoh below this shows amber LOW pill
-const SCROLL_SPEED = parseFloat(params.get('speed')) || 0.33;  // px per frame (~20px/sec, calm drift)
-const IDLE_RESUME_MS = 30000;                         // resume auto-scroll 30s after the last touch
-const END_PAUSE_MS = 5000;                            // pause at top/bottom of list
+// ── tabs ──
+document.querySelectorAll('.tab').forEach(function(b){b.onclick=function(){document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x===b)});document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on',p.id===b.dataset.p)});try{localStorage.setItem('ns_stock_tab',b.dataset.p)}catch(e){}}});
+try{var lt=localStorage.getItem('ns_stock_tab');if(lt){var tb=document.querySelector('.tab[data-p="'+lt+'"]');if(tb)tb.click()}}catch(e){}
+if(new URLSearchParams(location.search).get('tab')==='recount')document.querySelector('.tab[data-p="recount"]').click();
 
-// ── LIVE DATA ──
-function fmtPrice(p) {
-  const n = parseFloat(p) || 0;
-  const dollars = Math.floor(n);
-  const cents = Math.round((n - dollars) * 100);
-  return '$' + dollars.toLocaleString() + '<span class="cents">' + String(cents).padStart(2,'0') + '</span>';
-}
+// ── live data ──
+db.collection('norwood').onSnapshot(function(snap){
+  var a=[];
+  snap.forEach(function(doc){if(doc.id.indexOf('__')===0)return;var d=doc.data();d._id=doc.id;if(d.removed)return;if(isSalv(d)&&d.sold)return;a.push(d)});
+  a.sort(function(x,y){return title(x).localeCompare(title(y))});
+  ALL=a;renderSend();renderRecount();
+},function(err){$('slist').innerHTML='<div class="it" style="color:#c62828">Could not load inventory — check WiFi / tracking prevention, then refresh.</div>'});
 
-// Regular inventory photos are raw base64 (no prefix); salvage photos are full data URLs.
-function thumbHTML(src, isDataUrl) {
-  if (!SHOW_PHOTOS) return '';
-  if (!src) return '<div class="thumb empty">▢</div>';
-  const full = isDataUrl ? src : 'data:image/jpeg;base64,' + src;
-  return '<img class="thumb" src="' + full.replace(/"/g,'&quot;') + '" alt="">';
-}
-
-function stockPill(n) {
-  const low = n < LOW_STOCK_AT;
-  return '<span class="pill ' + (low?'low':'in') + '">' + (low ? 'Low Stock · ' + n : 'In Stock · ' + n) + '</span>';
-}
-
-function render(items, salvage) {
-  const board = document.getElementById('board');
-  let html = '';
-  DETAILS = [];
-
-  // ── REGULAR INVENTORY BY CATEGORY ──
-  const groups = {};
-  items.forEach(it => {
-    const c = CATS[it.category] ? it.category : 'ZZ';
-    (groups[c] = groups[c] || []).push(it);
-  });
-  const order = CAT_ORDER.concat(Object.keys(groups).filter(c => CAT_ORDER.indexOf(c) < 0).sort());
-  order.forEach(cat => {
-    const list = groups[cat];
-    if (!list || !list.length) return;
-    list.sort((a,b) => (a.description||'').localeCompare(b.description||''));
-    const label = CATS[cat] || 'More Items';
-    html += '<div class="cat-band"><span class="label">' + label + '</span><span class="rule"></span><span class="count">' + list.length + ' item' + (list.length===1?'':'s') + '</span></div>';
-    list.forEach(it => {
-      const loc = (it.location||'').trim();
-      const qoh = parseInt(it.qoh) || 0;
-      const raw = it.photoBase64 || it.thumbnail || '';
-      const di = DETAILS.push({
-        photo: raw ? 'data:image/jpeg;base64,' + raw : '',
-        eyebrow: label + (it.itemNo ? ' · No. ' + it.itemNo : ''),
-        salv: false,
-        title: it.description || '',
-        meta: [ ['Location', loc || '—'], ['Stock', qoh + ' on hand'] ],
-        price: it.price
-      }) - 1;
-      html += '<div class="row" data-d="' + di + '">'
-        + '<div class="itemno">' + (it.itemNo || '—') + '</div>'
-        + '<div class="desc-wrap">' + thumbHTML(it.photoBase64 || it.thumbnail, false) + '<div class="desc">' + escapeHtml(it.description||'') + '</div></div>'
-        + '<div class="loc' + (loc?'':' none') + '">' + (escapeHtml(loc) || '—') + '</div>'
-        + '<div class="stock">' + stockPill(qoh) + '</div>'
-        + '<div class="price">' + fmtPrice(it.price) + '</div>'
-        + '</div>';
-    });
-  });
-
-  // ── SALVAGE & B-GRADE DEALS (closes out the board) ──
-  if (salvage.length) {
-    html += '<div class="cat-band salvage"><span class="label">Salvage &amp; B-Grade Deals</span><span class="rule"></span><span class="count">' + salvage.length + ' deal' + (salvage.length===1?'':'s') + '</span></div>';
-    salvage.forEach(it => {
-      const qty = parseInt(it.qty) || 0;
-      const cond = (it.condition||'').trim();
-      const di = DETAILS.push({
-        photo: it.photo || '',
-        eyebrow: 'Salvage & B-Grade' + (it.salvNo ? ' · #' + it.salvNo : ''),
-        salv: true,
-        title: it.title || it.description || '',
-        meta: [ ['Condition', cond || '—'], ['Available', qty + ' in stock'] ],
-        price: it.price
-      }) - 1;
-      html += '<div class="row" data-d="' + di + '">'
-        + '<div class="itemno">' + escapeHtml(it.salvNo ? '#' + it.salvNo : '—') + '</div>'
-        + '<div class="desc-wrap">' + thumbHTML(it.photo, true) + '<div class="desc">' + escapeHtml(it.title||it.description||'') + '<span class="tag-salvage">Salvage</span></div></div>'
-        + '<div class="loc' + (cond?'':' none') + '">' + (escapeHtml(cond) || '—') + '</div>'
-        + '<div class="stock">' + stockPill(qty) + '</div>'
-        + '<div class="price">' + fmtPrice(it.price) + '</div>'
-        + '</div>';
-    });
-  }
-
-
-  board.innerHTML = html || '<div style="padding:6vh;text-align:center;color:var(--text-dim);font-size:3vh;">No items in stock right now — check back soon.</div>';
-  document.getElementById('itemCount').textContent = (items.length + salvage.length) + ' items live';
-  document.getElementById('status').classList.add('hidden');
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function isSalvageDoc(d) {
-  return d.type === 'salvage' || d.isSalvage === true || !!d.salvageType ||
-         String(d.sku||'').indexOf('SALVAGE-') === 0;
-}
-
-let ALL_ITEMS = [], ALL_SALVAGE = [];
-let searchQuery = '';
-
-function itemHaystack(it) {
-  return [it.description, it.title, it.itemNo, it.salvNo, it.sku, it.location,
-          it.condition, CATS[it.category] || it.category]
-    .filter(Boolean).join(' ').toLowerCase();
-}
-
-function applyFilter() {
-  const q = searchQuery.trim().toLowerCase();
-  if (!q) {
-    render(ALL_ITEMS, ALL_SALVAGE);
-    document.getElementById('searchCount').textContent = '';
-    return;
-  }
-  const terms = q.split(/\s+/);
-  const match = it => { const h = itemHaystack(it); return terms.every(t => h.indexOf(t) >= 0); };
-  const fi = ALL_ITEMS.filter(match);
-  const fs = ALL_SALVAGE.filter(match);
-  render(fi, fs);
-  const n = fi.length + fs.length;
-  document.getElementById('searchCount').textContent = n ? n + ' match' + (n===1?'':'es') : 'No matches';
-  document.getElementById('board').scrollTop = 0;
-}
-
-if (db) {
-  db.collection('norwood').onSnapshot(snap => {
-    const items = [], salvage = [];
-    snap.forEach(doc => {
-      if (doc.id.indexOf('__') === 0) return;        // skip metadata docs
-      const d = doc.data();
-      if (isSalvageDoc(d)) {
-        if (d.sold) return;                          // sold deals come off the board
-        if ((parseInt(d.qty) || 0) <= 0) return;
-        salvage.push(d);
-      } else {
-        if ((parseInt(d.qoh) || 0) <= 0) return;     // customer-facing: only in-stock items
-        items.push(d);
-      }
-    });
-    // newest salvage deals first, same as the salvage page
-    salvage.sort((a,b) => (Number(b.salvNo)||0) - (Number(a.salvNo)||0));
-    ALL_ITEMS = items;
-    ALL_SALVAGE = salvage;
-    applyFilter();
-  }, err => {
-    document.getElementById('status').classList.remove('hidden');
-    document.getElementById('status').innerHTML = '<div>Connection lost — retrying…</div>';
+// ═════════ SEND STOCK LIST ═════════
+function inStock(){return ALL.filter(function(d){return qty(d)>0})}
+function shown(){
+  var terms=$('sq').value.toLowerCase().split(/\s+/).filter(Boolean);
+  return inStock().filter(function(d){
+    if(FILTER!=='all'&&kind(d)!==FILTER)return false;
+    var h=[title(d),d.itemNo,d.salvNo,d.sku,d.condition].join(' ').toLowerCase();
+    return terms.every(function(t){return h.indexOf(t)>=0});
   });
 }
+function renderSend(){
+  var list=shown();
+  $('slist').innerHTML=list.length?list.map(function(d){var t=tier(qty(d));return '<label class="it"><input type="checkbox" data-id="'+esc(d._id)+'"'+(SEL[d._id]?' checked':'')+'><span class="d">'+(isSalv(d)?'<b style="color:#b85c2a">[Salvage]</b> ':'')+esc(title(d))+' <span class="mut">· '+qty(d)+' on hand</span></span><span class="pill '+t[0]+'">'+t[1]+'</span><span class="p">'+money(d.price)+'</span></label>'}).join(''):'<div class="it mut">Nothing in stock matches.</div>';
+  buildMsg();
+}
+$('slist').addEventListener('change',function(e){var id=e.target.dataset.id;if(!id)return;if(e.target.checked)SEL[id]=1;else delete SEL[id];buildMsg()});
+$('sq').oninput=renderSend;
+document.querySelectorAll('#send .chip').forEach(function(c){c.onclick=function(){FILTER=c.dataset.f;document.querySelectorAll('#send .chip').forEach(function(x){x.classList.toggle('on',x===c)});renderSend()}});
+$('selAll').onclick=function(){shown().forEach(function(d){SEL[d._id]=1});renderSend()};
+$('selNone').onclick=function(){SEL={};renderSend()};
+$('cname').oninput=buildMsg;
 
-// ── ITEM DETAIL OVERLAY ──
-let DETAILS = [];
-let detailTimer = null;
+var msgEdited=false;
+$('msg').oninput=function(){msgEdited=true};
+function chosen(){var s=shown();var picked=s.filter(function(d){return SEL[d._id]});return picked.length?picked:s}
+function buildMsg(){
+  var items=chosen(),n=Object.keys(SEL).length;
+  $('selCount').textContent=n?(n+' ticked'):('none ticked — sending all '+items.length+' shown');
+  if(msgEdited)return;
+  var name=$('cname').value.trim(),q=$('sq').value.trim();
+  var date=new Date().toLocaleDateString([], {month:'short',day:'numeric'});
+  var L=[];
+  L.push((name?'Hi '+name+', h':'H')+'ere\'s what we have in stock at Norwood Supply ('+date+'):');
+  L.push('');
+  var groups={ext:'EXTERIOR',int:'INTERIOR',salv:'SALVAGE / B-GRADE'};
+  ['ext','int','salv'].forEach(function(k){
+    var g=items.filter(function(d){return kind(d)===k});if(!g.length)return;
+    L.push(groups[k]);
+    g.slice(0,60).forEach(function(d){var t=tier(qty(d));L.push('• '+title(d).replace(/\s+/g,' ').trim()+' — '+money(d.price)+(t[0]==='in'?'':' ('+t[1].toLowerCase()+')'))});
+    if(g.length>60)L.push('  …plus '+(g.length-60)+' more on the live list');
+    L.push('');
+  });
+  var link=STOCK_URL+(q?'?q='+encodeURIComponent(q):(FILTER!=='all'?'?f='+FILTER:''));
+  L.push('Photos + live list: '+link);
+  L.push('Stock moves fast — text or call (904) 768-6818 to hold one.');
+  L.push('Norwood Supply · 6200 Norwood Ave, Jacksonville');
+  $('msg').value=L.join('\n');
+}
+// reset "edited" when the selection or filter changes so the preview follows
+['slist','sq'].forEach(function(id){$(id).addEventListener('input',function(){msgEdited=false},true);$(id).addEventListener('change',function(){msgEdited=false;buildMsg()},true)});
+document.querySelectorAll('#send .chip,#selAll,#selNone').forEach(function(b){b.addEventListener('click',function(){msgEdited=false;buildMsg()})});
 
-document.getElementById('board').addEventListener('click', e => {
-  const row = e.target.closest('.row');
-  if (!row || row.dataset.d === undefined) return;
-  showDetail(DETAILS[Number(row.dataset.d)]);
+$('bCopy').onclick=function(){var t=$('msg').value;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast('Copied — paste into a text, Messenger or Marketplace')},function(){$('msg').select();document.execCommand('copy');toast('Copied')})};
+$('bShare').onclick=function(){var t=$('msg').value;if(navigator.share){navigator.share({title:'Norwood Supply — In Stock',text:t}).catch(function(){})}else{$('bCopy').click()}};
+$('bText').onclick=function(){var ph=$('cphone').value.replace(/\D/g,'');var t=$('msg').value;var sep=/iPhone|iPad|Mac/.test(navigator.userAgent)?'&':'?';location.href='sms:'+(ph?(ph.length===10?'+1':'')+ph:'')+sep+'body='+encodeURIComponent(t)};
+$('bEmail').onclick=function(){location.href='mailto:?subject='+encodeURIComponent('Norwood Supply — doors in stock')+'&body='+encodeURIComponent($('msg').value)};
+
+// ═════════ RECOUNT LIST ═════════
+function verifiedAt(d){var t=d.countedAt||d.lastAt||'';var ms=Date.parse(t);return isNaN(ms)?0:ms}
+function locGroup(d){var l=String(d.location||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(!l)return'No location set';
+  if(/b(ld|lg) ?1/.test(l))return'Building 1';if(/bld ?2/.test(l))return'Building 2';
+  if(/left shed|shed left/.test(l))return'Left shed';if(/right shed/.test(l))return'Right shed';if(/garage/.test(l))return'Garage shed';
+  return d.location.trim()}
+function reasons(d,cut){var r=[],v=verifiedAt(d);
+  if(!v)r.push('never verified');else if(v<cut)r.push('last verified '+new Date(v).toLocaleDateString()+(d.countedBy||d.lastBy?' by '+(d.countedBy||d.lastBy):''));
+  if(qty(d)<=0)r.push('shows 0 — is it really gone?');
+  if(!String(d.location||'').trim()&&!isSalv(d))r.push('no location');
+  return r}
+function renderRecount(){
+  var cut=Date.now()-parseInt($('days').value)*864e5,inc0=$('incZero').checked;
+  var terms=$('rq').value.toLowerCase().split(/\s+/).filter(Boolean);
+  var rows=ALL.filter(function(d){if(isSalv(d))return false;if(!inc0&&qty(d)<=0)return false;if(DONE[d._id])return true;return reasons(d,cut).length>0})
+    .filter(function(d){var h=[title(d),d.location,d.itemNo,d.sku].join(' ').toLowerCase();return terms.every(function(t){return h.indexOf(t)>=0})});
+  var g={};rows.forEach(function(d){var k=locGroup(d);(g[k]=g[k]||[]).push(d)});
+  var keys=Object.keys(g).sort();
+  $('rsum').textContent=rows.length+' items to verify · '+Object.keys(DONE).length+' done this visit. Tap ✓ if the shelf count matches, or type the real count and Save.';
+  $('pdate').textContent=new Date().toLocaleString()+' · '+rows.length+' items';
+  $('rlist').innerHTML=keys.length?keys.map(function(k){
+    var list=g[k].sort(function(a,b){return String(a.location||'').localeCompare(String(b.location||''))||title(a).localeCompare(title(b))});
+    return '<div class="grp">'+esc(k)+' · '+list.length+'</div>'+list.map(function(d){
+      var done=DONE[d._id];
+      return '<div class="rc'+(done?' done':'')+'"><div><div>'+esc(title(d))+'</div><div class="why">#'+esc(d.itemNo||'—')+' · '+esc(d.location||'no location')+' · system says <b>'+qty(d)+'</b>'+(done?' · ✅ '+esc(done):' · '+esc(reasons(d,cut).join(' · ')))+'</div></div>'
+        +'<div class="act"><button class="btn green sm" data-ok="'+esc(d._id)+'">✓ '+qty(d)+' is right</button><input type="number" min="0" inputmode="numeric" placeholder="real" data-n="'+esc(d._id)+'"><button class="btn sm" data-set="'+esc(d._id)+'">Save</button></div><div class="box printonly"></div></div>'}).join('')}).join(''):'<p class="mut" style="padding:20px">Nothing needs a recount with these settings. 🎉</p>';
+}
+$('days').onchange=renderRecount;$('incZero').onchange=renderRecount;$('rq').oninput=renderRecount;
+
+function stamp(action,by,at){return{history:firebase.firestore.FieldValue.arrayUnion({action:action,by:by,at:at}),lastAction:action,lastBy:by,lastAt:at,countedAt:at,countedBy:by,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}}
+$('rlist').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  var by=needWho();if(!by)return;
+  var at=new Date().toISOString(),id=b.dataset.ok||b.dataset.set,d=ALL.find(function(x){return x._id===id});if(!d)return;
+  var old=qty(d),upd,label;
+  if(b.dataset.ok){upd=stamp('Recount — matches ('+old+')',by,at);label='Verified '+old}
+  else{var inp=document.querySelector('input[data-n="'+CSS.escape(id)+'"]');var n=parseInt(inp&&inp.value);
+    if(isNaN(n)||n<0){toast('Type the real count first');if(inp)inp.focus();return}
+    if(n===old){upd=stamp('Recount — matches ('+old+')',by,at);label='Verified '+old}
+    else{if(!confirm('Change "'+title(d).slice(0,60)+'" from '+old+' to '+n+'?'))return;upd=stamp('Recount — set to '+n+' (was '+old+')',by,at);upd.qoh=n;label='Set '+old+' → '+n}}
+  b.disabled=true;
+  db.collection('norwood').doc(id).update(upd).then(function(){DONE[id]=label+' · '+by;toast('✅ '+label+' · '+by)},function(){b.disabled=false;toast('❌ Save failed — check connection')});
 });
-
-function showDetail(d) {
-  if (!d) return;
-  const photo = d.photo
-    ? '<img src="' + d.photo.replace(/"/g,'&quot;') + '" alt="">'
-    : '<div class="nopic">▢</div>';
-  const meta = d.meta.map(m =>
-    '<div class="m"><div class="k">' + escapeHtml(m[0]) + '</div><div class="v">' + escapeHtml(m[1]) + '</div></div>'
-  ).join('');
-  document.getElementById('detailCard').innerHTML =
-    '<div class="detail-photo">' + photo + '</div>'
-    + '<div class="detail-info">'
-    + '<div class="detail-eyebrow' + (d.salv ? ' salv' : '') + '">' + escapeHtml(d.eyebrow) + '</div>'
-    + '<div class="detail-title">' + escapeHtml(d.title) + '</div>'
-    + '<div class="detail-meta">' + meta + '</div>'
-    + '<div class="detail-price">' + fmtPrice(d.price) + '</div>'
-    + '<div class="detail-tax">Plus tax · Delivery available · Ask an associate</div>'
-    + '</div>';
-  document.getElementById('detail').classList.add('open');
-  pauseAuto();
-  clearTimeout(detailTimer);
-  detailTimer = setTimeout(closeDetail, 60000);   // auto-close after 60s so the board never gets stuck
-}
-
-function closeDetail() {
-  document.getElementById('detail').classList.remove('open');
-  clearTimeout(detailTimer);
-  resumeAuto();   // board picks right back up when the card closes
-}
-window.addEventListener('keydown', e => { if (e.key === 'Escape') setTimeout(closeDetail, 0); });
-
-// ── SEARCH WIRING ──
-const searchInput = document.getElementById('search');
-let searchDebounce = null;
-searchInput.addEventListener('input', () => {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => {
-    searchQuery = searchInput.value;
-    document.getElementById('searchClear').classList.toggle('show', !!searchQuery.trim());
-    applyFilter();
-  }, 150);
-});
-searchInput.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { clearSearch(); searchInput.blur(); }
-  e.stopPropagation();   // typing shouldn't trigger the global pause handler twice
-});
-function clearSearch() {
-  searchInput.value = '';
-  searchQuery = '';
-  document.getElementById('searchClear').classList.remove('show');
-  applyFilter();
-  document.getElementById('board').scrollTop = 0;
-}
-
-// ── CLOCK ──
-function tick() {
-  const now = new Date();
-  document.getElementById('clock').textContent =
-    now.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'}) +
-    ' · ' +
-    now.toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'});
-}
-tick(); setInterval(tick, 15000);
-
-// ── AUTO-SCROLL (pauses when someone uses it) ──
-const board = document.getElementById('board');
-let paused = false;
-let lastInteraction = 0;
-let endPauseUntil = 0;
-
-function pauseAuto() {
-  paused = true;
-  lastInteraction = Date.now();
-  document.getElementById('pausedBadge').classList.add('show');
-}
-function resumeAuto() {
-  paused = false;
-  document.getElementById('pausedBadge').classList.remove('show');
-}
-['wheel','touchstart','touchmove','mousedown','keydown','pointerdown'].forEach(ev =>
-  window.addEventListener(ev, pauseAuto, { passive:true })
-);
-
-let scrollAcc = 0;   // fractional pixels bank up here until we have a whole one to move
-function autoScroll() {
-  // resume check lives in the loop itself — runs every frame, can never be lost
-  if (paused && Date.now() - lastInteraction >= IDLE_RESUME_MS) {
-    resumeAuto();
-    closeDetail();
-    if (searchQuery.trim()) clearSearch();   // abandoned search? back to the full board
-  }
-  if (!paused && !searchQuery.trim() && Date.now() > endPauseUntil) {
-    const max = board.scrollHeight - board.clientHeight;
-    if (max > 10) {
-      if (board.scrollTop >= max - 1) {
-        endPauseUntil = Date.now() + END_PAUSE_MS;
-        setTimeout(() => { if (!paused) { board.scrollTop = 0; scrollAcc = 0; } }, END_PAUSE_MS);
-      } else {
-        scrollAcc += SCROLL_SPEED;
-        if (scrollAcc >= 1) {
-          const step = Math.floor(scrollAcc);
-          board.scrollTop += step;
-          scrollAcc -= step;
-        }
-      }
-    }
-  }
-  requestAnimationFrame(autoScroll);
-}
-requestAnimationFrame(autoScroll);
-
-// ── NIGHTLY REFRESH (keeps the TV browser from getting stale) ──
-setTimeout(() => location.reload(), 12 * 60 * 60 * 1000);
 </script>
-  <div style="text-align:center;font:12px system-ui,sans-serif;color:#888;padding:8px 0;">build <span data-ns-build>-</span></div>
-  <script src="ns-version.js?v=20260927-0843"></script>
+<script src="ns-version.js?v=20261004-stock"></script>
 </body>
 </html>
