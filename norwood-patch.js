@@ -1227,3 +1227,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 }); // end DOMContentLoaded
+
+// ── 📤 Stock List tab (2026-10-04): opens display.html (send in-stock list / recount list) ──
+(function(){
+  function addStockTab(){
+    if (document.getElementById('tab-stocklist')) return true;
+    var act = [].slice.call(document.querySelectorAll('nav .tab')).filter(function(b){ return /Activity/.test(b.textContent); })[0];
+    if (!act) return false;
+    var b = document.createElement('button');
+    b.className = 'tab'; b.id = 'tab-stocklist';
+    b.title = 'Send a customer the in-stock list, or work the recount list';
+    b.textContent = '📤 Stock List';
+    b.onclick = function(){ window.open('display.html', '_blank'); };
+    act.parentNode.insertBefore(b, act.nextSibling);
+    return true;
+  }
+  var tries = 0;
+  (function t(){ if (!addStockTab() && tries++ < 40) setTimeout(t, 250); })();
+})();
