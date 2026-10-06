@@ -3949,7 +3949,8 @@ function nsShowInvoiceNow(existingInvNum) {
     invNum = 'INV-' + String(invCounter).padStart(5,'0');
   }
   currentInvNum = invNum;
-  const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  var savedInvoice = getSavedQuotes().find(function(q){return q.type === 'invoice' && q.quoteNum === invNum;});
+  const today = savedInvoice ? new Date(nsInvoiceCreatedAt(savedInvoice)).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const c = getCustomer();
   const sub=lines.reduce((s,l)=>s+l.retail*l.qty,0);
   const tax=c.taxExempt?0:sub*0.075;
@@ -4085,14 +4086,15 @@ function generatePO() {
   poCounter++;
   localStorage.setItem('ns_po_counter', poCounter);
   nsSyncBumpCounter('po', poCounter);
-  const poNum='PO-'+String(poCounter).padStart(5,'0');
+  const poCustomer=getCustomer();
+  const poNum=nsPOName(poCustomer.name, poCustomer.rep);
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const c=getCustomer();
   const reqBy=document.getElementById('po-required-by').value||c.etaDate||'TBD';
   const activeItems=poItems.filter(l=>l.include);
   const totalCost=activeItems.reduce((s,l)=>s+l.unitCost*l.qty,0);
   const rows=activeItems.map(l=>'<tr><td>'+l.qty+'</td><td style="line-height:1.5"><strong>'+l.item+'</strong>'+(l.size?' ('+l.size+')':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></td><td>$'+l.unitCost.toFixed(2)+'</td><td>$'+(l.unitCost*l.qty).toFixed(2)+'</td></tr>').join('');
-  document.getElementById('po-content').innerHTML='<div class="po-wrap"><div class="po-page"><div class="po-banner"><div class="po-banner-left"><div class="po-banner-logo">NORWOOD SUPPLY</div><div class="po-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="po-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com</div></div><div class="po-banner-right"><div class="po-banner-title">PURCHASE ORDER</div><div class="po-banner-num">#'+poNum+'</div><div class="po-banner-meta"><strong>Date:</strong> '+today+'<br><strong>Issued By:</strong> '+c.rep+'</div></div></div><div class="po-info-grid"><div class="po-info-box"><div class="po-info-label">VENDOR / SHIP FROM</div><div class="po-info-name">'+selVendor.name+'</div><div class="po-info-detail">'+selVendor.address.split('\n').join('<br>')+'<br>'+selVendor.phone+'<br>'+selVendor.email+(selVendor.email2?'<br>'+selVendor.email2:'')+'</div></div><div class="po-info-box"><div class="po-info-label">SHIP TO / BILL TO</div><div class="po-info-name">Norwood Supply</div><div class="po-info-detail">6200 Norwood Ave<br>Jacksonville, FL 32208<br>(904) 768-6818<br>lance087@gmail.com</div></div><div class="po-info-box"><div class="po-info-label">ORDER DETAILS</div><div class="po-info-detail"><strong>Required By:</strong> '+reqBy+'<br><strong>Customer:</strong> '+c.name+'<br><strong>Ref:</strong> '+(document.querySelector('.inv-meta-value')?document.querySelector('.inv-meta-value').textContent:quoteNum)+'</div></div></div><table class="po-table"><thead><tr><th style="width:55px">QTY</th><th>DESCRIPTION</th><th style="width:95px;text-align:right">UNIT COST</th><th style="width:105px;text-align:right">TOTAL</th></tr></thead><tbody>'+rows+'</tbody></table><div class="po-totals"><div class="po-tot-row grand"><span>TOTAL COST</span><span>$'+totalCost.toFixed(2)+'</span></div></div><div class="po-terms-box"><div class="po-terms-label-new">NOTES</div><div class="po-terms-content-new">Please confirm receipt of this PO and estimated delivery date. Contact Lance Hopper at (904) 768-6818 or lance087@gmail.com with questions.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px;font-size:12px"><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Authorized by: Lance Hopper, Norwood Supply</div><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Vendor Acknowledgment / Date</div></div><div class="po-footer">Norwood Supply · 6200 Norwood Ave, Jacksonville, FL 32208 · (904) 768-6818</div></div></div>';
+  document.getElementById('po-content').innerHTML='<div class="po-wrap"><div class="po-page"><div class="po-banner"><div class="po-banner-left"><div class="po-banner-logo">NORWOOD SUPPLY</div><div class="po-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="po-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com</div></div><div class="po-banner-right"><div class="po-banner-title">PURCHASE ORDER</div><div class="po-banner-num">#'+nsEsc(poNum)+'</div><div class="po-banner-meta"><strong>Date:</strong> '+today+'<br><strong>Issued By:</strong> '+c.rep+'</div></div></div><div class="po-info-grid"><div class="po-info-box"><div class="po-info-label">VENDOR / SHIP FROM</div><div class="po-info-name">'+selVendor.name+'</div><div class="po-info-detail">'+selVendor.address.split('\n').join('<br>')+'<br>'+selVendor.phone+'<br>'+selVendor.email+(selVendor.email2?'<br>'+selVendor.email2:'')+'</div></div><div class="po-info-box"><div class="po-info-label">SHIP TO / BILL TO</div><div class="po-info-name">Norwood Supply</div><div class="po-info-detail">6200 Norwood Ave<br>Jacksonville, FL 32208<br>(904) 768-6818<br>lance087@gmail.com</div></div><div class="po-info-box"><div class="po-info-label">ORDER DETAILS</div><div class="po-info-detail"><strong>Required By:</strong> '+reqBy+'<br><strong>Customer:</strong> '+c.name+'<br><strong>Ref:</strong> '+(document.querySelector('.inv-meta-value')?document.querySelector('.inv-meta-value').textContent:quoteNum)+'</div></div></div><table class="po-table"><thead><tr><th style="width:55px">QTY</th><th>DESCRIPTION</th><th style="width:95px;text-align:right">UNIT COST</th><th style="width:105px;text-align:right">TOTAL</th></tr></thead><tbody>'+rows+'</tbody></table><div class="po-totals"><div class="po-tot-row grand"><span>TOTAL COST</span><span>$'+totalCost.toFixed(2)+'</span></div></div><div class="po-terms-box"><div class="po-terms-label-new">NOTES</div><div class="po-terms-content-new">Please confirm receipt of this PO and estimated delivery date. Contact Lance Hopper at (904) 768-6818 or lance087@gmail.com with questions.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px;font-size:12px"><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Authorized by: Lance Hopper, Norwood Supply</div><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Vendor Acknowledgment / Date</div></div><div class="po-footer">Norwood Supply · 6200 Norwood Ave, Jacksonville, FL 32208 · (904) 768-6818</div></div></div>';
   document.getElementById('po-modal').classList.add('hidden');
   // Stash PO data for email/save buttons
   currentPOData = {
@@ -4951,6 +4953,26 @@ function saveQuotesToStorage(quotes, raw) {
   // also push here. See NS_SYNC_KEYS note above for why.
 }
 
+// Invoice creation dates are independent of the timestamp used by cloud sync.
+function nsInvoiceCreatedAt(q) {
+  if (!q) return 0;
+  if (Number(q.createdAt) > 0) return Number(q.createdAt);
+  var date = Date.parse(q.date || '');
+  if (Number.isFinite(date)) return date;
+  return Number(q.id) || Number(q.timestamp) || 0;
+}
+function nsPOName(customer, rep, date) {
+  date = date || new Date();
+  var day = date.toLocaleDateString('en-US', {timeZone:'America/New_York',month:'2-digit',day:'2-digit',year:'numeric'}).replace(/\//g, '');
+  var name = String(customer || 'Stock').trim().replace(/\s+/g, '');
+  var seller = String(rep || 'Lance').trim();
+  var initials = /^lance(?:\s|$)/i.test(seller) ? 'LH' : seller.split(/\s+/).map(function(part){return part.charAt(0);}).join('').toUpperCase();
+  var base = day + name + initials;
+  var log = getPOLog(), candidate = base, n = 2;
+  while (log.some(function(po){return po.poNum === candidate;}) || (currentPOData && currentPOData.poNum === candidate)) candidate = base + n++;
+  return candidate;
+}
+
 function saveCurrentQuote(type) {
   var c = getCustomer();
   var sub = lines.reduce(function(s,l){return s+l.retail*l.qty;}, 0);
@@ -4965,6 +4987,7 @@ function saveCurrentQuote(type) {
     quoteNum: type === 'invoice' ? (currentInvNum || ('INV-' + String(invCounter).padStart(5,'0'))) : quoteNum,
     date: new Date().toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}),
     timestamp: Date.now(),
+    createdAt: Date.now(),
     customer: c,
     lines: lines.map(function(l){ return Object.assign({}, l); }),
     sub: sub,
@@ -4990,6 +5013,7 @@ function saveCurrentQuote(type) {
   var prior = existingIdx >= 0 ? quotes[existingIdx] : null;
   if(prior) {
     record.id = prior.id; // preserve original id
+    record.createdAt = nsInvoiceCreatedAt(prior);
     record.date = prior.date; // keep original creation date, don't bump to today on edit
     // Preserve any payments already recorded so re-saving (edits, refreshes) never wipes them
     record.paymentHistory = (prior.paymentHistory || []).slice();
@@ -6612,7 +6636,7 @@ function getFilteredQuotes(range) {
     var days = parseInt(range) || 30;
     cutoff.setDate(now.getDate() - days);
   }
-  return invoices.filter(function(q){ return q.timestamp >= cutoff.getTime(); });
+  return invoices.filter(function(q){ return nsInvoiceCreatedAt(q) >= cutoff.getTime(); });
 }
 
 // ── SALES TREND BY REP (Daily / Weekly / Monthly / Yearly) ──────────────────
@@ -6660,7 +6684,7 @@ function renderPeriodSales() {
   var data = {};
   buckets.forEach(function(b){ data[b.key] = {}; });
   invoices.forEach(function(q) {
-    var kl = periodKeyLabel(q.timestamp, salesPeriod);
+    var kl = periodKeyLabel(nsInvoiceCreatedAt(q), salesPeriod);
     if (!data.hasOwnProperty(kl.key)) return;
     var rep = q.rep || (q.customer && q.customer.rep) || 'Unknown';
     repSet[rep] = true;
@@ -6788,7 +6812,7 @@ function renderReports() {
     : '<div style="color:#2d6a30;font-size:13px;padding:10px 0;font-weight:600">✓ No outstanding receivables</div>';
 
   // ── RECENT TRANSACTIONS ─────────────────────────────────────────────────────
-  var recent = quotes.slice().sort(function(a,b){return b.timestamp-a.timestamp;}).slice(0,15);
+  var recent = quotes.slice().sort(function(a,b){return nsInvoiceCreatedAt(b)-nsInvoiceCreatedAt(a);}).slice(0,15);
   document.getElementById('recent-transactions').innerHTML = recent.length > 0
     ? recent.map(function(q) {
         var statusColor = q.paymentStatus==='PAID IN FULL' ? '#2d6a30' : q.paymentStatus==='NET 30' ? '#2980d4' : '#c04040';
@@ -7195,13 +7219,13 @@ function renderSalesLog() {
     else if (range === 'month') { cutoff = new Date(now.getFullYear(), now.getMonth(), 1); }
     else { cutoff.setDate(now.getDate() - (parseInt(range)||30)); }
     txns = txns.filter(function(q){
-      var d = new Date(q.timestamp || q.date);
+      var d = new Date(nsInvoiceCreatedAt(q));
       return d >= cutoff;
     });
   }
 
   // Sort newest first
-  txns.sort(function(a,b){ return (b.timestamp||0)-(a.timestamp||0); });
+  txns.sort(function(a,b){ return nsInvoiceCreatedAt(b)-nsInvoiceCreatedAt(a); });
 
   // ── KPI MINI SUMMARY ───────────────────────────────────────────────────────
   var totalRev = txns.reduce(function(s,t){return s+(t.grand||0);},0);
@@ -7233,7 +7257,7 @@ function renderSalesLog() {
   // Daily revenue
   var dayMap = {};
   txns.forEach(function(t) {
-    var day = fmtDate(t.timestamp ? new Date(t.timestamp).toISOString() : new Date().toISOString());
+    var day = fmtDate(new Date(nsInvoiceCreatedAt(t)).toISOString());
     if (!dayMap[day]) dayMap[day] = 0;
     dayMap[day] += t.grand||0;
   });
@@ -7308,13 +7332,16 @@ function renderSalesLog() {
       var cost = t.cost || t.lines && t.lines.reduce(function(s,l){return s+(l.cost||0)*(l.qty||1);},0) || 0;
       var gm = t.grand > 0 ? ((t.grand - cost) / t.grand * 100) : 0;
       var invNum = t.quoteNum || t.id || '—';
-      var dateStr = t.timestamp ? fmtDate(new Date(t.timestamp).toISOString()) : (t.date||'—');
+      var dateStr = fmtDate(new Date(nsInvoiceCreatedAt(t)).toISOString());
 
+      var payments = (t.paymentHistory || []).filter(function(p){return p.type !== 'net30' && Number(p.amount) > 0;});
+      var lastPaid = payments.length ? payments[payments.length-1].date : '';
+      var paidDate = lastPaid ? '<div style="font-size:10px;color:#6b5a3a;margin-top:4px">' + (ps.includes('PAID IN FULL') ? 'Paid: ' : 'Last payment: ') + nsEsc(lastPaid) + '</div>' : '';
       html += '<tr style="background:'+bg+'">';
       html += '<td style="padding:9px 12px;font-weight:700;color:#2980d4">'+invNum+'</td>';
       html += '<td style="padding:9px 12px;color:#6b5a3a">'+dateStr+'</td>';
       html += '<td style="padding:9px 12px;font-weight:500">'+(t.customer&&t.customer.name ? t.customer.name : (t.customer||'—'))+'</td>';
-      html += '<td style="padding:9px 12px"><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+psBg+';color:'+psColor+'">'+ps+'</span></td>';
+      html += '<td style="padding:9px 12px"><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+psBg+';color:'+psColor+'">'+ps+'</span>'+paidDate+'</td>';
       html += '<td style="padding:9px 12px;text-align:right;font-weight:700;color:#2d6a30">'+fmtMoney(t.grand)+'</td>';
       html += '<td style="padding:9px 12px;text-align:right;font-weight:600;color:'+(gm>=30?'#2d6a30':'#c04040')+'">'+gm.toFixed(1)+'%</td>';
       html += '</tr>';
@@ -7793,7 +7820,7 @@ function buildOrderList(){
     orders.push({
       id:inv.id||Date.now()+i,
       invNum:invNum,
-      createdDate:inv.timestamp?new Date(inv.timestamp).toISOString():(inv.date||''),
+      createdDate:new Date(nsInvoiceCreatedAt(inv)).toISOString(),
       customer:{name:c.name||'Unknown',phone:c.phone||'',email:c.email||''},
       rep:c.rep||inv.rep||'Lance',
       items:(inv.lines||[]).map(function(l){return{name:l.item||l.description||'',qty:l.qty||1,retail:l.retail||0,size:l.size||''};}),
@@ -7839,7 +7866,9 @@ function linkPOToOrder(invNum){
   var choice=prompt(msg);if(choice===null)return;choice=choice.trim();
   var meta=getOrderMeta();if(!meta[invNum])meta[invNum]={};
   if(choice==='0'){meta[invNum].linkedPO='INVENTORY';saveOrderMeta(meta);renderOrderTracker();showToast(invNum+' marked as from inventory','#2d6a30');return;}
-  var idx=parseInt(choice);
+  var namedPO=poLog.find(function(p){return p.poNum.toLowerCase()===choice.toLowerCase();});
+  if(namedPO){meta[invNum].linkedPO=namedPO.poNum;saveOrderMeta(meta);renderOrderTracker();showToast(invNum+' linked to '+namedPO.poNum,'#2980d4');return;}
+  var idx=/^\d+$/.test(choice)?parseInt(choice,10):NaN;
   if(!isNaN(idx)&&idx>=1&&idx<=poLog.length){meta[invNum].linkedPO=poLog[idx-1].poNum;saveOrderMeta(meta);renderOrderTracker();showToast(invNum+' linked to '+meta[invNum].linkedPO,'#2980d4');return;}
   if(choice.toUpperCase().startsWith('PO-')||choice.match(/^\\d+$/)){meta[invNum].linkedPO=choice.toUpperCase().startsWith('PO-')?choice.toUpperCase():'PO-'+choice;saveOrderMeta(meta);renderOrderTracker();showToast(invNum+' linked to '+meta[invNum].linkedPO,'#2980d4');return;}
   showToast('Invalid selection','#c04040');
@@ -8518,7 +8547,7 @@ function buildPOHtml(d) {
           '<div style="font-size:24px;font-weight:700;color:#E65100;letter-spacing:2px;text-transform:uppercase;margin-top:4px">PURCHASE ORDER</div>' +
         '</div>' +
         '<div style="text-align:right;font-size:12px;line-height:2">' +
-          '<strong>PO #:</strong> ' + d.poNum + '<br>' +
+          '<strong>PO #:</strong> ' + nsEsc(d.poNum) + '<br>' +
           '<strong>Date:</strong> ' + d.date + '<br>' +
           '<strong>Issued By:</strong> ' + (d.rep||'Lance') +
         '</div>' +
