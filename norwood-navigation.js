@@ -18,3 +18,6 @@ function mount(){
 }
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mount();
 })(window);
+
+/* Load the engineered-wood category on every existing pricing-tool entry point. */
+(function(){var s=document.createElement('script');s.src='norwood-beams.js?v=20261008-bluelinx';document.head.appendChild(s);})();
