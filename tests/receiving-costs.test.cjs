@@ -1,0 +1,43 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const {JSDOM} = require('jsdom');
+const source = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const dom = new JSDOM(source.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ''), {url:'https://isolated.test', runScripts:'outside-only'});
+const w = dom.window;
+function load(name) {
+  const start = source.indexOf('function ' + name + '(');
+  assert.ok(start >= 0, name);
+  vm.runInContext(source.slice(start, source.indexOf('\n}', start) + 2), dom.getInternalVMContext());
+}
+for (const name of ['nsPOCostNumber','getPOLog','savePOLog','kpiCard','renderPOLog','buildPOHtml','closeReceivingModal','finishSaveReceiving']) load(name);
+const pushed = [];
+w.nsSyncPush = (key, records) => pushed.push(JSON.parse(JSON.stringify(records)));
+w.nsEsc = s => String(s || '');
+w.showToast = () => {};
+const po = {id:1,poNum:'TEST-1',totalCost:'1610.00',status:'Sent',items:[{qty:300,unitCost:'5.75',item:'Test lumber',description:'Test only'}]};
+const log = [po, {...po,id:2,poNum:'TEST-2',totalCost:100}, {...po,id:3,poNum:'TEST-3',totalCost:null}];
+w.savePOLog(log);
+assert.equal(w.localStorage.getItem('ns_po_log').includes('"totalCost":"1610.00"'),true);
+w.renderPOLog();
+assert.match(w.document.getElementById('polog-kpis').textContent,/\$1710/);
+assert.match(w.document.getElementById('polog-list').textContent,/\$1610.00/);
+assert.match(w.buildPOHtml(po),/\$1610.00/);
+assert.match(w.buildPOHtml(po),/\$5.75/);
+// Saving partial receiving must persist and rerender even with string costs.
+po.receiving = {date:'2026-10-09',receivedBy:'Test',overallStatus:'Partial',items:{0:{qtyReceived:280,qtyOutstanding:20,qtyDamaged:5,status:'Partial'}}};
+w.finishSaveReceiving(po,log,false,true);
+assert.equal(w.getPOLog()[0].receiving.items[0].qtyOutstanding,20);
+assert.equal(w.getPOLog()[0].receiving.items[0].qtyDamaged,5);
+assert.equal(w.getPOLog()[0].status,'Resolved');
+assert.match(w.document.getElementById('polog-list').textContent,/Partial/);
+assert.equal(pushed.length,2);
+w.renderPOLog();
+assert.match(w.document.getElementById('polog-kpis').textContent,/\$1710/);
+for (const value of [undefined,null,'', 'invalid',Infinity]) assert.equal(w.nsPOCostNumber(value),0);
+assert.equal(w.nsPOCostNumber('0'),0);
+assert.equal(w.nsPOCostNumber('12.50'),12.5);
+assert.equal(w.nsPOCostNumber(-12.5),-12.5);
+for (const m of source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)) if(m[1].trim()) new vm.Script(m[1]);
+console.log('PASS: mixed string/number PO totals, PO detail costs, partial receiving save/reload, unchanged damaged/outstanding counts, sync payload, invalid/empty costs, inline syntax. No live records touched.');
+w.close();
