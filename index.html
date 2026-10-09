@@ -7861,7 +7861,7 @@ function fmtD(iso){try{return new Date(iso).toLocaleDateString('en-US',{month:'s
 function linkPOToOrder(invNum){
   var poLog=[];try{poLog=JSON.parse(localStorage.getItem('ns_po_log')||'[]');}catch(e){}
   var msg='Link a Purchase Order to '+invNum+':\\n\\n0: No PO - Pulled from Inventory\\n';
-  for(var i=0;i<poLog.length;i++){msg+=(i+1)+': '+poLog[i].poNum+' - '+(poLog[i].vendorName||'?')+' ($'+(poLog[i].totalCost||0).toFixed(2)+')\\n';}
+  for(var i=0;i<poLog.length;i++){msg+=(i+1)+': '+poLog[i].poNum+' - '+(poLog[i].vendorName||'?')+' ($'+nsPOCostNumber(poLog[i].totalCost).toFixed(2)+')\\n';}
   msg+='\\nEnter a number, or type a PO# (e.g. PO-05010):';
   var choice=prompt(msg);if(choice===null)return;choice=choice.trim();
   var meta=getOrderMeta();if(!meta[invNum])meta[invNum]={};
@@ -8513,6 +8513,12 @@ let poAckEditId = null;    // PO being acknowledged
 let recvEditId = null;     // PO being received
 let recvPhotos = [];       // photo data-URLs staged for the receiving being edited
 
+// Saved/imported PO costs may be decimal strings. Keep display arithmetic numeric.
+function nsPOCostNumber(value) {
+  var amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
 function getPOLog() {
   try { return JSON.parse(localStorage.getItem('ns_po_log') || '[]'); }
   catch(e) { return []; }
@@ -8534,7 +8540,7 @@ function buildPOHtml(d) {
     var bg = i % 2 === 1 ? '#f5f9ff' : '#ffffff';
     itemRows += '<tr><td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:center;font-weight:700;background:'+bg+'">'+it.qty+'</td>';
     itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;line-height:1.5;background:'+bg+'"><strong>'+it.item+'</strong>'+(it.size?' ('+it.size+')':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+it.description+(it.sku?' &middot; SKU:'+it.sku:'')+'</span></td>';
-    itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+it.unitCost.toFixed(2)+'</td>';
+    itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+nsPOCostNumber(it.unitCost).toFixed(2)+'</td>';
     itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+(it.qty*it.unitCost).toFixed(2)+'</td></tr>';
   });
 
@@ -8578,7 +8584,7 @@ function buildPOHtml(d) {
         '<tbody>' + itemRows + '</tbody>' +
       '</table>' +
       '<div style="margin-left:auto;width:240px">' +
-        '<div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:700;background:#1a2438;color:#fff;border-radius:6px"><span>TOTAL COST</span><span>$' + d.totalCost.toFixed(2) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:700;background:#1a2438;color:#fff;border-radius:6px"><span>TOTAL COST</span><span>$' + nsPOCostNumber(d.totalCost).toFixed(2) + '</span></div>' +
       '</div>' +
       '<div style="font-size:11px;color:#6b5a3a;margin-top:14px;padding:10px 14px;background:#fff8f0;border-left:3px solid #E65100;line-height:1.7">Please confirm receipt of this PO and estimated delivery date. Contact Lance Hopper at (904) 768-6818 or lance087@gmail.com with questions.</div>' +
       '<div style="text-align:center;font-size:10px;color:#a89060;margin-top:20px;padding-top:14px;border-top:1px solid #e0d5c0">Norwood Supply &middot; 6200 Norwood Ave, Jacksonville, FL 32208 &middot; (904) 768-6818</div>' +
@@ -8851,7 +8857,7 @@ function renderPOLog() {
 
   var counts = {Draft:0,Sent:0,Acknowledged:0,Issues:0,Resolved:0,Complete:0};
   log.forEach(function(po){ if(counts[po.status]!==undefined) counts[po.status]++; });
-  var totalVal = log.reduce(function(s,po){ return s+(po.totalCost||0); }, 0);
+  var totalVal = log.reduce(function(s,po){ return s+nsPOCostNumber(po.totalCost); }, 0);
   var kpiEl = document.getElementById('polog-kpis');
   if(kpiEl) kpiEl.innerHTML =
     kpiCard('Total POs', log.length, 'all statuses', '') +
@@ -8902,7 +8908,7 @@ function renderPOLog() {
       html2 += '<div style="font-size:11px;color:#2980d4;margin-top:2px">📄 Invoice: <strong>' + po.refInv + '</strong></div>';
     }
     html2 += '</div>';
-    html2 += '<div style="text-align:right;flex-shrink:0"><div style="font-size:18px;font-weight:700;color:#1a1008">$' + po.totalCost.toFixed(2) + '</div>';
+    html2 += '<div style="text-align:right;flex-shrink:0"><div style="font-size:18px;font-weight:700;color:#1a1008">$' + nsPOCostNumber(po.totalCost).toFixed(2) + '</div>';
     html2 += '<div style="font-size:10px;color:#a89060">' + (po.items||[]).length + ' line items</div></div>';
     html2 += '</div>';
     html2 += '<div style="margin-top:10px;padding:10px;background:#faf8f4;border-radius:6px">' + itemsHtml + '</div>';
