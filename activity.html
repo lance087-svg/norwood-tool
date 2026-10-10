@@ -89,6 +89,31 @@ select,input[type=text],input[type=date],textarea{padding:7px 10px;border-radius
 .mrow>*{flex:1}
 textarea{min-height:70px;resize:vertical}
 .sync{font-size:11px;color:#9baab8}
+.mp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.mpt{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid #d5c8a8;background:#fff;color:#6b5a3a}
+.mpt.on{background:#1a56b3;color:#fff;border-color:#1a56b3}
+.mpt .c{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:9px;background:rgba(0,0,0,.08);font-size:11px}
+.mpt.on .c{background:rgba(255,255,255,.25)}
+.mpc{border:1px solid #e0d5c0;border-radius:8px;margin-bottom:8px;overflow:hidden;background:#fff}
+.mpc>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.mpc>summary::-webkit-details-marker{display:none}
+.mpc.need>summary{background:#fff8ec;border-left:4px solid #c0392b}
+.mpc.wait>summary{border-left:4px solid #1a56b3}
+.mpc.closed>summary{border-left:4px solid #b9b0a0;opacity:.85}
+.mpc .mb{flex:1;min-width:0}
+.mpc .nm{font-weight:700;color:#1a2438;font-size:14.5px}
+.mpc .ls{font-size:12px;color:#1a56b3;font-weight:600;margin-top:1px}
+.mpc .nt{font-size:12.5px;color:#4a3a20;margin-top:4px;line-height:1.4}
+.mpc .lst{font-size:12px;color:#6b5a3a;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mpc .ag{font-size:11px;color:#a89060;white-space:nowrap;flex-shrink:0;text-align:right}
+.convo{padding:8px 12px 4px;background:#f7f4ee;border-top:1px solid #f0e8d8;max-height:420px;overflow-y:auto}
+.bub{max-width:82%;padding:7px 10px;border-radius:12px;font-size:13px;line-height:1.4;margin:4px 0;white-space:pre-wrap;word-wrap:break-word}
+.bub.buyer{background:#fff;border:1px solid #e0d5c0;margin-right:auto;border-bottom-left-radius:3px}
+.bub.us{background:#1a56b3;color:#fff;margin-left:auto;border-bottom-right-radius:3px}
+.bub .bt{display:block;font-size:10px;opacity:.65;margin-top:3px}
+.bwrap{display:flex;flex-direction:column}
+.mpc .acts{padding:8px 12px 10px}
+.seedn{font-size:11.5px;color:#8B6914;background:#fdf6e3;border-radius:5px;padding:6px 8px;margin:6px 0}
 @media(max-width:640px){.main{padding:12px 12px 60px}.ev .time{width:64px}.header{padding:8px 12px}.hctl{margin-left:0;width:100%}.chips{display:none}.kpi .n{font-size:18px}}
 @media print{.header,.filters,.acts,.btn{display:none!important}.main{padding:0}.grp{break-inside:avoid}}
 </style>
@@ -115,6 +140,19 @@ textarea{min-height:70px;resize:vertical}
 
 <div class="main">
   <div class="kpis" id="kpis"></div>
+
+  <div class="panel" id="mp-panel">
+    <div class="ph" style="background:#1a56b3">🛒 Marketplace inbox <small id="mp-sync" style="color:#d6e4fb"></small></div>
+    <div class="pb">
+      <div class="mp-tabs" id="mp-tabs">
+        <span class="mpt on" data-t="need">⚠️ Needs you<span class="c" id="mpc-need">0</span></span>
+        <span class="mpt" data-t="wait">⏳ Waiting on buyer<span class="c" id="mpc-wait">0</span></span>
+        <span class="mpt" data-t="closed">✓ Closed (14 days)<span class="c" id="mpc-closed">0</span></span>
+        <input type="text" id="mp-search" placeholder="Search buyer, listing, phone…" style="flex:1;min-width:150px">
+      </div>
+      <div id="mp-list"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
 
   <div class="panel" id="needs-panel">
     <div class="ph red">⚠️ Needs action <small id="needs-count"></small></div>
@@ -207,7 +245,8 @@ async function patchDoc(path, obj, mask){
 // ── State ────────────────────────────────────────────────────────────────────
 var range = localStorage.getItem('ns_act_range') || 'today';
 var filter = 'all';
-var EVENTS = [], NEEDS = [], DISMISS = {}, NAMES = {};
+var EVENTS = [], NEEDS = [], DISMISS = {}, NAMES = {}, MP = [], mpTab = 'need', MP_SHOW = 8;
+try { mpTab = localStorage.getItem('ns_act_mptab') || 'need'; } catch (e) {}
 var who = localStorage.getItem('ns_inv_actingAs') || '';
 $('who').value = who;
 $('who').onchange = function(){ who = this.value; localStorage.setItem('ns_inv_actingAs', who); };
@@ -241,13 +280,16 @@ async function load(){
       runQuery('ns_activity', 'at', Math.min(b.s, since14)),
       runQuery('ns_quotes', 'timestamp', Math.min(b.s, since14)),
       getDoc('ns_sync/ns_po_log'),
-      getDoc('ns_sync/ns_activity_meta')
+      getDoc('ns_sync/ns_activity_meta'),
+      runQuery('ns_mp_threads', 'lastAt', Date.now() - 45 * 864e5, 400).catch(function(){ return []; })
     ]);
+    MP = res[4] || [];
     var acts = res[0], quotes = res[1].filter(function(q){ return !q.removed; }), polog = (res[2] && res[2].data) || [], meta = res[3];
     DISMISS = (meta && meta.data) || {};
-    build(acts, quotes, polog, b);
+    build(acts.filter(function(a){ return a.kind !== 'marketplace'; }), quotes, polog, b); // Marketplace now lives in ns_mp_threads (own panel)
+    buildMP(b);
     render();
-    $('sync').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' · ' + acts.length + ' messages · ' + quotes.length + ' quotes/invoices · ' + polog.length + ' POs read';
+    $('sync').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' · ' + acts.length + ' messages · ' + quotes.length + ' quotes/invoices · ' + polog.length + ' POs read · ' + MP.length + ' Marketplace threads';
   } catch (e) {
     $('timeline').innerHTML = '<div class="empty">Could not load: ' + esc(e.message) + '</div>';
   }
@@ -300,9 +342,76 @@ function build(acts, quotes, polog, b){
   var dl = $('names'); dl.innerHTML = Object.keys(NAMES).sort().map(function(k){ return '<option value="' + esc(NAMES[k].name) + '">'; }).join('');
 }
 
+// ── Marketplace threads (ns_mp_threads, fed hourly by the Marketplace inbox task) ──
+function mpStatus(t){ if (t.done || t.status === 'closed') return 'closed'; return t.status === 'needs_lance' ? 'need' : 'wait'; }
+function mpAt(m){ var x = m && m.at; if (typeof x === 'number') return x; var d = Date.parse(x || ''); return isNaN(d) ? 0 : d; }
+function buildMP(b){
+  var inRange = function(ms){ return ms >= b.s && ms < b.e; };
+  MP.forEach(function(t){
+    var nm = t.buyer || 'Marketplace buyer';
+    if (t.phone) { var k = key(nm); if (!NAMES[k]) NAMES[k] = { name: nm, phone: '', email: '', refs: {} }; if (!NAMES[k].phone) NAMES[k].phone = t.phone; }
+    (t.messages || []).forEach(function(m){ var at = mpAt(m); if (at && inRange(at)) EVENTS.push({ at: at, kind: 'marketplace', dir: m.from === 'us' ? 'out' : 'in', who: nm, party: 'customer', title: (t.listing || 'Marketplace') + (t.price ? ' (' + t.price + ')' : ''), sub: String(m.text || '').slice(0, 220), link: t.url || '', ref: '', needs: false }); });
+    if (!(t.messages || []).length && t.lastAt && inRange(t.lastAt)) EVENTS.push({ at: t.lastAt, kind: 'marketplace', dir: t.lastFrom === 'us' ? 'out' : 'in', who: nm, party: 'customer', title: t.listing || 'Marketplace', sub: t.note || '', link: t.url || '', ref: '', needs: false });
+  });
+  EVENTS.sort(function(a, b){ return b.at - a.at; });
+}
+function renderMP(){
+  var s = key($('mp-search').value), cutClosed = Date.now() - 14 * 864e5;
+  var cnt = { need: 0, wait: 0, closed: 0 };
+  var rows = MP.filter(function(t){
+    var st = mpStatus(t);
+    if (st === 'closed' && (t.doneAt || t.lastAt || 0) < cutClosed) return false;
+    cnt[st]++;
+    if (st !== mpTab) return false;
+    if (s && key([t.buyer, t.listing, t.phone, t.note, (t.messages || []).map(function(m){ return m.text; }).join(' ')].join(' ')).indexOf(s) < 0) return false;
+    return true;
+  }).sort(function(a, b){ return (b.lastAt || 0) - (a.lastAt || 0); });
+  ['need', 'wait', 'closed'].forEach(function(k){ $('mpc-' + k).textContent = cnt[k]; });
+  document.querySelectorAll('.mpt').forEach(function(x){ x.classList.toggle('on', x.dataset.t === mpTab); });
+  var open = {}; try { open = JSON.parse(sessionStorage.getItem('ns_mp_open') || '{}'); } catch (e) {}
+  if (!rows.length) { $('mp-list').innerHTML = '<div class="empty">' + (s ? 'No Marketplace threads match that search.' : mpTab === 'need' ? '✅ No Marketplace buyers waiting on you.' : mpTab === 'wait' ? 'No threads waiting on a buyer.' : 'Nothing closed in the last 14 days.') + '</div>'; return; }
+  var more = rows.length - MP_SHOW; if (more > 0) rows = rows.slice(0, MP_SHOW);
+  $('mp-list').innerHTML = rows.map(function(t){
+    var st = mpStatus(t), msgs = (t.messages || []).slice().sort(function(a, b){ return mpAt(a) - mpAt(b); });
+    var last = msgs.length ? msgs[msgs.length - 1] : null;
+    var lastLine = last ? (last.from === 'us' ? '↪ We said: ' : '💬 They said: ') + last.text : '';
+    var convo = msgs.length ? msgs.map(function(m){ var at = mpAt(m); return '<div class="bub ' + (m.from === 'us' ? 'us' : 'buyer') + '">' + esc(m.text) + (at ? '<span class="bt">' + (m.from === 'us' ? 'Norwood' : esc((t.buyer || '').split(' ')[0])) + ' · ' + dstr(at) + ' ' + tstr(at) + '</span>' : '') + '</div>'; }).join('')
+      : '<div class="seedn">The full back-and-forth will show here after the next hourly Marketplace check opens this thread.</div>';
+    var acts = [];
+    acts.push('<a href="' + esc(t.url || 'https://www.facebook.com/messages/?folder=marketplace') + '" target="_blank">💬 Open in Messenger</a>');
+    if (t.phone) { acts.push('<a href="' + telHref(t.phone) + '">📞 ' + esc(t.phone) + '</a>'); acts.push('<a href="' + smsHref(t.phone) + '">💬 Text</a>'); }
+    acts.push('<button onclick="logFor(' + esc(JSON.stringify(t.buyer || '')) + ',' + esc(JSON.stringify(t.phone || '')) + ',\'\')">＋ Log call</button>');
+    if (st === 'closed') acts.push('<button onclick="mpSet(\'' + t._id + '\',\'reopen\')">↩ Reopen</button>');
+    else { if (st === 'wait') acts.push('<button onclick="mpSet(\'' + t._id + '\',\'need\')">⚠️ Needs me</button>'); acts.push('<button class="done" onclick="mpSet(\'' + t._id + '\',\'done\')">✓ Done</button>'); }
+    var doneLine = t.done && t.doneBy ? '<div class="nt" style="color:#2d6a30">✓ Done by ' + esc(t.doneBy) + (t.doneAt ? ' · ' + dstr(t.doneAt) : '') + '</div>' : '';
+    return '<details class="mpc ' + st + '" data-id="' + t._id + '"' + (open[t._id] ? ' open' : '') + '><summary><div class="mb"><div class="nm">' + esc(t.buyer || 'Buyer') + (t.phone ? ' <small style="font-weight:400;color:#6b5a3a">' + esc(t.phone) + '</small>' : '') + '</div>'
+      + '<div class="ls">' + esc(t.listing || '') + (t.price ? ' · ' + esc(t.price) : '') + '</div>'
+      + (t.note ? '<div class="nt">' + (st === 'need' ? '<b>Next: </b>' : '') + esc(t.note) + '</div>' : '') + doneLine
+      + (lastLine ? '<div class="lst">' + esc(lastLine) + '</div>' : '') + '</div>'
+      + '<div class="ag">' + (t.lastAt ? ago(t.lastAt) : '') + '<br>' + (msgs.length ? msgs.length + ' msgs' : '') + '</div></summary>'
+      + '<div class="convo"><div class="bwrap">' + convo + '</div></div><div class="acts">' + acts.join('') + '</div></details>';
+  }).join('') + (more > 0 ? '<div style="text-align:center;margin-top:6px"><button class="btn btn-w" onclick="MP_SHOW=999;renderMP()">Show ' + more + ' more</button></div>' : '');
+  document.querySelectorAll('.mpc').forEach(function(d){ d.ontoggle = function(){ open[d.dataset.id] = d.open; try { sessionStorage.setItem('ns_mp_open', JSON.stringify(open)); } catch (e) {} if (d.open) { var c = d.querySelector('.convo'); c.scrollTop = c.scrollHeight; } }; });
+  $('mp-sync').textContent = MP.length ? 'updated hourly · last sync ' + ago(Math.max.apply(null, MP.map(function(t){ return t.syncedAt || t.updatedAt || 0; }))) : '';
+}
+async function mpSet(id, what){
+  if (!who) { toast('Pick "Acting as" first', '#c04040'); $('who').focus(); return; }
+  var t = MP.filter(function(x){ return x._id === id; })[0]; if (!t) return;
+  var now = Date.now(), upd;
+  if (what === 'done') upd = { done: true, doneBy: who, doneAt: now, status: 'closed', updatedAt: now };
+  else if (what === 'need') upd = { status: 'needs_lance', done: false, updatedAt: now, flaggedBy: who };
+  else upd = { done: false, doneBy: '', doneAt: 0, status: 'needs_lance', updatedAt: now };
+  try {
+    await patchDoc('ns_mp_threads/' + id, upd, Object.keys(upd));
+    Object.assign(t, upd); renderMP(); render();
+    toast(what === 'done' ? '✓ ' + (t.buyer || 'Thread') + ' marked done by ' + who : what === 'need' ? 'Moved to Needs you' : 'Reopened', '#2d6a30');
+  } catch (e) { toast('Could not save: ' + e.message, '#c04040'); }
+}
+
 // ── Render ───────────────────────────────────────────────────────────────────
 function render(){
   var b = bounds();
+  if (typeof renderMP === 'function') renderMP();
   // KPIs
   var n = { email: 0, text: 0, marketplace: 0, quotes: 0, invoices: 0, paid: 0, pos: 0, calls: 0 };
   EVENTS.forEach(function(e){
@@ -311,7 +420,7 @@ function render(){
     else if (e.kind === 'tool') { if (/^Quote .* created/.test(e.title)) n.quotes++; if (/^Invoice /.test(e.title)) n.invoices++; if (e.money) n.paid += e.money; }
   });
   $('kpis').innerHTML = [
-    ['✉️ ' + n.email, 'Emails'], ['💬 ' + n.text, 'Texts'], ['🛒 ' + n.marketplace, 'Marketplace'], ['📞 ' + n.calls, 'Calls / notes'],
+    ['✉️ ' + n.email, 'Emails'], ['💬 ' + n.text, 'Texts'], ['🛒 ' + n.marketplace, 'Marketplace msgs' + (MP.filter(function(t){ return mpStatus(t) === 'need'; }).length ? ' · ' + MP.filter(function(t){ return mpStatus(t) === 'need'; }).length + ' need you' : '')], ['📞 ' + n.calls, 'Calls / notes'],
     ['📋 ' + n.quotes, 'Quotes'], ['🧾 ' + n.invoices, 'Invoices'], ['🏭 ' + n.pos, 'POs out'], [money(n.paid), 'Collected', 'money']
   ].map(function(k){ return '<div class="kpi ' + (k[2] || '') + '"><div class="n">' + k[0] + '</div><div class="l">' + k[1] + '</div></div>'; }).join('');
 
@@ -400,6 +509,9 @@ async function saveLog(){
 document.querySelectorAll('#range button').forEach(function(b){ if (b.dataset.r === range) { document.querySelector('#range .on').classList.remove('on'); b.classList.add('on'); } b.onclick = function(){ document.querySelector('#range .on').classList.remove('on'); b.classList.add('on'); range = b.dataset.r; localStorage.setItem('ns_act_range', range); load(); }; });
 document.querySelectorAll('.pill').forEach(function(p){ p.onclick = function(){ document.querySelector('.pill.on').classList.remove('on'); p.classList.add('on'); filter = p.dataset.f; render(); }; });
 $('search').oninput = function(){ render(); };
+$('mp-search').oninput = function(){ MP_SHOW = this.value ? 999 : 8; renderMP(); };
+document.querySelectorAll('.mpt').forEach(function(x){ x.onclick = function(){ mpTab = x.dataset.t; MP_SHOW = 8; try { localStorage.setItem('ns_act_mptab', mpTab); } catch (e) {} renderMP(); }; });
+document.querySelector('.pill[data-f="marketplace"]').addEventListener('click', function(){ $('mp-panel').scrollIntoView({ behavior: 'smooth' }); });
 $('logm').onclick = function(e){ if (e.target === this) closeLog(); };
 load();
 setInterval(load, 5 * 60 * 1000);
