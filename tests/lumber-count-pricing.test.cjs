@@ -73,3 +73,17 @@ test('screenshot regression: three saved copies of SKU 9507 become one inventory
  assert.equal(values.ns_lumber_counts,'{"9507":18}');
  assert.ok(JSON.parse(values.ns_edits)['2468']);
 });
+test('PrimeLinx piece costs refresh six boards once, preserving 1x3 and history',()=>{
+ const {ctx,values}=app();
+ const expected={'7011':[5.44,10.88],'7013':[10.78,21.56],'7014':[16.11,32.22],'7016':[22.56,45.12],'7018':[31.33,62.66],'7019':[38.89,77.78]};
+ values.ns_edits=JSON.stringify({'2419':{cost:4,fixedRetail:7,onHand:12,notes:'Keep stock note'},'2420':{cost:7.25}});
+ values.ns_quotes='saved invoice prices';ctx.init();
+ for(const [sku,[cost,sell]] of Object.entries(expected)){
+  const p=ctx.products.find(p=>p.sku===sku);assert.equal(p.cost,cost);assert.equal(ctx.getCategoryGM(p),.5);assert.equal(ctx.calcRetail(p.cost,.5,p.fixedRetail,p),sell);
+ }
+ assert.equal(ctx.products.find(p=>p.sku==='7012').cost,7.25);
+ assert.equal(ctx.products.find(p=>p.sku==='7011').onHand,12);
+ assert.equal(ctx.products.find(p=>p.sku==='7011').notes,'Keep stock note');assert.equal(values.ns_quotes,'saved invoice prices');
+ assert.equal(ctx.products.filter(p=>p.sku==='7013').length,1);
+ let edits=JSON.parse(values.ns_edits);edits['2419'].cost=6;values.ns_edits=JSON.stringify(edits);ctx.init();assert.equal(ctx.products.find(p=>p.sku==='7011').cost,6);
+});
