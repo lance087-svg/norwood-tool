@@ -4855,17 +4855,10 @@ function getSavedQuotes() {
 function getDeletedQuotes() {
   return getSavedQuotesRaw().filter(function(q){ return q && q.removed; });
 }
-// ── SAFE LOCALSTORAGE QUOTE WRITE (added 2026-08-30) ────────────────────────
-// Central guard against QuotaExceededError (code 22). Used by both the
-// normal save path below AND the cross-device sync (norwood-quote-pull, at
-// the bottom of this file), so a full localStorage never causes a silent
-// failed save or a "FAILED: 22" sync error. On failure it clears old daily
-// backups first, then trims to the most recent 200 quotes and retries —
-// the cloud always has the complete history, so nothing is actually lost.
-// Storage-full warnings are expected/recurring on devices whose local
-// quote cache is already past the quota (the cloud always has the full
-// history, so nothing is lost) — cap each warning to once per calendar
-// day per message so it doesn't nag on every open/sync (added 2026-09-24).
+// ── SAFE LOCALSTORAGE QUOTE WRITE (2026-10-21) ────────────────────────────
+// Clear duplicate backups first. Under quota pressure, evict only exact
+// server-verified copies and retain pinned, edited, unknown and pending work.
+// The cache adapts to available space instead of stopping at 200 records.
 function nsShouldShowStorageToast(key) {
   try {
     var today = new Date().toISOString().slice(0, 10);
@@ -4875,67 +4868,85 @@ function nsShouldShowStorageToast(key) {
     return true;
   } catch (e) { return true; }
 }
-function nsSafeSetQuotes(list) {
+// Storage recovery only evicts records whose exact content was read from the
+// server in this session. Unknown, edited, pinned and pending records stay local.
+var nsStorageCloudVersions = Object.create(null);
+var nsStorageRecoveryBusy = false;
+var nsLastQuoteWriteFailed = false;
+function nsStorageVersion(q) {
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === 'object') {
+      var out = {};
+      Object.keys(value).sort().forEach(function(k) {
+        if (k !== '_syncStatus' && k !== '_syncedAt') out[k] = canonical(value[k]);
+      });
+      return out;
+    }
+    return value;
+  }
+  return JSON.stringify(canonical(q));
+}
+function nsRecoverQuoteStorage() {
+  if (nsStorageRecoveryBusy || !window._db) return;
+  nsStorageRecoveryBusy = true;
+  // Server-only: an offline SDK cache is not proof of a durable cloud copy.
+  window._db.collection('ns_quotes').get({source:'server'}).then(function(snapshot) {
+    snapshot.forEach(function(doc) {
+      var q = doc.data();
+      if (q && q.id != null) nsStorageCloudVersions[String(q.id)] = nsStorageVersion(q);
+    });
+    // Re-read after the request: edits made during recovery must survive.
+    var current = getSavedQuotesRaw();
+    if (nsSafeSetQuotes(current, true) && typeof showToast === 'function')
+      showToast('Storage checked — please save your current quote again.', '#2d6a30');
+  }).catch(function(e) {
+    console.warn('[STORAGE] Cloud verification unavailable; local records retained.', e);
+  }).then(function() { nsStorageRecoveryBusy = false; });
+}
+function nsSafeSetQuotes(list, recovering) {
+  nsLastQuoteWriteFailed = false;
   function trySet(arr) {
     try { localStorage.setItem('ns_quotes', JSON.stringify(arr)); return true; }
     catch (e) { return false; }
   }
   if (trySet(list)) return true;
-
+  // Daily backups duplicate the live cache; never clear the outbox or other data.
   try {
     for (var i = localStorage.length - 1; i >= 0; i--) {
       var k = localStorage.key(i);
       if (k && k.indexOf('ns_quotes_backup_') === 0) localStorage.removeItem(k);
     }
   } catch (e) {}
-  if (trySet(list)) {
-    if (typeof showToast === 'function' && nsShouldShowStorageToast('backups_cleared')) showToast('⚠️ Storage was nearly full — cleared old backups to make room.', '#b35309');
-    return true;
-  }
-
-  var sorted = list.slice().sort(function(a,b){
-    return (Number(b.timestamp)||Number(b.id)||0) - (Number(a.timestamp)||Number(a.id)||0);
-  });
-  var trimmed = sorted.slice(0, 200);
-  // Keep any older record someone just opened from cloud search (2026-10-03)
-  // Never trim away a record that hasn't reached the cloud yet (outbox /
-  // sync-guard pending) or one someone just opened from cloud search.
+  if (trySet(list)) return true;
   var pin = window.__nsPinnedQuoteIds || {};
-  var ob = (typeof nsOutboxIds === 'function') ? nsOutboxIds() : {};
-  var kept = {}; trimmed.forEach(function(q){ if (q) kept[String(q.id)] = 1; });
-  sorted.slice(200).forEach(function(q){
-    if (!q || kept[String(q.id)]) return;
-    var id = String(q.id);
-    if (pin[id] || ob[id] || (q._syncStatus && q._syncStatus !== 'synced')) trimmed.push(q);
+  var ob = typeof nsOutboxIds === 'function' ? nsOutboxIds() : {};
+  var sorted = list.slice().sort(function(a,b) {
+    return (Number(b && b.timestamp)||Number(b && b.id)||0) -
+           (Number(a && a.timestamp)||Number(a && a.id)||0);
   });
-  // Invoices first (2026-10-03): when the device is full, try to keep EVERY
-  // open invoice plus as many of the newest quotes as fit, before falling
-  // back to plain newest-200. Older quotes stay reachable via cloud search.
-  function protectedRec(q) {
-    var id = String(q.id);
-    return !!(pin[id] || ob[id] || (q._syncStatus && q._syncStatus !== 'synced'));
-  }
-  var tiers = [120, 80, 50, 25, 10];
-  for (var ti = 0; ti < tiers.length; ti++) {
-    var invFirst = [], nQ = 0;
-    sorted.forEach(function(q){
-      if (!q) return;
-      if (protectedRec(q)) { invFirst.push(q); return; }
-      if (q.type === 'invoice' && !q.removed) { invFirst.push(q); return; }
-      if (q.type !== 'invoice' && !q.removed && nQ < tiers[ti]) { invFirst.push(q); nQ++; }
-    });
-    if (invFirst.length >= sorted.length) break; // nothing would be dropped; not this path
-    if (trySet(invFirst)) {
-      if (typeof showToast === 'function' && nsShouldShowStorageToast('trimmed_200')) showToast('⚠️ Local storage was full — kept every invoice and your ' + nQ + ' newest quotes on this device; older quotes are still safe in the cloud (search finds them).', '#b35309');
+  var required = [], cached = [];
+  sorted.forEach(function(q) {
+    var id = q && String(q.id);
+    if (!q || pin[id] || ob[id] ||
+        (q._syncStatus && q._syncStatus !== 'synced') ||
+        nsStorageCloudVersions[id] !== nsStorageVersion(q)) required.push(q);
+    else cached.push(q);
+  });
+  // No fixed 200-record floor: large invoices can exhaust the quota by themselves.
+  var limits = [120, 80, 50, 25, 10, 5, 0];
+  for (var t = 0; t < limits.length; t++) {
+    if (cached.length <= limits[t]) continue;
+    if (trySet(required.concat(cached.slice(0, limits[t])))) {
+      if (typeof showToast === 'function' && nsShouldShowStorageToast('verified_cleanup'))
+        showToast('Storage cleaned up. Older cloud-backed records remain available through search.', '#2d6a30');
       return true;
     }
   }
-  if (trySet(trimmed)) {
-    if (typeof showToast === 'function' && nsShouldShowStorageToast('trimmed_200')) showToast('⚠️ Local storage was full — kept your 200 most recent quotes on this device, older ones are still safe in the cloud.', '#b35309');
-    return true;
-  }
-
-  if (typeof showToast === 'function') showToast('❌ Could not save — this device is out of storage space. Let Lance know.', '#a5251a');
+  nsLastQuoteWriteFailed = true;
+  if (!recovering) nsRecoverQuoteStorage();
+  if (typeof showToast === 'function')
+    showToast('Could not save on this device. Keep this tab open; checking cloud-backed storage. Please retry Save after cleanup.', '#a5251a');
   return false;
 }
 function saveQuotesToStorage(quotes, raw) {
@@ -5048,6 +5059,7 @@ function saveCurrentQuote(type) {
 }
 
 function showSaveBadge(type) {
+  if (nsLastQuoteWriteFailed) return;
   var msg = type === 'invoice' ? '✓ Invoice saved to history'
     : type === 'payment' ? '✓ Payment recorded'
     : '✓ Quote saved to history';
@@ -5329,10 +5341,17 @@ function nsOutboxWrite(o) {
     try {
       var stamp = function(q){ return Number(q && q.timestamp) || Number(q && q.id) || 0; };
       var raw = getSavedQuotesRaw().sort(function(a,b){ return stamp(b) - stamp(a); });
-      var cut = Math.max(50, raw.length - 40);
-      var keep = raw.filter(function(q, i){ return i < cut || (q && o[String(q.id)]); });
-      localStorage.setItem('ns_quotes', JSON.stringify(keep));
-      localStorage.setItem(NS_OUTBOX_KEY, JSON.stringify(o)); return true;
+      var pin = window.__nsPinnedQuoteIds || {};
+      for (var ri = raw.length - 1; ri >= 0; ri--) {
+        var q = raw[ri], id = q && String(q.id);
+        if (!q || o[id] || pin[id] || (q._syncStatus && q._syncStatus !== 'synced') ||
+            nsStorageCloudVersions[id] !== nsStorageVersion(q)) continue;
+        raw.splice(ri, 1);
+        localStorage.setItem('ns_quotes', JSON.stringify(raw));
+        try { localStorage.setItem(NS_OUTBOX_KEY, JSON.stringify(o)); return true; } catch (full) {}
+      }
+      nsRecoverQuoteStorage();
+      return false;
     } catch (e3) {
       console.warn('[OUTBOX] could not persist outbox (kept in memory this session)', e3);
       return false;
