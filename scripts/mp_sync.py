@@ -15,8 +15,23 @@ threads.json = a JSON list, one object per Marketplace thread you looked at this
     "note": "one line: what's next / what Lance must do",
     "messages": [ {"from": "buyer"|"us", "text": "...", "at": "2026-10-10T09:51:00-04:00"} , ... ]
   }
+IMPORTANT for whoever builds threads.json: copy each message's "text" VERBATIM
+from the Facebook thread (same wording, same punctuation) rather than
+paraphrasing/summarizing it. The dedup below is keyed on (from, at), which
+handles minor wording drift fine, but verbatim text is still what keeps the
+Activity page an accurate transcript rather than someone's rough paraphrase.
+
 Rules handled here (so the routine doesn't have to):
-  - messages are merged with what's already stored (deduped on from+text), last 40 kept
+  - messages are merged with what's already stored, deduped on (from, at) —
+    NOT on exact text, because the same real Facebook message read by
+    different runs sometimes gets typed up with slightly different wording
+    (a contact block included or not, "both" vs "both of the two", etc).
+    Two messages from the same sender at the exact same timestamp are always
+    treated as the same real message; whichever has the longer text wins
+    (longer is reliably the more complete/accurate transcription). This is
+    what actually keeps the thread from filling up with a dozen near-duplicate
+    paraphrases of one real send — see the 2026-10-22 cleanup in REVIEW.md.
+  - last 60 (deduped) messages are kept
   - a thread someone marked Done in the tool stays Done unless the buyer wrote again after it was marked
   - a placeholder "seed" doc for the same buyer is replaced by the real thread
 """
@@ -24,6 +39,7 @@ import json, re, sys, time, urllib.request, urllib.parse, datetime
 
 KEY = "AIzaSyAf50oc1i0ec1hsD_pPQNjj_tqcpIt0Sig"
 BASE = "https://firestore.googleapis.com/v1/projects/norwood-supply/databases/(default)/documents"
+MAX_MESSAGES = 60
 
 
 def tv(x):
@@ -88,6 +104,30 @@ def seeds_for(buyer):
             for x in out if "document" in x]
 
 
+def merge_messages(existing, incoming):
+    """Dedup on (from, at). Same sender + same timestamp = same real message;
+    keep whichever text is longer (most complete transcription)."""
+    by_key = {}
+    for m in existing or []:
+        k = (m.get("from"), m.get("at"))
+        cur = by_key.get(k)
+        if cur is None or len(m.get("text") or "") > len(cur.get("text") or ""):
+            by_key[k] = m
+    for m in incoming or []:
+        text = (m.get("text") or "").strip()
+        if not text:
+            continue
+        frm = "us" if m.get("from") == "us" else "buyer"
+        at = to_ms(m.get("at"))
+        k = (frm, at)
+        cand = {"from": frm, "text": text[:1500], "at": at}
+        cur = by_key.get(k)
+        if cur is None or len(text) > len(cur.get("text") or ""):
+            by_key[k] = cand
+    msgs = sorted(by_key.values(), key=lambda m: m.get("at") or 0)
+    return msgs[-MAX_MESSAGES:]
+
+
 def main(path):
     threads = json.load(open(path))
     now = int(time.time() * 1000)
@@ -103,15 +143,7 @@ def main(path):
                 carry = sd
                 req("DELETE", "ns_mp_threads/" + sid)
         base = dict(carry); base.update(old)
-        msgs = list(base.get("messages") or [])
-        seen = {(m.get("from"), (m.get("text") or "").strip()) for m in msgs}
-        for m in t.get("messages") or []:
-            k = (m.get("from"), (m.get("text") or "").strip())
-            if not k[1] or k in seen: continue
-            seen.add(k)
-            msgs.append({"from": "us" if m.get("from") == "us" else "buyer", "text": k[1][:1500], "at": to_ms(m.get("at"))})
-        msgs.sort(key=lambda m: m.get("at") or 0)
-        msgs = msgs[-40:]
+        msgs = merge_messages(base.get("messages"), t.get("messages"))
         last = msgs[-1] if msgs else {}
         last_buyer = max([m["at"] for m in msgs if m["from"] == "buyer"] or [0])
         status = t.get("status") or base.get("status") or "waiting_buyer"
