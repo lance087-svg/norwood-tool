@@ -656,15 +656,15 @@ tr:hover td{background:#fdf9f3}
           <div class="pb">
             <div style="font-size:11px;color:#8B6914;background:#fdf0d0;border:1px solid #e8c850;border-radius:5px;padding:6px 9px;margin-bottom:8px;line-height:1.6">
               <strong>Auto by category:</strong><br>
-              🚪 Doors → 40% &nbsp;|&nbsp; 🪵 Lumber → 30%<br>
-              📋 Millwork/Boards → 50% · Plywood → 30% markup
+              🚪 Doors → 40% &nbsp;|&nbsp; 🪵 Lumber → 30% (all GM = (Sell − Cost) ÷ Sell)<br>
+              📋 Millwork/Boards → 50% · Plywood/OSB → 25%
             </div>
             <div style="font-size:11px;font-weight:600;color:#6b5a3a;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Override for entire quote:</div>
             <div id="tier-0" class="tier-row off" onclick="setManualGM(0.40,0)"><div class="dot"></div><span style="flex:1">Override — 40% GM</span><span id="t0lbl" style="font-size:10px"></span></div>
             <div id="tier-1" class="tier-row off" onclick="setManualGM(0.35,1)"><div class="dot"></div><span style="flex:1">Override — 35% GM</span><span id="t1lbl" style="font-size:10px"></span></div>
             <div id="tier-2" class="tier-row off" onclick="setManualGM(0.30,2)"><div class="dot"></div><span style="flex:1">Override — 30% GM</span><span id="t2lbl" style="font-size:10px"></span></div>
             <div id="tier-3" class="tier-row off tier-vol" onclick="setManualGM(0.22,3)"><div class="dot"></div><span style="flex:1;color:#7b3fa0">Volume Special — 22% GM</span><span id="t3lbl" style="font-size:10px;color:#7b3fa0"></span></div>
-            <div class="notebox" style="margin-top:8px">Auto-adjusts by qty. Click any tier to lock for whole order.</div>
+            <div class="notebox" style="margin-top:8px">Auto-adjusts by qty. Click any tier to lock for whole order.<br><strong>Volume discounts available</strong> on lumber &amp; plywood — use Volume Special for large orders.</div>
           </div>
         </div>
 
@@ -2426,8 +2426,13 @@ function uniqueLumberProducts(list) {
 }
 
 function isPlywoodProduct(p) {
+  // Plywood and OSB sheet goods (25% gross margin)
   return !!p && (String(p.group || '').toLowerCase() === 'plywood' ||
-    String(p.category || '').toLowerCase() === 'plywood');
+    String(p.category || '').toLowerCase() === 'plywood' ||
+    /\bosb\b/i.test(String(p.name || p.item || '')));
+}
+function isLumberPricedProduct(p) {
+  return !!p && (isPlywoodProduct(p) || p.isLumber || String(p.category || '').toLowerCase() === 'lumber');
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -2611,8 +2616,8 @@ function getCategoryGM(prod, qty) {
   var name = (prod.name || prod.item || '').toLowerCase();
   // Windows: 40% for 1-4 units, 30% for 5+
   if (prod.isWindow || cat === 'windows') return (qty && qty >= 5) ? 0.30 : 0.40;
-  // 30% plywood markup is equivalent to 23.08% gross margin.
-  if (isPlywoodProduct(prod) && Number(prod.cost) > 0) return 0.30 / 1.30;
+  // Plywood & OSB = 25% gross margin (retail = cost / (1 - GM))
+  if (isPlywoodProduct(prod)) return 0.25;
   // Lumber = 30%
   if (prod.isLumber) return 0.30;
   if (cat === 'lumber') return 0.30;
@@ -2636,10 +2641,10 @@ function getGM(q) {
   return 0.40;
 }
 function calcRetail(cost, gm, fixedRetail, product) {
-  // Plywood uses cost + 30%, rounded to cents. Explicit quote margin overrides
-  // still work; items without a known cost retain their existing fixed price.
-  if (manualGM === null && isPlywoodProduct(product) && Number(cost) > 0) {
-    return Math.round((Number(cost) * 1.30 + Number.EPSILON) * 100) / 100;
+  // Lumber (30% GM), plywood/OSB (25% GM): true gross margin, retail = cost / (1 - GM),
+  // rounded to cents. Quote-level margin overrides (incl. Volume) still apply.
+  if (isLumberPricedProduct(product) && Number(cost) > 0 && gm > 0 && gm < 1) {
+    return Math.round((Number(cost) / (1 - gm) + Number.EPSILON) * 100) / 100;
   }
   // If fixedRetail exists but no cost, back-calculate cost from fixedRetail at 40% default margin
   // so margin overrides can adjust the retail price
@@ -3363,7 +3368,7 @@ function showPreview() {
   document.getElementById('prev-name').textContent=selProd.item+(selProd.size?' ('+selProd.size+')':'');
   document.getElementById('prev-desc').textContent=selProd.category+' · '+selProd.group+(selProd.size?' · '+selProd.size:'')+' — '+selProd.description;
   document.getElementById('prev-price').textContent='$'+r;
-  document.getElementById('prev-gm').textContent=manualGM === null && isPlywoodProduct(selProd) && selProd.cost > 0 ? '30% markup' : Math.round(gm*100)+'% GM';
+  document.getElementById('prev-gm').textContent=Math.round(gm*100)+'% GM';
   document.getElementById('prev-cost').textContent='Cost: $'+selProd.cost;
   const nb=document.getElementById('prev-notes');
   if(selProd.notes && selProd.notes.trim()){nb.textContent='ⓘ '+selProd.notes;nb.classList.remove('hidden');}else{nb.classList.add('hidden');}
@@ -6059,11 +6064,11 @@ function renderLumber() {
     // Plywood: cost + 30%; other lumber retains its existing pricing policy.
     var retail = calcRetail(p.cost, getCategoryGM(p), p.fixedRetail, p);
     var gmPct = (retail > 0 && p.cost > 0) ? Math.round((retail - p.cost) / retail * 100) : null;
-    var plywoodMarkup = isPlywoodProduct(p) && Number(p.cost) > 0 && manualGM === null;
+    var plywoodMarkup = false;
     var gmColor = plywoodMarkup ? '#2d6a30' : gmPct === null ? '#8B6914' : (gmPct < 27 || gmPct > 35) ? '#c04040' : '#2d6a30';
     var priceHTML = retail > 0
       ? '<div style="font-weight:800;color:#1a2438;font-size:15px">$' + retail + '</div>' +
-        '<div style="font-size:10px;color:#8B6914;margin-top:1px">cost $' + (p.cost||0).toFixed(2) + (gmPct !== null ? ' · <span style="color:' + gmColor + ';font-weight:700">' + (plywoodMarkup ? '30% markup' : gmPct + '% GM') + '</span>' : '') + '</div>'
+        '<div style="font-size:10px;color:#8B6914;margin-top:1px">cost $' + (p.cost||0).toFixed(2) + (gmPct !== null ? ' · <span style="color:' + gmColor + ';font-weight:700">' + (gmPct + '% GM') + '</span>' : '') + '</div>'
       : '<div style="font-size:11px;color:#c04040;font-weight:700">No price</div>' +
         (p.cost ? '<div style="font-size:10px;color:#8B6914">cost $' + p.cost.toFixed(2) + '</div>' : '');
     return '<tr style="' + rowBg + '">' +
