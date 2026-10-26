@@ -1,3 +1,5 @@
+// Clear the retired AI credential without touching business records.
+try { localStorage.removeItem('ns_salvage_apikey'); } catch (e) {}
 /* Norwood Supply - build version checker
  * Drop this in the repo root and add ONE line to each page, just before </body>:
  *   <script src="ns-version.js"></script>

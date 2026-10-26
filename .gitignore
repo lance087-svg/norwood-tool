@@ -1,0 +1,7 @@
+# Business data belongs in private storage, never public source.
+*Backup*.json
+*backup*.json
+threads.json
+*export*.json
+files.zip
+private-backups/
