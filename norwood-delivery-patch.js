@@ -263,7 +263,8 @@
         <button onclick="NWDelivery.closeModal()">✕</button>
       </div>
       <div class="dlv-mbody">
-        <div id="dlv-ref" style="font-size:12px;color:#8B6914;margin-bottom:14px;font-weight:600;"></div>
+        <div id="dlv-ref" style="font-size:12px;color:#8B6914;margin-bottom:8px;font-weight:600;"></div>
+        <div id="dlv-item-summary" style="font-size:13px;color:#3c3c3c;margin-bottom:14px;white-space:pre-line"></div>
         <div class="dlv-2col">
           <div class="dlv-fg">
             <label class="dlv-lbl">Delivery Date</label>
@@ -388,6 +389,15 @@
         <button onclick="NWDelivery.refreshSchedule()" style="background:#1E70B8;color:#fff;padding:8px 18px;border-radius:5px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit">🔄 Refresh</button>
       </div>
 
+      <div style="background:#fff;border:1px solid #d5c8a8;border-radius:8px;padding:14px;margin-bottom:16px">
+        <label for="dlv-invoice-search" style="display:block;font-weight:700;margin-bottom:6px">Schedule from a saved invoice</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="dlv-invoice-search" type="search" placeholder="Search customer or invoice #" oninput="NWDelivery.populateInvoices()" style="padding:9px;flex:1;min-width:180px">
+          <select id="dlv-invoice-select" aria-label="Choose saved invoice" style="padding:9px;flex:2;min-width:200px"></select>
+          <button type="button" onclick="NWDelivery.scheduleFromInvoice()" style="background:#1E70B8;color:white;padding:10px 16px;border:0;border-radius:6px;font-weight:700;cursor:pointer">Use invoice</button>
+        </div>
+        <p style="font-size:12px;margin:8px 0 0;color:#6b5a3a">Select an invoice to fill in the customer, address, phone and items. Review the details before scheduling.</p>
+      </div>
       <div class="dlv-summary-bar" id="dlv-summary-bar">
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-today">—</div><div class="dlv-stat-lbl">Today</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-upcoming">—</div><div class="dlv-stat-lbl">Upcoming</div></div>
@@ -425,6 +435,7 @@
     tab.textContent = "🚚 Deliveries";
     tab.onclick = function() {
       if (window.showPage) window.showPage("deliveries", this);
+      NWDelivery.populateInvoices();
       NWDelivery.refreshSchedule();
     };
     const receivingTab = document.getElementById("tab-receiving");
@@ -487,14 +498,37 @@
   // ── PUBLIC API ────────────────────────────────────────────────────────────
   let _allDeliveries = [];
   let _activeFilter = "all";
+  let _selectedInvoice = null;
+
+  function invoiceData(q) {
+    const c = q.customer || {};
+    return {invNum:String(q.quoteNum||""), name:String(c.name||""), phone:String(c.phone||""), addr:String(c.shipto||c.addr||""), notes:String(c.notes||""), items:(q.lines||[]).map(l=>({description:[l.item||l.description||"",l.size||""].filter(Boolean).join(" · "), qty:Number(l.qty)||0, sku:String(l.sku||"")}))};
+  }
 
   window.NWDelivery = {
 
+    populateInvoices() {
+      const select = document.getElementById("dlv-invoice-select"), search = document.getElementById("dlv-invoice-search");
+      if (!select) return;
+      const term = (search?.value||"").trim().toLowerCase();
+      const records = (typeof getSavedQuotes === "function" ? getSavedQuotes() : []).filter(q=>q.type === "invoice" && [q.quoteNum,q.customer?.name,q.customer?.co].some(v=>String(v||"").toLowerCase().includes(term))).sort((a,b)=>(Number(b.timestamp)||Number(b.id)||0)-(Number(a.timestamp)||Number(a.id)||0));
+      select.replaceChildren();
+      const empty = document.createElement("option"); empty.value=""; empty.textContent=records.length ? "— Choose an invoice —" : "No matching saved invoices"; select.appendChild(empty);
+      records.forEach(q=>{const option=document.createElement("option");option.value=String(q.id);option.textContent=[q.quoteNum,q.customer?.name||"Customer",q.date||""].filter(Boolean).join(" · ");select.appendChild(option)});
+    },
+    scheduleFromInvoice() {
+      const id=document.getElementById("dlv-invoice-select").value;
+      const q=(typeof getSavedQuotes === "function" ? getSavedQuotes() : []).find(q=>q.type === "invoice" && String(q.id)===id);
+      if (!q) { alert("Choose a saved invoice first."); return; }
+      this.openModal(q);
+    },
     // ── SCHEDULE MODAL ──────────────────────────────────────────────────────
-    openModal() {
-      const d = getInvData();
+    openModal(invoice) {
+      _selectedInvoice = invoice ? invoiceData(invoice) : null;
+      const d = _selectedInvoice || getInvData();
       document.getElementById("dlv-ref").textContent =
-        `Invoice: ${d.invNum||"—"}  ·  Customer: ${d.name||"—"}`;
+        `Invoice: ${d.invNum||"—"}  ·  Customer: ${d.name||"—"}  ·  ${d.items.length} item(s)`;
+      document.getElementById("dlv-item-summary").textContent = d.items.length ? d.items.map(i => `${i.qty} × ${i.description}`).join("\n") : "No invoice items found — review the invoice.";
       document.getElementById("dlv-addr").value  = d.addr  || "";
       document.getElementById("dlv-phone").value = d.phone || "";
       document.getElementById("dlv-notes").value = d.notes || "";
@@ -513,7 +547,7 @@
       const phone = (document.getElementById("dlv-phone")||{}).value||"";
       const date  = (document.getElementById("dlv-date") ||{}).value||"";
       const win   = (document.getElementById("dlv-window")||{}).value||"";
-      const d = getInvData();
+      const d = _selectedInvoice || getInvData();
       const preview = document.getElementById("dlv-sms-preview");
       if (phone && date) {
         document.getElementById("dlv-sms-text").textContent =
@@ -539,7 +573,7 @@
 
       btn.disabled=true; btn.textContent="Saving…";
 
-      const d = getInvData();
+      const d = _selectedInvoice || getInvData();
       const record = {
         invoiceNumber: d.invNum, customerName: d.name,
         customerPhone: phone||d.phone, address: addr||d.addr,
