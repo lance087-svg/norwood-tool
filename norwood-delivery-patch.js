@@ -264,6 +264,7 @@
       </div>
       <div class="dlv-mbody">
         <div id="dlv-ref" style="font-size:12px;color:#8B6914;margin-bottom:8px;font-weight:600;"></div>
+        <div id="dlv-manual-fields" style="display:none"><div class="dlv-fg"><label class="dlv-lbl" for="dlv-manual-name">Customer name</label><input type="text" id="dlv-manual-name" oninput="NWDelivery.updatePreview()"></div><div class="dlv-fg"><label class="dlv-lbl" for="dlv-manual-invoice">Invoice or reference # (optional)</label><input type="text" id="dlv-manual-invoice"></div><div class="dlv-fg"><label class="dlv-lbl" for="dlv-manual-items">Items to deliver</label><textarea id="dlv-manual-items" rows="3" placeholder="Describe the items and quantities"></textarea></div></div>
         <div id="dlv-item-summary" style="font-size:13px;color:#3c3c3c;margin-bottom:14px;white-space:pre-line"></div>
         <div class="dlv-2col">
           <div class="dlv-fg">
@@ -394,6 +395,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input id="dlv-invoice-search" type="search" placeholder="Search customer or invoice #" oninput="NWDelivery.populateInvoices()" style="padding:9px;flex:1;min-width:180px">
           <select id="dlv-invoice-select" aria-label="Choose saved invoice" style="padding:9px;flex:2;min-width:200px"></select>
+          <button type="button" onclick="NWDelivery.openManual()" style="background:#fff;color:#155a94;padding:10px 16px;border:1px solid #1E70B8;border-radius:6px;font-weight:700;cursor:pointer">+ Manual delivery</button>
           <button type="button" onclick="NWDelivery.scheduleFromInvoice()" style="background:#1E70B8;color:white;padding:10px 16px;border:0;border-radius:6px;font-weight:700;cursor:pointer">Use invoice</button>
         </div>
         <p style="font-size:12px;margin:8px 0 0;color:#6b5a3a">Select an invoice to fill in the customer, address, phone and items. Review the details before scheduling.</p>
@@ -481,6 +483,7 @@
   function isToday(iso) {
     return iso === new Date().toISOString().slice(0,10);
   }
+  function htmlText(value) { return String(value == null ? "" : value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c])); }
   function driverLabel(id) {
     return DRIVERS.find(d=>d.id===id)?.label || id || "—";
   }
@@ -499,6 +502,7 @@
   let _allDeliveries = [];
   let _activeFilter = "all";
   let _selectedInvoice = null;
+  let _manual = false;
 
   function invoiceData(q) {
     const c = q.customer || {};
@@ -524,12 +528,18 @@
       if (!q) { alert("Choose a saved invoice first."); return; }
       this.openModal(q);
     },
+    openManual() { this.openModal(null, true); },
     // ── SCHEDULE MODAL ──────────────────────────────────────────────────────
-    openModal(invoice) {
+    openModal(invoice, manual) {
+      _manual = !!manual;
       _selectedInvoice = invoice ? invoiceData(invoice) : null;
-      const d = _selectedInvoice || getInvData();
+      const d = _manual ? {invNum:"",name:"",phone:"",addr:"",notes:"",items:[]} : (_selectedInvoice || getInvData());
+      document.getElementById("dlv-manual-fields").style.display = _manual ? "" : "none";
+      ["dlv-manual-name","dlv-manual-invoice","dlv-manual-items"].forEach(id => document.getElementById(id).value = "");
       document.getElementById("dlv-ref").textContent =
         `Invoice: ${d.invNum||"—"}  ·  Customer: ${d.name||"—"}  ·  ${d.items.length} item(s)`;
+      document.getElementById("dlv-ref").style.display = _manual ? "none" : "";
+      document.getElementById("dlv-item-summary").style.display = _manual ? "none" : "";
       document.getElementById("dlv-item-summary").textContent = d.items.length ? d.items.map(i => `${i.qty} × ${i.description}`).join("\n") : "No invoice items found — review the invoice.";
       document.getElementById("dlv-addr").value  = d.addr  || "";
       document.getElementById("dlv-phone").value = d.phone || "";
@@ -549,7 +559,7 @@
       const phone = (document.getElementById("dlv-phone")||{}).value||"";
       const date  = (document.getElementById("dlv-date") ||{}).value||"";
       const win   = (document.getElementById("dlv-window")||{}).value||"";
-      const d = _selectedInvoice || getInvData();
+      const d = _manual ? {name:document.getElementById("dlv-manual-name").value.trim()} : (_selectedInvoice || getInvData());
       const preview = document.getElementById("dlv-sms-preview");
       if (phone && date) {
         document.getElementById("dlv-sms-text").textContent =
@@ -570,12 +580,15 @@
       const phone    = document.getElementById("dlv-phone").value.trim();
       const notes    = document.getElementById("dlv-notes").value.trim();
 
+      if (_manual && !document.getElementById("dlv-manual-name").value.trim()){ alert("Please enter the customer name."); return; }
+      if (_manual && !addr){ alert("Please enter the delivery address."); return; }
       if (!driverId){ alert("Please select a driver."); return; }
       if (!date)    { alert("Please select a delivery date."); return; }
 
       btn.disabled=true; btn.textContent="Saving…";
 
-      const d = _selectedInvoice || getInvData();
+      const manualItems = document.getElementById("dlv-manual-items").value.trim();
+      const d = _manual ? {invNum:document.getElementById("dlv-manual-invoice").value.trim(),name:document.getElementById("dlv-manual-name").value.trim(),phone:"",addr:"",items:manualItems ? [{description:manualItems,qty:1,sku:""}] : []} : (_selectedInvoice || getInvData());
       const record = {
         invoiceNumber: d.invNum, customerName: d.name,
         customerPhone: phone||d.phone, address: addr||d.addr,
@@ -588,6 +601,7 @@
         // Messaging is not connected; staff send any customer notice separately.
         this._showStrip(record, fmtDateLong(date));
         this.closeModal();
+        if (document.getElementById("page-deliveries")?.classList.contains("active")) await this.refreshSchedule();
         if(window.showToast) window.showToast(`✅ Delivery scheduled for ${fmtDateLong(date)}!`,"#2d6a30");
         else alert(`✅ Delivery scheduled for ${fmtDateLong(date)}!`);
       } catch(e) {
@@ -644,7 +658,8 @@
       btn.disabled=false; btn.textContent="💾 Save Changes";
     },
 
-    async cancelDeliveryById(id, name) {
+    async cancelDeliveryById(id) {
+      const name = _allDeliveries.find(d => d.id === id)?.customerName;
       if (!confirm(`Cancel delivery for ${name||"this customer"}?`)) return;
       await cancelDelivery(id);
       await this.refreshSchedule();
@@ -721,15 +736,15 @@
           html += `<div class="dlv-card status-${d.status}">
             <div class="dlv-card-top">
               <div style="flex:1">
-                <div class="dlv-card-inv">${d.invoiceNumber ? "INV #"+d.invoiceNumber : "No Invoice #"}</div>
-                <div class="dlv-card-name">${d.customerName||"Customer"}</div>
+                <div class="dlv-card-inv">${d.invoiceNumber ? "INV #"+htmlText(d.invoiceNumber) : "No Invoice #"}</div>
+                <div class="dlv-card-name">${htmlText(d.customerName||"Customer")}</div>
                 <div class="dlv-card-meta">
                   🚛 ${driverLabel(d.driverId)}
                   ${d.deliveryWindow ? "  ·  🕐 "+d.deliveryWindow : ""}
                   ${d.stopOrder ? "  ·  Stop #"+d.stopOrder : ""}
-                  <br>📍 ${d.address||"No address"}
-                  ${d.customerPhone ? "<br>📞 "+d.customerPhone : ""}
-                  ${d.deliveryNotes ? "<br>📋 "+d.deliveryNotes : ""}
+                  <br>📍 ${htmlText(d.address||"No address")}
+                  ${d.customerPhone ? "<br>📞 "+htmlText(d.customerPhone) : ""}
+                  ${d.deliveryNotes ? "<br>📋 "+htmlText(d.deliveryNotes) : ""}
                 </div>
               </div>
               ${statusPill(d.status)}
@@ -737,7 +752,7 @@
             ${canEdit ? `<div class="dlv-card-actions">
               <button class="dlv-act-btn dlv-act-edit" onclick="NWDelivery.openEdit('${d.id}')">✏️ Edit</button>
               ${d.address ? `<a class="dlv-act-btn dlv-act-maps" href="${mapsUrl}" target="_blank">🗺 Maps</a>` : ""}
-              <button class="dlv-act-btn dlv-act-cancel" onclick="NWDelivery.cancelDeliveryById('${d.id}','${(d.customerName||"").replace(/'/g,"\\'")}')">✕ Cancel</button>
+              <button class="dlv-act-btn dlv-act-cancel" onclick="NWDelivery.cancelDeliveryById('${d.id}')">✕ Cancel</button>
             </div>` : ""}
           </div>`;
         });
