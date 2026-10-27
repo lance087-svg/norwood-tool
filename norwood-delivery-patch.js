@@ -43,7 +43,7 @@
     const db = await getDB();
     const docRef = await addDoc(collection(db, "deliveries"), {
       ...record, status: "scheduled", createdAt: serverTimestamp(),
-      smsLog: { scheduled: new Date().toISOString() }
+      smsLog: {}
     });
     return docRef.id;
   }
@@ -307,13 +307,13 @@
           <input type="text" id="dlv-notes" placeholder="Gate code, access, who to ask for…">
         </div>
         <div id="dlv-sms-preview">
-          <strong style="color:#2d6a30">📱 Text customer will receive:</strong><br>
+          <strong style="color:#2d6a30">📱 Suggested text (send separately):</strong><br>
           <span id="dlv-sms-text"></span>
         </div>
       </div>
       <div class="dlv-mftr">
         <button class="dlv-btn-cancel" onclick="NWDelivery.closeModal()">Cancel</button>
-        <button class="dlv-btn-save" id="dlv-save-btn" onclick="NWDelivery.saveDelivery()">🚚 Schedule &amp; Notify Customer</button>
+        <button class="dlv-btn-save" id="dlv-save-btn" onclick="NWDelivery.saveDelivery()">🚚 Schedule Delivery</button>
       </div>
     </div>`;
   document.body.appendChild(schedOverlay);
@@ -379,7 +379,6 @@
     const page = document.createElement("div");
     page.id = "page-deliveries";
     page.className = "page";
-    page.style.display = "none";
     page.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div>
@@ -548,7 +547,7 @@
 
       try {
         await saveDelivery(record);
-        await sendSMS(phone||d.phone, smsScheduled(d.name, fmtDateLong(date), win));
+        // Messaging is not connected; staff send any customer notice separately.
         this._showStrip(record, fmtDateLong(date));
         this.closeModal();
         if(window.showToast) window.showToast(`✅ Delivery scheduled for ${fmtDateLong(date)}!`,"#2d6a30");
@@ -557,7 +556,7 @@
         alert("Error saving delivery. Check console.");
         console.error(e);
       }
-      btn.disabled=false; btn.textContent="🚚 Schedule & Notify Customer";
+      btn.disabled=false; btn.textContent="🚚 Schedule Delivery";
     },
 
     _showStrip(record, dispDate) {
