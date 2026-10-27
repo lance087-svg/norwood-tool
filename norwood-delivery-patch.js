@@ -427,7 +427,9 @@
       if (window.showPage) window.showPage("deliveries", this);
       NWDelivery.refreshSchedule();
     };
-    reportsTab.insertAdjacentElement("afterend", tab);
+    const receivingTab = document.getElementById("tab-receiving");
+    if (receivingTab) receivingTab.insertAdjacentElement("beforebegin", tab);
+    else reportsTab.insertAdjacentElement("afterend", tab);
     buildDeliveriesPage();
   }
 
