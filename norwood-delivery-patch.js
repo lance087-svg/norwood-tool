@@ -512,9 +512,11 @@
       if (!select) return;
       const term = (search?.value||"").trim().toLowerCase();
       const records = (typeof getSavedQuotes === "function" ? getSavedQuotes() : []).filter(q=>q.type === "invoice" && [q.quoteNum,q.customer?.name,q.customer?.co].some(v=>String(v||"").toLowerCase().includes(term))).sort((a,b)=>(Number(b.timestamp)||Number(b.id)||0)-(Number(a.timestamp)||Number(a.id)||0));
+      const previous = select.value;
       select.replaceChildren();
       const empty = document.createElement("option"); empty.value=""; empty.textContent=records.length ? "— Choose an invoice —" : "No matching saved invoices"; select.appendChild(empty);
       records.forEach(q=>{const option=document.createElement("option");option.value=String(q.id);option.textContent=[q.quoteNum,q.customer?.name||"Customer",q.date||""].filter(Boolean).join(" · ");select.appendChild(option)});
+      if (records.some(q=>String(q.id)===previous)) select.value=previous;
     },
     scheduleFromInvoice() {
       const id=document.getElementById("dlv-invoice-select").value;
@@ -795,5 +797,13 @@
 
   hookFunctions();
   setTimeout(injectInvoiceButton, 800);
+  // Saved invoices can arrive after the board opens while cloud sync starts.
+  let invoiceCache = null;
+  setInterval(() => {
+    const board = document.getElementById("page-deliveries");
+    if (!board?.classList.contains("active")) return;
+    const value = localStorage.getItem("ns_quotes") || "";
+    if (value !== invoiceCache) { invoiceCache = value; NWDelivery.populateInvoices(); }
+  }, 3000);
 
 })();
