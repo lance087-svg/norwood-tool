@@ -21,3 +21,24 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
 
 /* Load the engineered-wood category on every existing pricing-tool entry point. */
 (function(){var s=document.createElement('script');s.src='norwood-beams.js?v=20261008-bluelinx';document.head.appendChild(s);})();
+
+/* Quick, read-only lookup based on the current in-app product catalog. */
+(function(root){
+'use strict';
+var D=root.document;
+function esc(v){return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function catalog(){try{return Array.isArray(products)?products:[];}catch(e){return [];}}
+function options(el, values, first){var old=el.value;el.innerHTML='<option value="">'+first+'</option>'+values.map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('');if(values.indexOf(old)!==-1)el.value=old;}
+function sorted(values){return Array.from(new Set(values.filter(Boolean))).sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});}
+function mount(){
+ var nav=D.querySelector('.nav'), first=D.querySelector('.page');if(!nav||!first||D.getElementById('page-price-list'))return;
+ var tab=D.createElement('button');tab.className='tab';tab.id='tab-price-list';tab.textContent='💲 Price List';tab.title='Look up catalog prices';tab.onclick=function(){root.showPage('price-list',tab);refresh();};
+ var anchor=D.getElementById('tab-inventory');nav.insertBefore(tab,anchor||null);
+ var page=D.createElement('div');page.id='page-price-list';page.className='page';page.innerHTML='<section style="background:white;padding:20px;border-radius:10px"><h2 style="margin:0 0 6px">Price List</h2><p style="margin:0 0 16px;color:#526173">Quick lookup: prices are cost plus 30%, before tax. Door options and custom configurations require a quote. Items without a cost are marked for verification.</p><div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px"><label>Category<br><select id="pl-category" style="min-width:190px;padding:9px"><option value="">All categories</option></select></label><label>Type<br><select id="pl-group" style="min-width:190px;padding:9px"><option value="">All types</option></select></label><label>Search<br><input id="pl-search" type="search" placeholder="Item, size or SKU" style="min-width:220px;padding:9px"></label></div><div id="pl-count" aria-live="polite" style="margin-bottom:10px;color:#526173"></div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:9px;border-bottom:2px solid #ddd">Item / size</th><th style="padding:9px;border-bottom:2px solid #ddd">Category / type</th><th style="padding:9px;border-bottom:2px solid #ddd">Unit</th><th style="padding:9px;border-bottom:2px solid #ddd">Price</th></tr></thead><tbody id="pl-results"></tbody></table></div></section>';
+ first.parentNode.insertBefore(page,first);
+ var cat=D.getElementById('pl-category'),group=D.getElementById('pl-group'),search=D.getElementById('pl-search');
+ function refresh(){var list=catalog();options(cat,sorted(list.map(function(p){return String(p.category||'Other');})),'All categories');var filtered=list.filter(function(p){return !cat.value||String(p.category||'Other')===cat.value;});options(group,sorted(filtered.map(function(p){return String(p.group||'');})),'All types');var q=search.value.trim().toLowerCase();filtered=filtered.filter(function(p){return (!group.value||p.group===group.value)&&(!q||[p.item,p.name,p.description,p.size,p.sku,p.category,p.group].join(' ').toLowerCase().indexOf(q)!==-1);});D.getElementById('pl-count').textContent=filtered.length+' item'+(filtered.length===1?'':'s')+' found';D.getElementById('pl-results').innerHTML=filtered.map(function(p){var cost=Number(p.cost),valid=p.cost!==null&&p.cost!==''&&Number.isFinite(cost)&&cost>0;var price=valid?'$'+(Math.round((cost*1.3+Number.EPSILON)*100)/100).toFixed(2):'Cost unavailable — verify price';return '<tr><td style="padding:9px;border-bottom:1px solid #eee"><strong>'+esc(p.item||p.name||'Unnamed item')+'</strong>'+(p.size?' · '+esc(p.size):'')+(p.sku?'<br><small>SKU '+esc(p.sku)+'</small>':'')+'</td><td style="padding:9px;border-bottom:1px solid #eee">'+esc(p.category||'Other')+(p.group?'<br><small>'+esc(p.group)+'</small>':'')+'</td><td style="padding:9px;border-bottom:1px solid #eee">'+esc(p.uom||'each')+'</td><td style="padding:9px;border-bottom:1px solid #eee;white-space:nowrap">'+esc(price)+'</td></tr>';}).join('')||'<tr><td colspan="4" style="padding:16px">No matching items found.</td></tr>';}
+ cat.onchange=function(){group.value='';refresh();};group.onchange=refresh;search.oninput=refresh;
+}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mount();
+})(window);
