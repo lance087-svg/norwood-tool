@@ -28,6 +28,16 @@
     { id: "contractor", label: "Contractor" },
   ];
 
+  const VENDOR_PICKUPS = [
+    {id:"wholesale", name:"Wholesale Building Products", address:"5933 Broadway Ave, Jacksonville, FL 32254", phone:"(904) 781-7173"},
+    {id:"bluelinx", name:"BlueLinx", address:"86554 Gene Lassere Blvd, Yulee, FL 32097", phone:"(904) 225-0088"},
+    {id:"weyerhaeuser", name:"Weyerhaeuser", address:"6831 Highway Ave, Jacksonville, FL 32254", phone:"(904) 783-2007"},
+    {id:"parliment", name:"Parliment Building Products", address:"9621 Florida Mining Blvd E, Jacksonville, FL 32257", phone:"(904) 387-8444"}
+  ];
+  function pickupOptions() { return '<option value="">No vendor pickup</option>' + VENDOR_PICKUPS.map(v=>`<option value="${v.id}">${v.name}</option>`).join(''); }
+  function pickupFrom(id) { const v=VENDOR_PICKUPS.find(v=>v.id===id); return v ? {...v} : null; }
+  function pickupDetails(prefix) { const v=pickupFrom(document.getElementById(prefix+'-vendor').value); document.getElementById(prefix+'-vendor-info').textContent=v ? `${v.address} · ${v.phone}` : ''; }
+
   // ── FIRESTORE ─────────────────────────────────────────────────────────────
   let _db = null;
   async function getDB() {
@@ -297,6 +307,7 @@
             <input type="number" id="dlv-stop" min="1" max="20" placeholder="1 = first">
           </div>
         </div>
+        <div class="dlv-fg"><label class="dlv-lbl" for="dlv-vendor">Pick up from vendor first (optional)</label><select id="dlv-vendor" onchange="NWDelivery.vendorDetails('dlv')">${pickupOptions()}</select><div id="dlv-vendor-info" style="font-size:12px;margin-top:6px;color:#4b5a68"></div><label class="dlv-lbl" for="dlv-pickup-note" style="margin-top:8px">Pickup details or PO # (optional)</label><input id="dlv-pickup-note" type="text" placeholder="What to pick up, PO or order number"></div>
         <div class="dlv-fg">
           <label class="dlv-lbl">Delivery Address</label>
           <input type="text" id="dlv-addr" placeholder="Auto-filled from invoice">
@@ -361,6 +372,7 @@
             <input type="number" id="dlv-edit-stop" min="1" max="20">
           </div>
         </div>
+        <div class="dlv-fg"><label class="dlv-lbl" for="dlv-edit-vendor">Pick up from vendor first (optional)</label><select id="dlv-edit-vendor" onchange="NWDelivery.vendorDetails('dlv-edit')">${pickupOptions()}</select><div id="dlv-edit-vendor-info" style="font-size:12px;margin-top:6px;color:#4b5a68"></div><label class="dlv-lbl" for="dlv-edit-pickup-note" style="margin-top:8px">Pickup details or PO # (optional)</label><input id="dlv-edit-pickup-note" type="text"></div>
         <div class="dlv-fg">
           <label class="dlv-lbl">Address</label>
           <input type="text" id="dlv-edit-addr">
@@ -512,6 +524,7 @@
   }
 
   window.NWDelivery = {
+    vendorDetails(prefix) { pickupDetails(prefix); },
 
     populateInvoices() {
       const select = document.getElementById("dlv-invoice-select"), search = document.getElementById("dlv-invoice-search");
@@ -546,6 +559,9 @@
       document.getElementById("dlv-addr").value  = d.addr  || "";
       document.getElementById("dlv-phone").value = d.phone || "";
       document.getElementById("dlv-notes").value = d.notes || "";
+      document.getElementById("dlv-vendor").value = "";
+      document.getElementById("dlv-pickup-note").value = "";
+      pickupDetails("dlv");
       document.getElementById("dlv-driver").value = "";
       document.getElementById("dlv-stop").value   = "";
       document.getElementById("dlv-window").value = "";
@@ -595,7 +611,9 @@
         invoiceNumber: d.invNum, customerName: d.name,
         customerPhone: phone||d.phone, address: addr||d.addr,
         driverId, deliveryDate:date, deliveryWindow:win,
-        stopOrder:stop, deliveryNotes:notes, items:d.items
+        stopOrder:stop, deliveryNotes:notes, items:d.items,
+        vendorPickup:pickupFrom(document.getElementById("dlv-vendor").value),
+        pickupNote:document.getElementById("dlv-pickup-note").value.trim()
       };
 
       try {
@@ -635,6 +653,9 @@
       document.getElementById("dlv-edit-stop").value     = d.stopOrder||"";
       document.getElementById("dlv-edit-addr").value     = d.address||"";
       document.getElementById("dlv-edit-notes").value    = d.deliveryNotes||"";
+      document.getElementById("dlv-edit-vendor").value = d.vendorPickup?.id||"";
+      document.getElementById("dlv-edit-pickup-note").value = d.pickupNote||"";
+      pickupDetails("dlv-edit");
       editOverlay.classList.add("open");
     },
 
@@ -652,6 +673,8 @@
           stopOrder:      parseInt(document.getElementById("dlv-edit-stop").value)||1,
           address:        document.getElementById("dlv-edit-addr").value.trim(),
           deliveryNotes:  document.getElementById("dlv-edit-notes").value.trim(),
+          vendorPickup: pickupFrom(document.getElementById("dlv-edit-vendor").value),
+          pickupNote: document.getElementById("dlv-edit-pickup-note").value.trim(),
         });
         this.closeEdit();
         await this.refreshSchedule();
@@ -744,7 +767,8 @@
                   🚛 ${driverLabel(d.driverId)}
                   ${d.deliveryWindow ? "  ·  🕐 "+d.deliveryWindow : ""}
                   ${d.stopOrder ? "  ·  Stop #"+d.stopOrder : ""}
-                  <br>📍 ${htmlText(d.address||"No address")}
+                  ${d.vendorPickup ? `<br>📦 PICK UP FIRST: <strong>${htmlText(d.vendorPickup.name)}</strong><br>${htmlText(d.vendorPickup.address)} · ${htmlText(d.vendorPickup.phone)}${d.pickupNote ? "<br>Pickup: "+htmlText(d.pickupNote) : ""}` : ""}
+                  <br>📍 Deliver to: ${htmlText(d.address||"No address")}
                   ${d.customerPhone ? "<br>📞 "+htmlText(d.customerPhone) : ""}
                   ${d.deliveryNotes ? "<br>📋 "+htmlText(d.deliveryNotes) : ""}
                 </div>
@@ -753,6 +777,7 @@
             </div>
             ${canEdit ? `<div class="dlv-card-actions">
               <button class="dlv-act-btn dlv-act-edit" onclick="NWDelivery.openEdit('${d.id}')">✏️ Edit</button>
+              ${d.vendorPickup?.address ? `<a class="dlv-act-btn dlv-act-maps" href="https://maps.google.com/?q=${encodeURIComponent(d.vendorPickup.address)}" target="_blank" rel="noopener">🗺 Vendor map</a>` : ""}
               ${d.address ? `<a class="dlv-act-btn dlv-act-maps" href="${mapsUrl}" target="_blank">🗺 Maps</a>` : ""}
               <button class="dlv-act-btn dlv-act-cancel" onclick="NWDelivery.cancelDeliveryById('${d.id}')">✕ Cancel</button>
             </div>` : ""}

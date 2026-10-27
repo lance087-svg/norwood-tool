@@ -617,6 +617,18 @@ function renderDetail() {
     ${d.deliveryNotes ? `<div class="info-row"><div class="info-icon">📋</div><div><div class="info-text">${d.deliveryNotes}</div><div class="info-sub">Office notes</div></div></div>` : ""}
   `;
 
+  const pickup = d.vendorPickup;
+  const pickupCard = document.getElementById("pickup-card"), pickupInfo = document.getElementById("pickup-info");
+  pickupCard.style.display = pickup ? "" : "none";
+  pickupInfo.replaceChildren();
+  if (pickup) {
+    const name=document.createElement("strong"), address=document.createElement("p"), phone=document.createElement("p"), note=document.createElement("p"), maps=document.createElement("a"), call=document.createElement("a");
+    name.textContent=pickup.name||"Vendor"; address.textContent=pickup.address||""; phone.textContent=pickup.phone||""; note.textContent=d.pickupNote||"";
+    maps.href="https://maps.google.com/?q="+encodeURIComponent(pickup.address||""); maps.target="_blank"; maps.rel="noopener"; maps.className="map-btn"; maps.textContent="Vendor directions";
+    call.href="tel:"+(pickup.phone||"").replace(/[^+\d]/g,""); call.className="map-btn"; call.style.marginLeft="8px"; call.textContent="Call vendor";
+    pickupInfo.append(name,address,phone,note,maps,call);
+  }
+
   // Items
   const rows = (d.items || []).map(it =>
     `<tr><td>${it.qty || 1}×</td><td>${it.description || ""}</td><td>${it.sku || ""}</td></tr>`
@@ -881,6 +893,7 @@ window.showScreen = showScreen;
   </div>
 
   <div class="detail-body">
+    <div class="info-card" id="pickup-card" style="display:none"><h3>Vendor pickup first</h3><div id="pickup-info"></div></div>
     <!-- Customer Info -->
     <div class="info-card">
       <h3>Customer &amp; Address</h3>
