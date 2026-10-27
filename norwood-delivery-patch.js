@@ -24,6 +24,7 @@
   const DRIVERS = [
     { id: "andre",      label: "Andre" },
     { id: "robert",     label: "Robert Bryson" },
+    { id: "marcel",     label: "Marcel" },
     { id: "contractor", label: "Contractor" },
   ];
 
@@ -414,6 +415,7 @@
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('delivered',this)">Delivered</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('andre',this)">Andre</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('robert',this)">Robert</button>
+        <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('marcel',this)">Marcel</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('contractor',this)">Contractor</button>
       </div>
 
@@ -696,7 +698,7 @@
       if (_activeFilter === "scheduled") filtered = filtered.filter(d=>d.status==="scheduled");
       else if (_activeFilter === "enroute") filtered = filtered.filter(d=>d.status==="enroute");
       else if (_activeFilter === "delivered") filtered = filtered.filter(d=>d.status==="delivered");
-      else if (["andre","robert","contractor"].includes(_activeFilter))
+      else if (DRIVERS.some(d => d.id === _activeFilter))
         filtered = filtered.filter(d=>d.driverId===_activeFilter);
 
       // Stats
