@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     b.style.opacity = '1';
     if (pending === 0) {
       b.style.background = '#2d6a30'; b.style.color = '#fff';
-      b.textContent = '\u2601\ufe0f All quotes synced';
+      b.textContent = '\u2601\ufe0f No flagged pending saves — server check shown below';
       badgeHideTimer = setTimeout(function () { if (b) b.style.opacity = '0'; }, 3000);
     } else {
       b.style.background = '#c0392b'; b.style.color = '#fff';
