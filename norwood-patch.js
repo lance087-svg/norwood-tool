@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try { app = firebase.app('norwood-inv'); }
         catch(e) { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
         window._db = app.firestore();
+        try { window._db.settings({experimentalForceLongPolling:true}); } catch (transportAlreadyStarted) {}
         console.log('Norwood patch: _db ready');
       } catch(e) { console.warn('Norwood patch: db init error', e); }
     });
@@ -130,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try { app = firebase.app('norwood-inv'); }
       catch(e) { app = firebase.initializeApp(_fbConfig, 'norwood-inv'); }
       window._db = app.firestore();
+        try { window._db.settings({experimentalForceLongPolling:true}); } catch (transportAlreadyStarted) {}
       console.log('Norwood patch: _db ready');
     } catch(e) { console.warn('Norwood patch: db init error', e); }
   });
@@ -1244,4 +1246,24 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   var tries = 0;
   (function t(){ if (!addStockTab() && tries++ < 40) setTimeout(t, 250); })();
+})();
+
+
+/* Full server recovery read: independent of stalled SDK requests/cursors.
+   Never clears local records or uploads the cached list. */
+(function(){
+ var busy=false,verified=false;
+ function decode(v){if('stringValue'in v)return v.stringValue;if('integerValue'in v)return Number(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('nullValue'in v)return null;if('arrayValue'in v)return(v.arrayValue.values||[]).map(decode);if('mapValue'in v){var o={};Object.keys(v.mapValue.fields||{}).forEach(function(k){o[k]=decode(v.mapValue.fields[k])});return o}return v.timestampValue||null;}
+ async function recover(){if(busy)return;busy=true;try{
+ var cloud=[],token='',app=window._db&&window._db.app,config=app&&app.options;
+ if(!config||!config.projectId||!config.apiKey)throw Error('Cloud connection not ready');
+ do{var ctl=new AbortController(),timer=setTimeout(function(){ctl.abort()},20000);try{var url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(config.projectId)+'/databases/(default)/documents/ns_quotes?pageSize=300&key='+encodeURIComponent(config.apiKey)+(token?'&pageToken='+encodeURIComponent(token):'');var response=await fetch(url,{cache:'no-store',signal:ctl.signal});if(!response.ok)throw Error('Server read HTTP '+response.status);var page=await response.json();(page.documents||[]).forEach(function(d){var q={};Object.keys(d.fields||{}).forEach(function(k){q[k]=decode(d.fields[k])});if(q.id!=null)cloud.push(q)});token=page.nextPageToken||'';}finally{clearTimeout(timer)}}while(token);
+ var local=typeof getSavedQuotesRaw==='function'?getSavedQuotesRaw():[],map=new Map();local.forEach(function(q){if(q&&q.id!=null)map.set(String(q.id),q)});cloud.forEach(function(q){var old=map.get(String(q.id));if(!old||(!(old._syncStatus&&old._syncStatus!=='synced')&&Number(q.timestamp||0)>Number(old.timestamp||0)))map.set(String(q.id),q)});
+ var merged=Array.from(map.values()).sort(function(a,b){return Number(b.timestamp||b.id||0)-Number(a.timestamp||a.id||0)});
+ if(typeof nsSafeSetQuotes!=='function'||!nsSafeSetQuotes(merged))throw Error('Device storage could not retain recovered records');
+ verified=true;if(typeof renderHistory==='function')renderHistory();if(window.NWOperations)window.NWOperations.render();if(window.nsSyncStatus)window.nsSyncStatus('Server checked: '+cloud.length+' records; local pending saves retained','#2d6a30');
+ }catch(e){if(window.nsSyncStatus)window.nsSyncStatus('Cloud recovery incomplete: '+e.message+' — local records retained','#b35309');}finally{busy=false}}
+ window.nsRecoverInvoices=recover;
+ var original=window.nsPullQuotes;window.nsPullQuotes=function(){recover();if(original)original()};
+ window.addEventListener('online',recover);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')recover()});setTimeout(recover,5000);setInterval(recover,60000);
 })();
