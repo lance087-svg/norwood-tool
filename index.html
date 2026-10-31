@@ -4958,14 +4958,14 @@ function nsSafeSetQuotes(list, recovering) {
   var pin = window.__nsPinnedQuoteIds || {};
   var ob = typeof nsOutboxIds === 'function' ? nsOutboxIds() : {};
   var sorted = list.slice().sort(function(a,b) {
-    return (Number(b && b.timestamp)||Number(b && b.id)||0) -
+    var agePriority = Number(nsArchiveEligible(a)) - Number(nsArchiveEligible(b));
+    return agePriority || (Number(b && b.timestamp)||Number(b && b.id)||0) -
            (Number(a && a.timestamp)||Number(a && a.id)||0);
   });
   var required = [], cached = [];
   sorted.forEach(function(q) {
     var id = q && String(q.id);
-    if (!q || !nsArchiveEligible(q) || pin[id] || ob[id] ||
-        (q._syncStatus && q._syncStatus !== 'synced') ||
+    if (!q || pin[id] || ob[id] ||
         nsStorageCloudVersions[id] !== nsStorageVersion(q)) required.push(q);
     else cached.push(q);
   });
@@ -5380,7 +5380,7 @@ function nsOutboxWrite(o) {
       var pin = window.__nsPinnedQuoteIds || {};
       for (var ri = raw.length - 1; ri >= 0; ri--) {
         var q = raw[ri], id = q && String(q.id);
-        if (!q || !nsArchiveEligible(q) || o[id] || pin[id] || (q._syncStatus && q._syncStatus !== 'synced') ||
+        if (!q || o[id] || pin[id] ||
             nsStorageCloudVersions[id] !== nsStorageVersion(q)) continue;
         raw.splice(ri, 1);
         localStorage.setItem('ns_quotes', JSON.stringify(raw));
