@@ -823,6 +823,11 @@ tr:hover td{background:#fdf9f3}
   </div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     <input class="srch" id="history-search" placeholder="Search by customer, quote #, date, phone..." oninput="renderHistory()" style="flex:1;margin-bottom:0">
+    <select id="history-period" aria-label="Record age" onchange="window.__nsCloudShowN=50;renderHistory()" style="padding:8px;border-radius:6px;border:1px solid #d5c8a8">
+      <option value="active">Latest 90 days + unfinished</option>
+      <option value="archive">Archive — older completed records</option>
+      <option value="all">All dates</option>
+    </select>
     <select id="history-filter" onchange="renderHistory()" style="padding:8px 12px;border-radius:6px;border:1.5px solid #d5c8a8;font-size:13px;font-family:inherit;outline:none;background:#fff">
       <option value="all">All</option>
       <option value="quote">Open Quotes Only</option>
@@ -834,6 +839,7 @@ tr:hover td{background:#fdf9f3}
     <button class="btn" id="ns-cloud-all-btn" onclick="nsToggleCloudAll()" title="Show every quote &amp; invoice stored in the cloud, including ones not kept on this device" style="background:#f3f8fd;color:#1a4f80;border:1.5px solid #bcd3ec;font-size:12px;padding:6px 12px;border-radius:6px">☁️ All cloud records</button>
     <button class="btn" onclick="nsDownloadFullBackup()" title="Download a backup file of every quote &amp; invoice (cloud + this device)" style="background:#fff;color:#2d6a30;border:1.5px solid #9cc79f;font-size:12px;padding:6px 12px;border-radius:6px">⬇️ Backup file</button>
   </div>
+  <p style="font-size:12px;color:#6b5a3a">Older completed records are archived, never deleted. Search checks all dates. Unpaid, undelivered, and commission-unconfirmed invoices stay active.</p>
   <div id="history-list"></div>
 </div>
 
@@ -4869,6 +4875,26 @@ function getDeletedQuotes() {
 // Clear duplicate backups first. Under quota pressure, evict only exact
 // server-verified copies and retain pinned, edited, unknown and pending work.
 // The cache adapts to available space instead of stopping at 200 records.
+// A view policy only: never changes business records or payment history.
+function nsArchiveEligible(q, now) {
+  if (!q || q.removed || (q._syncStatus && q._syncStatus !== 'synced')) return false;
+  var date = Date.parse(q.date || '');
+  if (!Number.isFinite(date)) date = Number(q.createdAt) || Number(q.id) || 0;
+  if (!date || date >= (now || Date.now()) - 90 * 86400000) return false;
+  if (q.keepActive || q.followUpPending || q.active === true) return false;
+  if (q.type === 'invoice') {
+    var meta = typeof getOrderMeta === 'function' ? getOrderMeta()[q.id] || {} : {};
+    var delivered = meta.status != null ? meta.status === 'Delivered' : !!q.release;
+    // Unknown commission status is unfinished; do not infer it from payment.
+    if (nsPayState(q).status !== 'PAID IN FULL' || !delivered || q.commissionPaid !== true) return false;
+  }
+  return true;
+}
+function nsHistoryPeriodMatch(q, search) {
+  if (search) return true;
+  var el = document.getElementById('history-period'), mode = el ? el.value : 'active';
+  return mode === 'all' || (mode === 'archive' ? nsArchiveEligible(q) : !nsArchiveEligible(q));
+}
 function nsShouldShowStorageToast(key) {
   try {
     var today = new Date().toISOString().slice(0, 10);
@@ -4938,7 +4964,7 @@ function nsSafeSetQuotes(list, recovering) {
   var required = [], cached = [];
   sorted.forEach(function(q) {
     var id = q && String(q.id);
-    if (!q || pin[id] || ob[id] ||
+    if (!q || !nsArchiveEligible(q) || pin[id] || ob[id] ||
         (q._syncStatus && q._syncStatus !== 'synced') ||
         nsStorageCloudVersions[id] !== nsStorageVersion(q)) required.push(q);
     else cached.push(q);
@@ -5166,21 +5192,21 @@ window.__nsCloudAll = null; window.__nsCloudAllAt = 0; window.__nsCloudLoading =
 window.__nsPinnedQuoteIds = window.__nsPinnedQuoteIds || {};
 function nsLoadCloudQuotes(force) {
   var fresh = window.__nsCloudAll && (Date.now() - window.__nsCloudAllAt < 10 * 60 * 1000);
-  if ((fresh && !force) || window.__nsCloudLoading) return;
+  if ((fresh && !force) || (!force && window.__nsCloudErrorAt && Date.now()-window.__nsCloudErrorAt < 30000) || window.__nsCloudLoading) return;
   if (!window._db) { setTimeout(function(){ nsLoadCloudQuotes(force); }, 700); return; }
   window.__nsCloudLoading = true;
-  window._db.collection('ns_quotes').get().then(function(snap) {
+  window._db.collection('ns_quotes').get({source:'server'}).then(function(snap) {
     var all = [];
     snap.forEach(function(d) { var q = d.data(); if (q && q.id != null) all.push(q); });
-    window.__nsCloudAll = all; window.__nsCloudAllAt = Date.now();
+    window.__nsCloudAll = all; window.__nsCloudAllAt = Date.now(); window.__nsCloudError = false;
   }).catch(function(e) {
     console.warn('[CLOUD SEARCH] load failed', e);
     window.__nsCloudAll = window.__nsCloudAll || [];
-    window.__nsCloudError = true;
+    window.__nsCloudError = true; window.__nsCloudErrorAt = Date.now();
   }).then(function() {
     window.__nsCloudLoading = false;
     var s = document.getElementById('history-search');
-    if (s && s.value.trim().length >= 2) { try { renderHistory(); } catch(e) {} }
+    if (s) { try { renderHistory(); } catch(e) {} }
   });
 }
 function nsQuoteMatchesSearch(q, search) {
@@ -5194,7 +5220,7 @@ function nsQuoteMatchesSearch(q, search) {
     (sDigits.length >= 4 && phoneDigits.indexOf(sDigits) > -1);
 }
 function renderCloudOlderSection(container, search, filter) {
-  var browse = !!window.__nsBrowseCloudAll;
+  var browse = !!window.__nsBrowseCloudAll || !!document.getElementById('history-period');
   var hasSearch = !!(search && search.trim().length >= 2);
   if (!hasSearch && !browse) return;
   if (!hasSearch) search = '';
@@ -5210,7 +5236,7 @@ function renderCloudOlderSection(container, search, filter) {
   var local = {};
   getSavedQuotesRaw().forEach(function(q){ if (q) local[String(q.id)] = 1; });
   var hits = window.__nsCloudAll.filter(function(q) {
-    if (!q || q.removed || local[String(q.id)]) return false;
+    if (!q || q.removed || local[String(q.id)] || !nsHistoryPeriodMatch(q, search)) return false;
     if (search && !nsQuoteMatchesSearch(q, search)) return false;
     if (filter === 'quote') return q.type === 'quote';
     if (filter === 'invoice') return q.type === 'invoice';
@@ -5220,7 +5246,7 @@ function renderCloudOlderSection(container, search, filter) {
     return true;
   }).sort(function(a,b){ return (Number(b.timestamp)||Number(b.id)||0) - (Number(a.timestamp)||Number(a.id)||0); });
   if (!hits.length) {
-    box.innerHTML = '<div style="font-size:12px;color:#5a6f85;padding:4px 0">' + (search ? '☁️ Also checked the full cloud history — no older matches.' : '☁️ Every cloud record is already on this device.') + (window.__nsCloudError ? ' (cloud could not be reached)' : '') + '</div>';
+    box.innerHTML = '<div style="font-size:12px;color:#5a6f85;padding:4px 0">' + (search ? '☁️ Also checked the full cloud history — no older matches.' : '☁️ No additional cloud records match this view.') + (window.__nsCloudError ? ' (cloud could not be reached)' : '') + '</div>';
     container.appendChild(box); return;
   }
   var totalHits = hits.length;
@@ -5257,7 +5283,7 @@ function nsOpenCloudRecord(id, action) {
   var raw = getSavedQuotesRaw();
   if (!raw.some(function(q){ return q && String(q.id) === String(rec.id); })) {
     raw.push(JSON.parse(JSON.stringify(rec)));
-    nsSafeSetQuotes(raw); // direct write — no cloud upload, the cloud already has it
+    if (!nsSafeSetQuotes(raw)) { showToast('Could not open safely on this device. Keep this tab open and retry after storage recovery.', '#a5251a'); return; } // direct write — no cloud upload, the cloud already has it
   }
   var realId = rec.id;
   if (action === 'edit') loadIntoBuilder(realId);
@@ -5354,7 +5380,7 @@ function nsOutboxWrite(o) {
       var pin = window.__nsPinnedQuoteIds || {};
       for (var ri = raw.length - 1; ri >= 0; ri--) {
         var q = raw[ri], id = q && String(q.id);
-        if (!q || o[id] || pin[id] || (q._syncStatus && q._syncStatus !== 'synced') ||
+        if (!q || !nsArchiveEligible(q) || o[id] || pin[id] || (q._syncStatus && q._syncStatus !== 'synced') ||
             nsStorageCloudVersions[id] !== nsStorageVersion(q)) continue;
         raw.splice(ri, 1);
         localStorage.setItem('ns_quotes', JSON.stringify(raw));
@@ -5481,7 +5507,7 @@ function renderHistory() {
   var conv = nsConvertedQuoteMap(quotes);
   var converted = []; // converted quotes matching the search, shown in the collapsed section
   var filtered = quotes.filter(function(q) {
-    var matchSearch = !search || nsQuoteMatchesSearch(q, search);
+    var matchSearch = (!search || nsQuoteMatchesSearch(q, search)) && nsHistoryPeriodMatch(q, search);
     var matchFilter = filter === 'all' || 
       (filter === 'quote' && q.type === 'quote') ||
       (filter === 'invoice' && q.type === 'invoice') ||
@@ -9529,7 +9555,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
     <img id="img-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:block">
     <div id="img-lightbox-cap" style="color:#fff;text-align:center;margin-top:10px;font-size:13px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.8)"></div>
     </div></div>
-<script src="norwood-patch.js?v=20261002-inv-fallback"></script>
+<script src="norwood-patch.js?v=20261031-archive-recovery"></script>
 <script src="norwood-delivery-patch.js?v=20261027-vendor-pickup"></script>
 <script src="norwood-quote-import.js?v=20260927-0843"></script>
 <script>
