@@ -22,6 +22,7 @@ w.eval(section('function nsReleaseOrder(invNum, opts)', '\nfunction nsCommitRele
 w.eval(section('function nsInvoiceCreatedAt(q)', 'function nsPOName('));
 w.eval(section('function buildOrderList()', '\nfunction resetOrderTracker'));
 w.getDeletedQuotes=()=>w.getSavedQuotesRaw().filter(q=>q.removed);w.nsConvertedQuoteMap=()=>({byQuote:{},byInvoice:{}});w.renderCloudOlderSection=()=>{};w.updateOweBadge=()=>{};w.renderConvertedSection=()=>{};w.renderDeletedBin=()=>{};
+w.eval(section('function nsArchiveEligible', 'function nsShouldShowStorageToast'));
 w.eval(section('function renderHistory() {','\nfunction loadQuote'));
 w.eval(fs.readFileSync(__dirname+'/../norwood-navigation.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../norwood-fulfillment.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
 const tick=()=>new Promise(r=>setTimeout(r,10));

@@ -4883,7 +4883,7 @@ function nsArchiveEligible(q, now) {
   if (!date || date >= (now || Date.now()) - 90 * 86400000) return false;
   if (q.keepActive || q.followUpPending || q.active === true) return false;
   if (q.type === 'invoice') {
-    var meta = typeof getOrderMeta === 'function' ? getOrderMeta()[q.id] || {} : {};
+    var meta = typeof getOrderMeta === 'function' ? (getOrderMeta()[q.quoteNum] || getOrderMeta()[q.id] || {}) : {};
     var delivered = meta.status != null ? meta.status === 'Delivered' : !!q.release;
     // Unknown commission status is unfinished; do not infer it from payment.
     if (nsPayState(q).status !== 'PAID IN FULL' || !delivered || q.commissionPaid !== true) return false;
