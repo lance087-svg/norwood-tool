@@ -1268,3 +1268,70 @@ document.addEventListener('DOMContentLoaded', function() {
  var original=window.nsPullQuotes;window.nsPullQuotes=function(){recover();if(original)original()};
  window.addEventListener('online',recover);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')recover()});setTimeout(recover,5000);setInterval(recover,60000);
 })();
+
+
+// Repeat sales: create a fresh quote without changing the source record.
+window.copyToNewQuote = function(id) {
+  var q = getSavedQuotes().find(function(record){return String(record.id) === String(id);});
+  if (!q) { showToast('Could not find the sale to copy.', '#a5251a'); return; }
+  var copy = JSON.parse(JSON.stringify(q));
+  doNewQuote();
+  var used = new Set(getSavedQuotes().map(function(record){return record.quoteNum;}));
+  var n = Date.now();
+  do { quoteNum = 'Q-' + n++; } while (used.has(quoteNum));
+  currentInvNum = null;
+  currentInvoiceRecordId = null;
+  currentPOData = null;
+  lines = copy.lines || [];
+  manualGM = copy.manualGM || null;
+  var c = copy.customer || {};
+  var fields = {'c-name':c.name,'c-co':c.co,'c-phone':c.phone,'c-email':c.email,
+    'c-addr':c.addr,'c-shipto':c.shipto,'c-rep':c.rep || 'Lance','c-notes':c.notes,
+    'c-tax-exempt-cert':c.taxExemptCert,'delivery-charge':copy.delivery,
+    'discount-amount':copy.discount,'c-eta-date':'','c-eta':'',
+    'c-payment':'50% DEPOSIT REQUIRED'};
+  Object.keys(fields).forEach(function(id){var el=document.getElementById(id);if(el)el.value=fields[id] || '';});
+  var tax=document.getElementById('c-tax-exempt');
+  if(tax)tax.checked=!!c.taxExempt;
+  var row=document.getElementById('tax-exempt-cert-row');
+  if(row)row.classList[c.taxExempt?'remove':'add']('hidden');
+  renderPayBanner('builder-pay-banner', null, false);
+  renderLines(); renderSummary();
+  showPage('quote', document.getElementById('tab-quote')); showView('quote-view');
+  showToast('New quote copy ready — change items, review prices and save. Original unchanged.', '#2d6a30');
+};
+(function(){
+  function addCopyButtons(){
+    document.querySelectorAll('#history-list button[onclick]').forEach(function(source){
+      var action=source.getAttribute('onclick') || '';
+      var match=action.match(/(?:loadAndPrint|nsOpenCloudRecord)\((\d+),/);
+      if(!match || source.textContent.indexOf('View Quote')<0)return;
+      var actions=source.parentElement;
+      if(actions.querySelector('.ns-copy-quote'))return;
+      var id=Number(match[1]), cloud=action.indexOf('nsOpenCloudRecord')>=0;
+      var button=document.createElement('button');
+      button.type='button';button.className='btn ns-copy-quote';
+      button.textContent='📋 Copy to New Quote';
+      button.style.cssText='background:#2d6a30;color:#fff;font-size:11px;padding:4px 10px;border-radius:4px';
+      button.onclick=function(event){
+        event.stopPropagation();
+        if(cloud){
+          var rec=(window.__nsCloudAll || []).find(function(q){return String(q.id)===String(id);});
+          if(!rec)return;
+          window.__nsPinnedQuoteIds[String(rec.id)]=1;
+          var raw=getSavedQuotesRaw();
+          if(!raw.some(function(q){return String(q.id)===String(id);})){
+            raw.push(JSON.parse(JSON.stringify(rec)));
+            if(!nsSafeSetQuotes(raw)){showToast('Could not open safely. Retry after storage recovery.','#a5251a');return;}
+          }
+        }
+        copyToNewQuote(id);
+      };
+      actions.insertBefore(button,source.nextSibling);
+      actions.style.flexWrap='wrap';
+    });
+  }
+  var original=window.renderHistory;
+  window.renderHistory=function(){var result=original.apply(this,arguments);addCopyButtons();return result;};
+  addCopyButtons();
+})();
