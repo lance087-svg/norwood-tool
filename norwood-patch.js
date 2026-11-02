@@ -1335,3 +1335,18 @@ window.copyToNewQuote = function(id) {
   window.renderHistory=function(){var result=original.apply(this,arguments);addCopyButtons();return result;};
   addCopyButtons();
 })();
+
+// Repeat-sale shortcut in the opened invoice, including paid invoices.
+(function(){
+  var view=document.getElementById('invoice-view');
+  if(!view || document.getElementById('invoice-copy-to-new-quote'))return;
+  var toolbar=view.querySelector('.no-print');
+  if(!toolbar)return;
+  var button=document.createElement('button');
+  button.type='button';button.id='invoice-copy-to-new-quote';button.className='btn';
+  button.textContent='📋 Copy to New Quote';
+  button.style.cssText='background:#2d6a30;color:#fff;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer';
+  button.onclick=function(){copyToNewQuote(currentInvoiceRecordId);};
+  var blank=toolbar.querySelector('button[onclick="newQuote()"]');
+  toolbar.insertBefore(button,blank?blank.nextSibling:null);
+})();
