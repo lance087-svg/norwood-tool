@@ -43,6 +43,21 @@ const tick=()=>new Promise(r=>setTimeout(r,10));
  w.currentInvNum=paid.quoteNum;w.document.getElementById('invoice-view').classList.remove('hidden');w.NWFulfillment.renderInvoice();assert.match(w.document.getElementById('ns-invoice-completion').textContent,/Confirmed by Lance/);assert.equal(w.document.querySelector('#ns-invoice-completion [data-ns-customer-receipt]').checked,true);
  const count=w.NWTestDB.writes.length;await assert.rejects(()=>w.NWFulfillment.commitDelivery(106,r),/already/);assert.equal(w.NWTestDB.writes.length,count);
  await w.NWFulfillment.undoDelivery(106,'Wrong invoice selected','Lance');assert.equal(w.NWTestDB.docs['ns_quotes/106'].release,null);assert.deepEqual(w.NWTestDB.docs['ns_quotes/106'].paymentHistory,paid.paymentHistory);assert.equal(w.NWFulfillment.status(w.getSavedQuotes().find(q=>q.id===106)).complete,false);assert.equal(w.NWTestDB.docs['ns_sync/ns_order_meta'].data[paid.quoteNum].customerReceipt,null);assert.equal(w.document.querySelector('#ns-invoice-completion [data-ns-customer-receipt]').disabled,true);await assert.rejects(()=>w.NWFulfillment.confirmCustomerReceipt(106,true,'Lance'),/Mark delivered/);
+ // Pickups use the existing release gate and save a distinct shared mode.
+ w.NWFulfillment.renderInvoice();
+ w.document.querySelector('#ns-invoice-completion [data-ns-pickup="106"]').click();
+ assert.match(w.document.querySelector('#ns-rel-ok').textContent,/picked up/);
+ w.document.querySelector('#ns-rel-pickedby').value='Customer helper';
+ w.document.querySelector('#ns-rel-ok').click();await tick();
+ assert.equal(w.NWTestDB.docs['ns_quotes/106'].release.mode,'pickup');
+ assert.equal(w.NWTestDB.docs['ns_sync/ns_order_meta'].data[paid.quoteNum].release.mode,'pickup');
+ assert.equal(w.NWTestDB.docs['ns_quotes/106'].activity.at(-1).action,'picked_up');
+ assert.deepEqual(w.NWTestDB.docs['ns_quotes/106'].paymentHistory,paid.paymentHistory);
+ w.NWFulfillment.renderInvoice();
+ assert.match(w.document.getElementById('ns-invoice-completion').textContent,/Picked up/);
+ assert.match(w.NWFulfillment.deliveryBadge(w.getSavedQuotes().find(q=>q.id===106)),/Picked up/);
+ assert.equal(w.document.querySelector('#ns-invoice-completion [data-ns-deliver]'),null);
+ await w.NWFulfillment.undoDelivery(106,'Pickup test reset','Lance');
  // Live payment state is re-read inside the shared transaction.
  w.NWFulfillment.markDelivered(106);w.NWTestDB.docs['ns_quotes/106'].paymentHistory=[];w.document.querySelector('#ns-rel-ok').click();await tick();assert.match(w.document.getElementById('mock-status').textContent,/Collect payment/);assert.equal(w.NWTestDB.docs['ns_quotes/106'].release,null);w.document.querySelector('#ns-rel-cancel').click();
  await assert.rejects(()=>w.NWFulfillment.commitDelivery(101,{...r,by:'Associate',reason:'Paying later'}),/Collect payment/);
