@@ -231,6 +231,8 @@
       font-weight:600;cursor:pointer;font-family:inherit;
     }
     .dlv-act-edit{background:#1E70B8;color:#fff;}
+    .dlv-act-complete{background:#2d6a30;color:#fff;}
+    .dlv-act-btn:disabled{opacity:.6;cursor:wait;}
     .dlv-act-cancel{background:transparent;color:#c04040;border:1px solid #e08080;}
     .dlv-act-maps{background:#f0ece4;color:#1a1008;}
     .dlv-empty{
@@ -411,7 +413,7 @@
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-today">—</div><div class="dlv-stat-lbl">Today</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-pending">—</div><div class="dlv-stat-lbl">Pending</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-upcoming">—</div><div class="dlv-stat-lbl">Upcoming</div></div>
-        <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-delivered">—</div><div class="dlv-stat-lbl">Delivered</div></div>
+        <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-delivered">—</div><div class="dlv-stat-lbl">Completed</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-enroute">—</div><div class="dlv-stat-lbl">En Route</div></div>
       </div>
 
@@ -419,7 +421,7 @@
         <button class="dlv-filter-btn on" onclick="NWDelivery.setFilter('all',this)">All</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('scheduled',this)">Scheduled</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('enroute',this)">En Route</button>
-        <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('delivered',this)">Delivered</button>
+        <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('delivered',this)">Completed</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('andre',this)">Andre</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('robert',this)">Robert</button>
         <button class="dlv-filter-btn" onclick="NWDelivery.setFilter('marcel',this)">Marcel</button>
@@ -506,7 +508,7 @@
     const map = {
       scheduled: ["pill-scheduled","Scheduled"],
       enroute:   ["pill-enroute","En Route"],
-      delivered: ["pill-delivered","Delivered"],
+      delivered: ["pill-delivered","Completed"],
       cancelled: ["pill-cancelled","Cancelled"],
     };
     const [cls,lbl] = map[status]||["pill-cancelled",status];
@@ -518,6 +520,7 @@
   let _activeFilter = "all";
   let _selectedInvoice = null;
   let _manual = false;
+  const _completing = new Set();
 
   function invoiceData(q) {
     const c = q.customer || {};
@@ -692,6 +695,28 @@
       if(window.showToast) window.showToast("Delivery cancelled","#c04040");
     },
 
+    async completeDeliveryById(id, btn) {
+      const record = _allDeliveries.find(d => d.id === id);
+      if (!record || !["scheduled", "enroute"].includes(record.status) || _completing.has(id)) return;
+      _completing.add(id);
+      if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+      try {
+        const { serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+        await updateDelivery(id, { status: "delivered", deliveredAt: serverTimestamp() });
+        // Show completion only after the shared record is successfully saved.
+        const current = _allDeliveries.find(d => d.id === id);
+        if (current) current.status = "delivered";
+        this.renderList();
+        if (window.showToast) window.showToast("✅ Delivery completed", "#2d6a30");
+      } catch (e) {
+        alert("Could not mark this delivery completed. Please check your connection and try again.");
+        console.error(e);
+      } finally {
+        _completing.delete(id);
+        if (btn) { btn.disabled = false; btn.textContent = "✓ Completed"; }
+      }
+    },
+
     // ── SCHEDULE LIST ───────────────────────────────────────────────────────
     setFilter(filter, btn) {
       _activeFilter = filter;
@@ -781,6 +806,7 @@
               ${statusPill(d.status)}
             </div>
             ${canEdit ? `<div class="dlv-card-actions">
+              ${["scheduled", "enroute"].includes(d.status) ? `<button class="dlv-act-btn dlv-act-complete" onclick="NWDelivery.completeDeliveryById('${d.id}',this)">✓ Completed</button>` : ""}
               <button class="dlv-act-btn dlv-act-edit" onclick="NWDelivery.openEdit('${d.id}')">✏️ Edit</button>
               ${d.vendorPickup?.address ? `<a class="dlv-act-btn dlv-act-maps" href="https://maps.google.com/?q=${encodeURIComponent(d.vendorPickup.address)}" target="_blank" rel="noopener">🗺 Vendor map</a>` : ""}
               ${d.address ? `<a class="dlv-act-btn dlv-act-maps" href="${mapsUrl}" target="_blank">🗺 Maps</a>` : ""}
