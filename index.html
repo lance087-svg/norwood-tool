@@ -2294,11 +2294,11 @@ const VENDORS = [
   {
     id: 'tlc',
     name: 'TLC Millwork',
-    contact: 'J. Jackson / N. Howell',
+    contact: 'Jake Jackson',
     address: '1297 Madison Hwy.\nValdosta, Georgia 31601',
     phone: '(229) 242-5723',
     email: 'jjackson@tlcmillwork.com',
-    email2: 'nhowell@tlcmillwork.com',
+    email2: '',
     specialty: ['Interior Doors', 'Doorworx'],
     categories: ['Interior Doors', 'Doorworx'],
     color: '#2d6a30'
@@ -4054,6 +4054,33 @@ function nsShowInvoiceNow(existingInvNum) {
   if(nsPendingPaidConfirm){ var pid=nsPendingPaidConfirm; nsPendingPaidConfirm=null; setTimeout(function(){ nsConfirmHeaderPaid(pid); }, 250); }
 }
 
+// Shared PO presentation: keep distinct specifications, suppress repeated descriptions.
+function nsPOItemText(line) {
+  var item = String(line.item || '').trim();
+  var size = String(line.size || '').trim();
+  var title = item + (size ? ' (' + size + ')' : '');
+  var description = String(line.description || '').trim();
+  var normalize = function(text) { return text.replace(/\s+/g, ' ').trim().toLowerCase(); };
+  if (normalize(description) === normalize(item) || normalize(description) === normalize(title)) description = '';
+  return {title: title, description: description};
+}
+function nsPOItemHtml(line) {
+  var text = nsPOItemText(line);
+  var detail = [text.description, line.sku ? 'SKU:' + line.sku : ''].filter(Boolean).join(' · ');
+  return '<strong>' + nsEsc(text.title) + '</strong>' + (detail ? '<br><span style="font-size:11px;color:#6b5a3a">' + nsEsc(detail) + '</span>' : '');
+}
+function nsIsTLC(name, emails) {
+  return /\btlc\b/i.test(name || '') || /@tlcmillwork\.com\b/i.test(emails || '');
+}
+function nsPOForCorrespondence(po) {
+  if (!nsIsTLC(po.vendorName, (po.vendorEmail || '') + ',' + (po.vendorEmail2 || ''))) return po;
+  // Saved POs can retain the retired default. Clean the outgoing copy, not history.
+  var extras = ((po.vendorEmail || '') + ',' + (po.vendorEmail2 || '')).split(/[,;]/).map(function(email) { return email.trim(); }).filter(function(email) {
+    return email && !/(?:nhowell|jjackson)@tlcmillwork\.com\b/i.test(email);
+  });
+  return Object.assign({}, po, {vendorContact:'Jake Jackson', vendorEmail:'jjackson@tlcmillwork.com', vendorEmail2:Array.from(new Set(extras)).join(', ')});
+}
+
 // ── PO BUILDER ────────────────────────────────────────────────────────────────
 function showPOBuilder() {
   selVendor=null;
@@ -4088,7 +4115,7 @@ function selectVendor(id) {
 }
 function renderPOItems() {
   const container=document.getElementById('po-items-list');
-  container.innerHTML=poItems.map((l,i)=>'<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f0e8d8;background:'+(l.include?'#fff':'#f9f6f1')+'"><input type="checkbox" '+(l.include?'checked':'')+'  onchange="togglePOItem('+i+')" style="margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0"><div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(l.include?'#1a1008':'#aaa')+'">'+l.item+(l.size?' ('+l.size+')':'')+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0"><span style="font-size:11px;font-weight:600">Qty: '+l.qty+'</span><div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:#8B6914">Cost $</span><input type="number" value="'+l.unitCost.toFixed(2)+'" min="0" step="0.01" onchange="updatePOItemCost('+i+', this.value)" style="width:72px;padding:3px 6px;border-radius:4px;border:1px solid #d5c8a8;font-size:12px;text-align:right;font-family:inherit"></div></div></div>').join('');
+  container.innerHTML=poItems.map((l,i)=>'<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f0e8d8;background:'+(l.include?'#fff':'#f9f6f1')+'"><input type="checkbox" '+(l.include?'checked':'')+'  onchange="togglePOItem('+i+')" style="margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0"><div style="flex:1"><div style="font-weight:600;font-size:13px;color:'+(l.include?'#1a1008':'#aaa')+'">'+nsPOItemHtml(l)+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0"><span style="font-size:11px;font-weight:600">Qty: '+l.qty+'</span><div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:#8B6914">Cost $</span><input type="number" value="'+l.unitCost.toFixed(2)+'" min="0" step="0.01" onchange="updatePOItemCost('+i+', this.value)" style="width:72px;padding:3px 6px;border-radius:4px;border:1px solid #d5c8a8;font-size:12px;text-align:right;font-family:inherit"></div></div></div>').join('');
 }
 function togglePOItem(i) { poItems[i].include=!poItems[i].include; renderPOItems(); }
 function updatePOItemCost(i, val) { poItems[i].unitCost=parseFloat(val)||0; }
@@ -4113,7 +4140,7 @@ function generatePO() {
   const reqBy=document.getElementById('po-required-by').value||c.etaDate||'TBD';
   const activeItems=poItems.filter(l=>l.include);
   const totalCost=activeItems.reduce((s,l)=>s+l.unitCost*l.qty,0);
-  const rows=activeItems.map(l=>'<tr><td>'+l.qty+'</td><td style="line-height:1.5"><strong>'+l.item+'</strong>'+(l.size?' ('+l.size+')':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></td><td>$'+l.unitCost.toFixed(2)+'</td><td>$'+(l.unitCost*l.qty).toFixed(2)+'</td></tr>').join('');
+  const rows=activeItems.map(l=>'<tr><td>'+l.qty+'</td><td style="line-height:1.5">'+nsPOItemHtml(l)+'</td><td>$'+l.unitCost.toFixed(2)+'</td><td>$'+(l.unitCost*l.qty).toFixed(2)+'</td></tr>').join('');
   document.getElementById('po-content').innerHTML='<div class="po-wrap"><div class="po-page"><div class="po-banner"><div class="po-banner-left"><div class="po-banner-logo">NORWOOD SUPPLY</div><div class="po-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="po-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com</div></div><div class="po-banner-right"><div class="po-banner-title">PURCHASE ORDER</div><div class="po-banner-num">#'+nsEsc(poNum)+'</div><div class="po-banner-meta"><strong>Date:</strong> '+today+'<br><strong>Issued By:</strong> '+c.rep+'</div></div></div><div class="po-info-grid"><div class="po-info-box"><div class="po-info-label">VENDOR / SHIP FROM</div><div class="po-info-name">'+selVendor.name+'</div><div class="po-info-detail">'+selVendor.address.split('\n').join('<br>')+'<br>'+selVendor.phone+'<br>'+selVendor.email+(selVendor.email2?'<br>'+selVendor.email2:'')+'</div></div><div class="po-info-box"><div class="po-info-label">SHIP TO / BILL TO</div><div class="po-info-name">Norwood Supply</div><div class="po-info-detail">6200 Norwood Ave<br>Jacksonville, FL 32208<br>(904) 768-6818<br>lance087@gmail.com</div></div><div class="po-info-box"><div class="po-info-label">ORDER DETAILS</div><div class="po-info-detail"><strong>Required By:</strong> '+reqBy+'<br><strong>Customer:</strong> '+c.name+'<br><strong>Ref:</strong> '+(document.querySelector('.inv-meta-value')?document.querySelector('.inv-meta-value').textContent:quoteNum)+'</div></div></div><table class="po-table"><thead><tr><th style="width:55px">QTY</th><th>DESCRIPTION</th><th style="width:95px;text-align:right">UNIT COST</th><th style="width:105px;text-align:right">TOTAL</th></tr></thead><tbody>'+rows+'</tbody></table><div class="po-totals"><div class="po-tot-row grand"><span>TOTAL COST</span><span>$'+totalCost.toFixed(2)+'</span></div></div><div class="po-terms-box"><div class="po-terms-label-new">NOTES</div><div class="po-terms-content-new">Please confirm receipt of this PO and estimated delivery date. Contact Lance Hopper at (904) 768-6818 or lance087@gmail.com with questions.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px;font-size:12px"><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Authorized by: Lance Hopper, Norwood Supply</div><div style="border-top:1px solid #1a1008;padding-top:6px;color:#6b5a3a">Vendor Acknowledgment / Date</div></div><div class="po-footer">Norwood Supply · 6200 Norwood Ave, Jacksonville, FL 32208 · (904) 768-6818</div></div></div>';
   document.getElementById('po-modal').classList.add('hidden');
   // Stash PO data for email/save buttons
@@ -8150,7 +8177,7 @@ function resendToVendor(inqId,vi){
   var subject='Price Request -- '+inq.product;
   var bodyText='Hello,\r\n\r\nFollowing up on request for: '+inq.product+'\r\n\r\nPlease reply with best price and availability.\r\n\r\nThank you,\r\n'+rep.name+'\r\nNorwood Supply\r\n(904) 768-6818';
   var gmailUrl='https://mail.google.com/mail/?view=cm&fs=1'+
-    '&to='+encodeURIComponent(v.email)+
+    '&to='+encodeURIComponent(nsIsTLC(v.name, v.email) ? 'jjackson@tlcmillwork.com' : v.email)+
     (rep.email?'&cc='+encodeURIComponent(rep.email):'')+
     '&su='+encodeURIComponent(subject)+
     '&body='+encodeURIComponent(bodyText);
@@ -8594,11 +8621,12 @@ function stashPOData(data) {
 
 // ── EMAIL PO ─────────────────────────────────────────────────────────────────
 function buildPOHtml(d) {
+  d = nsPOForCorrespondence(d);
   var itemRows = '';
   (d.items || []).forEach(function(it, i) {
     var bg = i % 2 === 1 ? '#f5f9ff' : '#ffffff';
     itemRows += '<tr><td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:center;font-weight:700;background:'+bg+'">'+it.qty+'</td>';
-    itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;line-height:1.5;background:'+bg+'"><strong>'+it.item+'</strong>'+(it.size?' ('+it.size+')':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+it.description+(it.sku?' &middot; SKU:'+it.sku:'')+'</span></td>';
+    itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;line-height:1.5;background:'+bg+'">'+nsPOItemHtml(it)+'</td>';
     itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+nsPOCostNumber(it.unitCost).toFixed(2)+'</td>';
     itemRows += '<td style="padding:9px 10px;border-bottom:1px solid #f0e8d8;text-align:right;background:'+bg+'">$'+(it.qty*it.unitCost).toFixed(2)+'</td></tr>';
   });
@@ -8672,7 +8700,7 @@ function printPOView() {
 
 function emailPO() {
   if (!currentPOData) { alert('No PO generated yet.'); return; }
-  var d = currentPOData;
+  var d = nsPOForCorrespondence(currentPOData);
   var htmlBody = buildPOHtml(d);
 
   // Build the clipboard text for pasting into Claude

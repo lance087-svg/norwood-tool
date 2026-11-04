@@ -10,7 +10,7 @@ function load(name) {
   assert.ok(start >= 0, name);
   vm.runInContext(source.slice(start, source.indexOf('\n}', start) + 2), dom.getInternalVMContext());
 }
-for (const name of ['nsPOCostNumber','getPOLog','savePOLog','kpiCard','renderPOLog','buildPOHtml','closeReceivingModal','finishSaveReceiving']) load(name);
+for (const name of ['nsPOItemText','nsPOItemHtml','nsIsTLC','nsPOForCorrespondence','nsPOCostNumber','getPOLog','savePOLog','kpiCard','renderPOLog','buildPOHtml','closeReceivingModal','finishSaveReceiving']) load(name);
 const pushed = [];
 w.nsSyncPush = (key, records) => pushed.push(JSON.parse(JSON.stringify(records)));
 w.nsEsc = s => String(s || '');
