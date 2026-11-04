@@ -2,7 +2,7 @@
 // NORWOOD SUPPLY — DELIVERY SCHEDULING PATCH v2
 // norwood-delivery-patch.js
 // Includes: Schedule button on invoice, Deliveries tab (office),
-//           7-day schedule list, edit/cancel, driver app update
+//           full delivery history, edit/cancel, driver app update
 // ============================================================
 
 (function () {
@@ -59,26 +59,20 @@
     return docRef.id;
   }
 
-  async function loadDeliveries(days) {
-    // Simplest possible query — get ALL deliveries, filter in JS
+  async function loadDeliveries() {
+    // Keep the full record set: a past date does not mean a stop is finished,
+    // and completed deliveries must remain available in delivery history.
     const { collection, getDocs } =
       await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const db = await getDB();
-    const today = new Date().toISOString().slice(0,10);
-    const future = new Date(); future.setDate(future.getDate() + (days||7));
-    const futureStr = future.toISOString().slice(0,10);
     const snap = await getDocs(collection(db, "deliveries"));
     const results = [];
     snap.forEach(d => {
-      const rec = { id: d.id, ...d.data() };
-      // Filter to today + 7 days in JS, exclude old cancelled
-      if (rec.deliveryDate && rec.deliveryDate >= today && rec.deliveryDate <= futureStr) {
-        results.push(rec);
-      }
+      results.push({ ...d.data(), id: d.id });
     });
     // Sort by date then stop order in JS
     results.sort((a,b) => {
-      if (a.deliveryDate !== b.deliveryDate) return a.deliveryDate.localeCompare(b.deliveryDate);
+      if (a.deliveryDate !== b.deliveryDate) return (a.deliveryDate||"").localeCompare(b.deliveryDate||"");
       return (a.stopOrder||99) - (b.stopOrder||99);
     });
     return results;
@@ -398,7 +392,7 @@
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div>
           <h2 style="font-size:20px;font-weight:700;margin-bottom:3px">🚚 Delivery Schedule</h2>
-          <p style="color:#6b5a3a;font-size:13px">Today + next 7 days · All drivers</p>
+          <p style="color:#6b5a3a;font-size:13px">All dates · All drivers · Past deliveries stay in the list</p>
         </div>
         <button onclick="NWDelivery.refreshSchedule()" style="background:#1E70B8;color:#fff;padding:8px 18px;border-radius:5px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit">🔄 Refresh</button>
       </div>
@@ -415,6 +409,7 @@
       </div>
       <div class="dlv-summary-bar" id="dlv-summary-bar">
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-today">—</div><div class="dlv-stat-lbl">Today</div></div>
+        <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-pending">—</div><div class="dlv-stat-lbl">Pending</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-upcoming">—</div><div class="dlv-stat-lbl">Upcoming</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-delivered">—</div><div class="dlv-stat-lbl">Delivered</div></div>
         <div class="dlv-stat"><div class="dlv-stat-num" id="dlv-stat-enroute">—</div><div class="dlv-stat-lbl">En Route</div></div>
@@ -486,6 +481,12 @@
   }
 
   // ── FORMAT HELPERS ────────────────────────────────────────────────────────
+  function businessDate(date = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(date);
+    return ["year", "month", "day"].map(type => parts.find(p => p.type === type).value).join("-");
+  }
   function fmtDate(iso) {
     return new Date(iso+"T12:00:00").toLocaleDateString("en-US",
       {weekday:"short",month:"short",day:"numeric"});
@@ -495,7 +496,7 @@
       {weekday:"long",month:"long",day:"numeric"});
   }
   function isToday(iso) {
-    return iso === new Date().toISOString().slice(0,10);
+    return iso === businessDate();
   }
   function htmlText(value) { return String(value == null ? "" : value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c])); }
   function driverLabel(id) {
@@ -565,8 +566,8 @@
       document.getElementById("dlv-driver").value = "";
       document.getElementById("dlv-stop").value   = "";
       document.getElementById("dlv-window").value = "";
-      const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
-      document.getElementById("dlv-date").value = tmr.toISOString().slice(0,10);
+      const tmr = new Date(businessDate()+"T12:00:00Z"); tmr.setUTCDate(tmr.getUTCDate()+1);
+      document.getElementById("dlv-date").value = businessDate(tmr);
       this.updatePreview();
       schedOverlay.classList.add("open");
     },
@@ -703,8 +704,9 @@
       const listEl = document.getElementById("dlv-schedule-list");
       if (!listEl) return;
       listEl.innerHTML = `<div class="dlv-loading">Loading deliveries…</div>`;
+      document.querySelectorAll("#dlv-summary-bar .dlv-stat-num").forEach(el => { el.textContent = "—"; });
       try {
-        _allDeliveries = await loadDeliveries(7);
+        _allDeliveries = await loadDeliveries();
         this.renderList();
       } catch(e) {
         listEl.innerHTML = `<div class="dlv-empty">⚠️ Could not load deliveries. Check connection.</div>`;
@@ -725,9 +727,11 @@
         filtered = filtered.filter(d=>d.driverId===_activeFilter);
 
       // Stats
-      const today = new Date().toISOString().slice(0,10);
+      const today = businessDate();
       document.getElementById("dlv-stat-today").textContent =
         _allDeliveries.filter(d=>d.deliveryDate===today && d.status!=="cancelled").length;
+      document.getElementById("dlv-stat-pending").textContent =
+        _allDeliveries.filter(d=>d.status==="scheduled").length;
       document.getElementById("dlv-stat-upcoming").textContent =
         _allDeliveries.filter(d=>d.deliveryDate>today && d.status==="scheduled").length;
       document.getElementById("dlv-stat-delivered").textContent =
@@ -743,14 +747,15 @@
       // Group by date
       const byDate = {};
       filtered.forEach(d => {
-        if (!byDate[d.deliveryDate]) byDate[d.deliveryDate] = [];
-        byDate[d.deliveryDate].push(d);
+        const date = d.deliveryDate || "";
+        if (!byDate[date]) byDate[date] = [];
+        byDate[date].push(d);
       });
 
       let html = "";
       Object.keys(byDate).sort().forEach(date => {
         const delivs = byDate[date].sort((a,b)=>(a.stopOrder||99)-(b.stopOrder||99));
-        const label = isToday(date) ? `TODAY — ${fmtDate(date)}` : fmtDate(date);
+        const label = !date ? "Date not set" : isToday(date) ? `TODAY — ${fmtDate(date)}` : fmtDate(date);
         html += `<div class="dlv-day-hdr">
           <span>${label}</span>
           <span style="font-weight:400;opacity:.8">${delivs.length} stop${delivs.length!==1?"s":""}</span>
