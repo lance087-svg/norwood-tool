@@ -1330,6 +1330,9 @@ tr:hover td{background:#fdf9f3}
     <div id="ds-hinge-finish-other-row" class="hidden fg" style="margin-bottom:16px">
       <input type="text" id="ds-hinge-finish-other" placeholder="Type hinge finish">
     </div>
+    <div class="fg" style="margin-bottom:12px"><label class="lbl" for="ds-additional-details">Additional Door Details (shown to customer)</label>
+      <input type="text" id="ds-additional-details" placeholder="e.g. Mini blinds between glass or No mini blinds">
+    </div>
     <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
       <button class="btn btn-d" onclick="clearDoorSpecEdit()" style="font-size:12px">Remove Spec</button>
       <div style="display:flex;gap:10px">
@@ -1419,8 +1422,8 @@ tr:hover td{background:#fdf9f3}
     </div>
 
     <div class="fg" style="margin-bottom:12px">
-      <label class="lbl">Additional Notes <span style="font-size:10px;color:#8B6914;font-weight:400">(anything the fields above don't cover)</span></label>
-      <input type="text" id="sod-notes" placeholder="e.g. matching existing trim, glass pattern detail...">
+      <label class="lbl" for="sod-notes">Additional Door Details (shown to customer)</label>
+      <input type="text" id="sod-notes" placeholder="e.g. Mini blinds between glass or No mini blinds">
     </div>
 
     <div class="fg" style="margin-bottom:12px">
@@ -1524,6 +1527,9 @@ tr:hover td{background:#fdf9f3}
       </div>
       <div id="ci-hinge-finish-other-row" class="hidden fg">
         <input type="text" id="ci-hinge-finish-other" placeholder="Type hinge finish">
+      </div>
+      <div class="fg" style="margin-bottom:12px"><label class="lbl" for="ci-additional-details">Additional Door Details (shown to customer)</label>
+        <input type="text" id="ci-additional-details" placeholder="e.g. Mini blinds between glass or No mini blinds">
       </div>
       <div style="font-size:10px;color:#8B6914;margin-top:8px;line-height:1.4">These show as a spec strip under the line item on screen, so you and Garon/Cleve can double-check hand/size before it goes out — this is separate from the description sentence above.</div>
     </div>
@@ -3487,6 +3493,7 @@ function doorSpecChipHTML(spec) {
   if(spec.texture) parts.push(spec.texture);
   if(spec.thresholdFinish) parts.push(spec.thresholdFinish + ' threshold');
   if(spec.hingeFinish) parts.push(spec.hingeFinish);
+  if(spec.additionalDetails) parts.push(nsEsc(spec.additionalDetails));
   if(!parts.length) return '';
   return '<div style="margin-top:3px;font-size:10px;font-weight:700;color:#8B6914;background:#fdf0d5;border:1px solid #e8dcc0;border-radius:4px;padding:2px 6px;display:inline-block">🚪 ' + parts.join(' · ') + '</div>';
 }
@@ -3497,6 +3504,7 @@ function openDoorSpecEdit(lineId) {
   dsEditingLineId = lineId;
   document.getElementById('ds-item-label').textContent = l.item;
   var s = l.doorSpec || {};
+  document.getElementById('ds-additional-details').value = s.additionalDetails || '';
   document.getElementById('ds-hand').value = s.hand || '';
   document.getElementById('ds-swing').value = s.swing || '';
   document.getElementById('ds-rough-opening').value = s.roughOpening || '';
@@ -3517,6 +3525,7 @@ function saveDoorSpecEdit() {
   var l = lines.find(function(x){ return x.lineId === dsEditingLineId; });
   if(!l) { closeDoorSpecEdit(); return; }
   var spec = {
+    additionalDetails: document.getElementById('ds-additional-details').value.trim(),
     hand: document.getElementById('ds-hand').value,
     swing: document.getElementById('ds-swing').value,
     roughOpening: document.getElementById('ds-rough-opening').value.trim(),
@@ -3752,6 +3761,10 @@ function orderConfirmationHTML(lineArr, prefix) {
   html += '</div></div>';
   return html;
 }
+function doorDetailsHTML(line) {
+  var details = line.doorSpec && line.doorSpec.additionalDetails;
+  return details ? '<div style="font-size:11px;font-weight:700;overflow-wrap:anywhere">' + nsEsc(details) + '</div>' : '';
+}
 function showQuote() {
   const c=getCustomer();
   const sub=lines.reduce((s,l)=>s+l.retail*l.qty,0);
@@ -3762,7 +3775,7 @@ function showQuote() {
   const deposit50=grand*0.5;
   const validDate=new Date(Date.now()+30*86400000).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var lineNum=0;
-  const rows=lines.map(l=>{lineNum++;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+lineNum+'</td><td><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:46px;height:46px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div></div></div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td>'+(l.pricePending?'<td style="text-align:right;width:95px;color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="text-align:right;font-weight:700;width:105px;color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>';}).join('');
+  const rows=lines.map(l=>{lineNum++;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+lineNum+'</td><td><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:46px;height:46px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div>'+doorDetailsHTML(l)+'</div></div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td>'+(l.pricePending?'<td style="text-align:right;width:95px;color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="text-align:right;font-weight:700;width:105px;color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>';}).join('');
   document.getElementById('qp-content').innerHTML='<div class="qp-wrap"><div class="qp-page">'
 +'<div class="qp-banner"><div class="qp-banner-left"><div class="qp-banner-logo">NORWOOD SUPPLY</div><div class="qp-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="qp-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com<br>Mon\u2013Fri 7:30 AM\u20135:00 PM | Sat 8:30 AM\u201312:00 PM</div></div><img class="ns-document-seal" src="images/norwood-55-years.webp" width="72" height="72" alt="Celebrating 55 years, 1971–2026" loading="eager" decoding="sync"><div class="qp-banner-right"><div class="qp-banner-title">QUOTE</div><div class="qp-banner-num">#'+quoteNum+'</div><div class="qp-banner-meta"><strong>Date:</strong> '+quoteDate+'<br><strong>Valid Through:</strong> '+validDate+'<br><strong>Prepared By:</strong> '+c.rep+'</div></div></div>'
 +'<div class="qp-info-grid"><div class="qp-info-box"><div class="qp-info-label">BILL TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+[c.co,c.addr].filter(Boolean).join('<br>')+'</div></div><div class="qp-info-box"><div class="qp-info-label">SHIP TO / DELIVER TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+(c.shipto||c.addr||'(TBD upon order confirmation)')+'</div></div><div class="qp-info-box"><div class="qp-info-label">QUOTE DETAILS</div><div class="qp-info-detail"><strong>Quote #:</strong> '+quoteNum+'<br><strong>Date:</strong> '+quoteDate+'<br><strong>Expires:</strong> '+validDate+'<br><strong>Sales Rep:</strong> '+c.rep+'<br><strong>Terms:</strong> '+c.payment+(c.etaDate?'<br><strong>ETA:</strong> <span style="color:#2d6a30;font-weight:700">'+c.etaDate+'</span>':'')+'</div></div></div>'
@@ -4007,7 +4020,7 @@ function nsShowInvoiceNow(existingInvNum) {
     if(pageNum===1){allPages+='<div class="inv-addr-grid"><div><div class="inv-addr-label">Sold To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+[c.co,c.phone,c.email,c.addr].filter(Boolean).join('<br>')+'</div></div><div><div class="inv-addr-label">Ship To</div><div class="inv-addr-name">'+c.name+'</div><div class="inv-addr-detail">'+(c.shipto||c.addr||'—')+'</div></div></div><hr class="inv-divider-thin">';}
     else{allPages+='<div style="font-size:11px;color:#8B6914;margin-bottom:10px;font-family:system-ui">Continued from page '+(pageNum-1)+'</div>';}
     allPages+='<table class="inv-table"><thead><tr><th style="text-align:center;width:62px">QTY<br>ORDERED</th><th style="text-align:center;width:62px">QTY<br>SHIPPED</th><th>DESCRIPTION</th><th style="text-align:right">UNIT PRICE</th><th style="text-align:right">TOTAL</th></tr></thead><tbody>';
-    allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l).replace('width:46px;height:46px','width:40px;height:40px').replace('width:46px;height:60px','width:40px;height:52px'):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+(l.pricePending?' <span style="color:#c8952a;font-weight:700;font-size:10px">(PRICE PENDING)</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span></div></div></td>'+(l.pricePending?'<td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>').join('');
+    allPages+=pageLines.map(l=>'<tr><td style="text-align:center;font-weight:600">'+l.qty+'</td><td style="text-align:center"><span style="display:inline-block;min-width:34px;height:14px;border-bottom:1.5px solid #c9bda0">&nbsp;</span></td><td style="line-height:1.35;padding:4px 8px"><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l).replace('width:46px;height:46px','width:40px;height:40px').replace('width:46px;height:60px','width:40px;height:52px'):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><strong>'+l.item+'</strong>'+(l.size?' <span style="color:#8B6914">('+l.size+')</span>':'')+(l.pricePending?' <span style="color:#c8952a;font-weight:700;font-size:10px">(PRICE PENDING)</span>':'')+'<br><span style="font-size:11px;color:#6b5a3a">'+l.description+(l.sku?' · SKU:'+l.sku:'')+'</span>'+doorDetailsHTML(l)+'</div></div></td>'+(l.pricePending?'<td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td>$'+l.retail.toFixed(2)+'</td><td>$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>').join('');
     if(isLast){
       allPages+='</tbody></table>';
       allPages+='<div class="inv-totals"><div class="inv-tot-row"><span>Subtotal</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="inv-tot-row" style="color:#c04040"><span>Discount</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row"><span>Sales Tax (7.5%)</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="inv-tot-row"><span>Delivery</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="inv-tot-row grand"><span>INVOICE TOTAL</span><span>$'+grand.toFixed(2)+'</span></div>'+(amtPaid>0?'<div class="inv-tot-row" style="color:#2d6a30;font-weight:700"><span>Payments Received</span><span>-$'+amtPaid.toFixed(2)+'</span></div>':'')+(totalCredits>0?'<div class="inv-tot-row" style="color:#185fa5;font-weight:700"><span>Returns / Credits</span><span>-$'+totalCredits.toFixed(2)+'</span></div>':'')+((amtPaid>0||totalCredits>0)?'<div class="inv-tot-row" style="color:'+(balDue<=0.01?'#2d6a30':'#c04040')+';font-weight:800;font-size:15px;background:'+(balDue<=0.01?'#eaf3de':'#fcebeb')+';border-radius:4px;padding:8px;border-bottom:none;margin-top:4px"><span>'+(balDue<=0.01?'PAID IN FULL':'BALANCE DUE')+'</span><span>$'+balDue.toFixed(2)+'</span></div>':'')+'</div>';
@@ -4314,7 +4327,7 @@ function showCustomItem() {
   document.getElementById('ci-custom-gm-row').classList.add('hidden');
   document.getElementById('ci-is-door').checked=false;
   ['ci-hand','ci-swing','ci-texture','ci-jamb-width','ci-jamb-material','ci-threshold-finish','ci-hinge-finish'].forEach(id=>document.getElementById(id).value='');
-  ['ci-rough-opening','ci-net-size','ci-jamb-width-other','ci-threshold-finish-other','ci-hinge-finish-other'].forEach(id=>document.getElementById(id).value='');
+  ['ci-additional-details','ci-rough-opening','ci-net-size','ci-jamb-width-other','ci-threshold-finish-other','ci-hinge-finish-other'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ci-jamb-width-other-row').classList.add('hidden');
   document.getElementById('ci-threshold-finish-other-row').classList.add('hidden');
   document.getElementById('ci-hinge-finish-other-row').classList.add('hidden');
@@ -4380,6 +4393,7 @@ function addCustomItem() {
   var newLine={id:Date.now(),sku:'CUSTOM',item:desc,category:'Special Order',group:'Custom',size:'',description:desc,cost,onHand:null,uom:'EA',isCustom:true,pricePending:pending,imageUrl:ciPhotoData||'',qty,retail:unit,gm,lineId:Date.now()};
   if(document.getElementById('ci-is-door').checked){
     var spec={
+      additionalDetails: document.getElementById('ci-additional-details').value.trim(),
       hand:document.getElementById('ci-hand').value,
       swing:document.getElementById('ci-swing').value,
       roughOpening:document.getElementById('ci-rough-opening').value.trim(),
@@ -4532,6 +4546,7 @@ function addSpecialOrderDoor() {
   }
 
   var spec = {
+    additionalDetails: document.getElementById('sod-notes').value.trim(),
     hand: document.getElementById('sod-hand').value,
     swing: document.getElementById('sod-swing').value,
     roughOpening: document.getElementById('sod-rough-opening').value.trim(),
@@ -4543,7 +4558,6 @@ function addSpecialOrderDoor() {
     thresholdFinish: resolveSpecSelect('sod','threshold-finish'),
     hingeFinish: resolveSpecSelect('sod', 'hinge-finish')
   };
-  var notes = document.getElementById('sod-notes').value.trim();
 
   // Auto-build a readable one-line description from the structured fields,
   // so the printed quote/invoice still reads as a normal sentence — the
@@ -4558,14 +4572,13 @@ function addSpecialOrderDoor() {
   if(spec.netSize) specBits.push('Net unit ' + spec.netSize);
   if(spec.sizingEstimate) specBits.push('sizing estimate — verify supplier');
   if(specBits.length) desc += ', ' + specBits.join(', ');
-  if(notes) desc += ' — ' + notes;
 
   var newLine = {
     id: Date.now(), sku:'SO-DOOR', item:desc, category:category, group:group,
     size:spec.netSize||'', description:desc, cost:cost, onHand:null, uom:'EA',
     isCustom:true, pricePending:pending, imageUrl:sodPhotoData||'',
     qty:qty, retail:unit, gm:gm, lineId:Date.now(),
-    doorSpec: spec, doorStyle: style, notes: notes
+    doorSpec: spec, doorStyle: style
   };
   lines.push(newLine);
   closeSpecialOrderDoor();
