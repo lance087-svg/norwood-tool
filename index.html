@@ -3548,6 +3548,14 @@ function clearDoorSpecEdit() {
   closeDoorSpecEdit();
   renderLines(); renderSummary();
 }
+function quoteLineCostHTML(line) {
+  const cost = Number(line.cost);
+  const label = Number.isFinite(cost) && cost > 0
+    ? '$' + cost.toFixed(2) + ' per ' + nsEsc(line.uom || 'unit')
+    : 'No cost recorded';
+  return '<details style="margin-top:3px;text-align:center;font-size:10px;color:#6b5a3a">' +
+    '<summary style="cursor:pointer">Unit cost</summary><strong>' + label + '</strong></details>';
+}
 function renderLines() {
   var empty = document.getElementById('empty-msg');
   var tbl = document.getElementById('lines-table');
@@ -3588,6 +3596,7 @@ function renderLines() {
     h += '<button onclick="adjustPrice(' + l.lineId + ',1)" title="Increase $1" style="width:26px;height:20px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;font-size:10px;font-weight:700;cursor:pointer;line-height:1;padding:0">+$1</button>';
     h += '</div>';
     h += '<div style="font-size:9px;color:' + (l.pricePending ? '#c8952a' : (parseFloat(gmpct) < 20 ? '#c04040' : '#8B6914')) + ';margin-top:1px;text-align:center;font-weight:' + (l.pricePending?'700':'400') + '">' + (l.pricePending ? 'enter price once known' : gmpct + '% GM') + '</div>';
+    h += quoteLineCostHTML(l);
     h += '</td>';
     // Extended
     h += '<td style="text-align:right;font-weight:700">$' + (l.retail * l.qty).toFixed(2) + '</td>';
