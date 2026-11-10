@@ -3569,6 +3569,7 @@ function renderLines() {
     if(l.doorSpec){ h += doorSpecChipHTML(l.doorSpec) + ' '; }
     h += '<button onclick="openDoorSpecEdit(' + l.lineId + ')" style="font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid #d5c8a8;background:#f5f0e8;cursor:pointer;color:#6b5a3a;vertical-align:middle">' + (l.doorSpec?'✏️ Edit spec':'🚪 + Add door spec') + '</button>';
     if(window.NSDoorRender) h += NSDoorRender.btnHTML(l);
+    if(!currentInvNum) h += '<label style="display:inline-flex;align-items:center;gap:3px;margin-left:5px;font-size:10px"><input type="checkbox" onchange="setQuoteOption(' + l.lineId + ',this.checked)"' + (l.quoteOption ? ' checked' : '') + '> Either/or option</label>';
     h += '</div></td>';
     // Qty adjuster
     h += '<td style="text-align:center">';
@@ -3634,9 +3635,39 @@ function setPrice(lineId, rawValue) {
   renderSummary();
 }
 
+function setQuoteOption(lineId, enabled) {
+  const line = lines.find(l => l.lineId === lineId);
+  if (!line) return;
+  if (enabled) line.quoteOption = true;
+  else delete line.quoteOption;
+  renderSummary();
+}
+function quoteOptions(lineItems, customer) {
+  const base = lineItems.filter(l => !l.quoteOption);
+  const baseSubtotal = base.reduce((sum, l) => sum + l.retail * l.qty, 0);
+  return lineItems.filter(l => l.quoteOption).map((line, index) => {
+    const sub = baseSubtotal + line.retail * line.qty;
+    const tax = customer.taxExempt ? 0 : sub * 0.075;
+    return {
+      line, label: 'Option ' + (index + 1), sub, tax,
+      pending: line.pricePending || base.some(l => l.pricePending),
+      total: sub + tax + (customer.delivery || 0) - (customer.discount || 0)
+    };
+  });
+}
 function renderSummary() {
   const body=document.getElementById('summary-body');
   if(lines.length===0){body.innerHTML='<div style="color:#a89060;font-size:13px;text-align:center;padding:16px 0">Add items to see totals</div>';return;}
+  if(lines.some(l => l.quoteOption)){
+    const options = quoteOptions(lines, getCustomer());
+    body.innerHTML = '<div style="font-weight:700;margin-bottom:6px">Choose one option</div>' +
+      options.map(o => '<div class="sl"><span>' + o.label + '</span><strong>' +
+        (o.pending ? 'Price pending' : '$' + o.total.toFixed(2)) + '</strong></div>' +
+        '<div style="font-size:11px;margin-bottom:8px">' + nsEsc(o.line.item) + doorDetailsHTML(o.line) +
+        (o.pending ? '' : '<button class="btn btn-gh" onclick="showInvoice(null,' + o.line.lineId + ')">Use this option for invoice</button>') + '</div>').join('') +
+      '<button class="btn btn-g" onclick="showQuote()">📄 Quote</button>';
+    return;
+  }
   const sub=lines.reduce((s,l)=>s+l.retail*l.qty,0);
   const cost=lines.reduce((s,l)=>s+l.cost*l.qty,0);
   const gm=sub>0?((sub-cost)/sub*100).toFixed(1):0;
@@ -3765,8 +3796,22 @@ function doorDetailsHTML(line) {
   var details = line.doorSpec && line.doorSpec.additionalDetails;
   return details ? '<div style="font-size:11px;font-weight:700;overflow-wrap:anywhere">' + nsEsc(details) + '</div>' : '';
 }
+function quoteOptionTotalsHTML(options, customer) {
+  return '<div style="margin:12px 0;font-weight:700">Choose one option. Each total includes the regular items shown above, if any.</div>' +
+    options.map(o => '<div class="qp-totals" style="margin-bottom:10px;break-inside:avoid">' +
+      (o.pending ? '<div class="qpt grand"><span>' + o.label + ' total</span><span>Price pending</span></div>' :
+        '<div class="qpt"><span>Subtotal</span><span>$' + o.sub.toFixed(2) + '</span></div>' +
+        '<div class="qpt"><span>Sales tax</span><span>$' + o.tax.toFixed(2) + '</span></div>' +
+        (customer.delivery ? '<div class="qpt"><span>Delivery</span><span>$' + customer.delivery.toFixed(2) + '</span></div>' : '') +
+        (customer.discount ? '<div class="qpt"><span>Discount</span><span>-$' + customer.discount.toFixed(2) + '</span></div>' : '') +
+        '<div class="qpt grand"><span>' + o.label + ' total</span><span>$' + o.total.toFixed(2) + '</span></div>' +
+        (customer.payment.includes('50%') ? '<div class="qpt"><span>50% deposit</span><span>$' + (o.total * 0.5).toFixed(2) + '</span></div>' : '')) +
+      '</div>').join('');
+}
 function showQuote() {
   const c=getCustomer();
+  const options=quoteOptions(lines,c);
+  let optionIndex=0;
   const sub=lines.reduce((s,l)=>s+l.retail*l.qty,0);
   const tax=c.taxExempt?0:sub*0.075;
   const deliv=c.delivery||0;
@@ -3775,13 +3820,13 @@ function showQuote() {
   const deposit50=grand*0.5;
   const validDate=new Date(Date.now()+30*86400000).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var lineNum=0;
-  const rows=lines.map(l=>{lineNum++;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+lineNum+'</td><td><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:46px;height:46px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div>'+doorDetailsHTML(l)+'</div></div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td>'+(l.pricePending?'<td style="text-align:right;width:95px;color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="text-align:right;font-weight:700;width:105px;color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>';}).join('');
+  const rows=lines.map(l=>{lineNum++;const label=l.quoteOption ? options[optionIndex++].label : lineNum;return '<tr><td style="text-align:center;font-weight:700;width:50px">'+label+'</td><td><div style="display:flex;gap:8px;align-items:flex-start">'+(window.NSDoorRender?NSDoorRender.printImg(l):(l.imageUrl?'<img src="'+l.imageUrl+'" style="width:46px;height:46px;object-fit:cover;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" loading="lazy">':''))+'<div><div style="font-weight:600">'+l.item+'</div><div style="font-size:11px;color:#6b5a3a">'+l.description+(l.size?' · '+l.size:'')+'</div>'+doorDetailsHTML(l)+'</div></div></td><td style="text-align:center;font-weight:600;width:55px">'+l.qty+'</td>'+(l.pricePending?'<td style="text-align:right;width:95px;color:#8B6914;font-style:italic;font-size:11px">Pending</td><td style="text-align:right;font-weight:700;width:105px;color:#8B6914;font-style:italic;font-size:11px">Pending</td>':'<td style="text-align:right;width:95px">$'+l.retail.toFixed(2)+'</td><td style="text-align:right;font-weight:700;width:105px">$'+(l.retail*l.qty).toFixed(2)+'</td>')+'</tr>';}).join('');
   document.getElementById('qp-content').innerHTML='<div class="qp-wrap"><div class="qp-page">'
 +'<div class="qp-banner"><div class="qp-banner-left"><div class="qp-banner-logo">NORWOOD SUPPLY</div><div class="qp-banner-tag">Doors \u00b7 Millwork \u00b7 Building Materials</div><div class="qp-banner-contact">6200 Norwood Ave, Jacksonville, FL 32208<br>(904) 768-6818 | norwoodsupply.com | lance087@gmail.com<br>Mon\u2013Fri 7:30 AM\u20135:00 PM | Sat 8:30 AM\u201312:00 PM</div></div><img class="ns-document-seal" src="images/norwood-55-years.webp" width="72" height="72" alt="Celebrating 55 years, 1971–2026" loading="eager" decoding="sync"><div class="qp-banner-right"><div class="qp-banner-title">QUOTE</div><div class="qp-banner-num">#'+quoteNum+'</div><div class="qp-banner-meta"><strong>Date:</strong> '+quoteDate+'<br><strong>Valid Through:</strong> '+validDate+'<br><strong>Prepared By:</strong> '+c.rep+'</div></div></div>'
 +'<div class="qp-info-grid"><div class="qp-info-box"><div class="qp-info-label">BILL TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+[c.co,c.addr].filter(Boolean).join('<br>')+'</div></div><div class="qp-info-box"><div class="qp-info-label">SHIP TO / DELIVER TO</div><div class="qp-info-name">'+c.name+'</div><div class="qp-info-detail">'+(c.shipto||c.addr||'(TBD upon order confirmation)')+'</div></div><div class="qp-info-box"><div class="qp-info-label">QUOTE DETAILS</div><div class="qp-info-detail"><strong>Quote #:</strong> '+quoteNum+'<br><strong>Date:</strong> '+quoteDate+'<br><strong>Expires:</strong> '+validDate+'<br><strong>Sales Rep:</strong> '+c.rep+'<br><strong>Terms:</strong> '+c.payment+(c.etaDate?'<br><strong>ETA:</strong> <span style="color:#2d6a30;font-weight:700">'+c.etaDate+'</span>':'')+'</div></div></div>'
 +'<table class="qp-table"><thead><tr><th style="width:50px">LINE</th><th>DESCRIPTION</th><th style="width:55px">QTY</th><th style="width:95px">UNIT PRICE</th><th style="width:105px">TOTAL</th></tr></thead><tbody>'+rows+'</tbody></table>'
-+'<div class="qp-totals"><div class="qpt"><span>Subtotal:</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="qpt" style="color:#c04040"><span>Discount:</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="qpt"><span>Sales Tax (7.5%):</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="qpt"><span>Delivery:</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="qpt grand"><span>QUOTE TOTAL:</span><span>$'+grand.toFixed(2)+'</span></div></div>'
-+(c.payment.includes('50%')?'<div class="qp-deposit" style="margin-left:auto;width:280px"><span>50% Deposit Due:</span><span>$'+deposit50.toFixed(2)+'</span></div>':'')
++(options.length ? quoteOptionTotalsHTML(options,c) : ('<div class="qp-totals"><div class="qpt"><span>Subtotal:</span><span>$'+sub.toFixed(2)+'</span></div>'+(disc>0?'<div class="qpt" style="color:#c04040"><span>Discount:</span><span>-$'+disc.toFixed(2)+'</span></div>':'')+'<div class="qpt"><span>Sales Tax (7.5%):</span><span>'+(c.taxExempt?'<strong style="color:#2d6a30">TAX EXEMPT</strong>'+(c.taxExemptCert?' <span style="font-size:10px;color:#6b5a3a">Cert# '+c.taxExemptCert+'</span>':''):'$'+tax.toFixed(2))+'</span></div>'+(deliv>0?'<div class="qpt"><span>Delivery:</span><span>$'+deliv.toFixed(2)+'</span></div>':'')+'<div class="qpt grand"><span>QUOTE TOTAL:</span><span>$'+grand.toFixed(2)+'</span></div></div>'
++(c.payment.includes('50%')?'<div class="qp-deposit" style="margin-left:auto;width:280px"><span>50% Deposit Due:</span><span>$'+deposit50.toFixed(2)+'</span></div>':'')))
 +'<div class="qp-notes-box"><div class="qp-notes-label">NOTES &amp; TERMS</div><div class="qp-notes-content">\u2022 <strong>Lead Time:</strong> Approximately 1\u20131.5 weeks from order confirmation and deposit.<br>\u2022 <strong>Deposit:</strong> '+c.payment+'<br>\u2022 <strong>Delivery:</strong> '+(deliv>0?'$'+deliv.toFixed(2):'Available \u2014 delivery charges will be quoted separately if needed.')+'<br>\u2022 <strong>Quote Validity:</strong> This quote is valid through <strong>'+validDate+'</strong>. Pricing subject to change after expiration.'+(lines.some(function(l){return l.pricePending;})?'<br>\u2022 <strong style="color:#c8952a">Pending Items:</strong> One or more items above are awaiting vendor pricing and will be confirmed in a follow-up quote.':'')+(c.notes?'<br>\u2022 <strong>Notes:</strong> '+c.notes:'')+'</div></div>'
 +'<div class="qp-terms-box"><div class="qp-terms-label">TERMS &amp; CONDITIONS</div><div class="qp-terms-content">Materials remain the property of Norwood Supply until paid in full. Special order items are non-returnable. Approved returns may be subject to restocking fees. Customer is responsible for verifying quantities, measurements, and specifications prior to installation. Claims must be made before installation.</div></div>'
 +orderConfirmationHTML(lines, 'qp')
@@ -3823,13 +3868,20 @@ function nsWirePills(box, sel, okBtn, onPick) {
     };
   });
 }
-function showInvoice(existingInvNum) {
+function showInvoice(existingInvNum, optionLineId) {
+  const selectedOption = lines.find(l => l.quoteOption && l.lineId === optionLineId);
+  if (!existingInvNum && !selectedOption && lines.some(l => l.quoteOption)) {
+    showView('quote-view');
+    showToast('Choose one option in the summary before creating an invoice.', '#b35309');
+    return;
+  }
   if (existingInvNum) return nsShowInvoiceNow(existingInvNum);
   if (!lines || !lines.length) { showToast('Add at least one item before creating an invoice.', '#b35309'); return; }
   if (nsInvoiceGateOpen) return;
   nsInvoiceGateOpen = true;
+  const invoiceLines = selectedOption ? lines.filter(l => !l.quoteOption || l === selectedOption) : lines;
   var c = getCustomer();
-  var sub = lines.reduce(function(s,l){ return s + l.retail * l.qty; }, 0);
+  var sub = invoiceLines.reduce(function(s,l){ return s + l.retail * l.qty; }, 0);
   var tax = c.taxExempt ? 0 : sub * 0.075;
   var grand = sub + tax + (c.delivery || 0) - (c.discount || 0);
   var nextNum = 'INV-' + String((invCounter || 0) + 1).padStart(5, '0');
@@ -3845,7 +3897,7 @@ function showInvoice(existingInvNum) {
       '<div style="background:#f5f0e8;border:1px solid #d5c8a8;border-radius:8px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.6">' +
         '<div style="font-weight:700;font-size:16px">' + nsEsc(fromQuote || 'Quote') + ' &nbsp;<span style="color:#6b5a3a">&rarr;</span>&nbsp; ' + nsEsc(nextNum) + '</div>' +
         '<div>' + nsEsc(c.name || '—') + (c.co ? ' — ' + nsEsc(c.co) : '') + '</div>' +
-        '<div>' + lines.length + ' item(s) &nbsp;·&nbsp; <strong>$' + grand.toFixed(2) + '</strong></div>' +
+        '<div>' + invoiceLines.length + ' item(s) &nbsp;·&nbsp; <strong>$' + grand.toFixed(2) + '</strong></div>' +
         (dups.length ? '<div style="margin-top:8px;padding:8px 10px;background:#fde8e8;border:1px solid #e08080;border-radius:6px;color:#a5251a;font-weight:700">⚠️ ' + dups.map(function(d){ return nsEsc(d.quoteNum); }).join(', ') + ' already exist' + (dups.length === 1 ? 's' : '') + ' for ' + nsEsc(c.name) + ' at this same total. Are you sure you need another one?</div>' : '') +
       '</div>' +
       '<div style="font-size:13px;color:#6b5a3a;margin-bottom:6px">This assigns an official invoice number, saves it to <strong>Saved Invoices</strong> on every device, puts it on the Order Tracker and the daily balance reports, and deducts stock. The quote moves to the Converted section of Saved Quotes.</div>' +
@@ -3869,6 +3921,11 @@ function showInvoice(existingInvNum) {
   okBtn.onclick = function() {
     if (!who) return;
     close();
+    if (selectedOption) {
+      saveCurrentQuote('quote');
+      lines = invoiceLines;
+      delete selectedOption.quoteOption;
+    }
     nsShowInvoiceNow(null);
     // Stamp who turned it into an invoice on the saved record
     try {
@@ -5066,11 +5123,13 @@ function nsPOName(customer, rep, date) {
 
 function saveCurrentQuote(type) {
   var c = getCustomer();
-  var sub = lines.reduce(function(s,l){return s+l.retail*l.qty;}, 0);
+  var hasOptions = type === 'quote' && lines.some(l => l.quoteOption);
+  var pricedLines = hasOptions ? lines.filter(l => !l.quoteOption) : lines;
+  var sub = pricedLines.reduce(function(s,l){return s+l.retail*l.qty;}, 0);
   var tax = c.taxExempt ? 0 : sub * 0.075;
   var deliv = c.delivery || 0;
   var disc = c.discount || 0;
-  var grand = sub + tax + deliv - disc;
+  var grand = hasOptions ? 0 : sub + tax + deliv - disc;
   
   var record = {
     id: Date.now(),
@@ -5095,8 +5154,8 @@ function saveCurrentQuote(type) {
     paymentHistory: [],
     rep: c.rep || 'Lance',
     // For reporting
-    cost: lines.reduce(function(s,l){return s+(l.cost||0)*l.qty;}, 0),
-    profit: grand - lines.reduce(function(s,l){return s+(l.cost||0)*l.qty;}, 0)
+    cost: pricedLines.reduce(function(s,l){return s+(l.cost||0)*l.qty;}, 0),
+    profit: hasOptions ? 0 : grand - pricedLines.reduce(function(s,l){return s+(l.cost||0)*l.qty;}, 0)
   };
   var quotes = getSavedQuotes();
   // Check if same quote number exists - update it
@@ -5612,7 +5671,7 @@ function renderHistory() {
         '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
-        '<div class="hcard-total">$' + (q.grand || 0).toFixed(2) + '</div>' +
+        '<div class="hcard-total">' + ((q.lines || []).some(l => l.quoteOption) ? 'Choose one option' : '$' + (q.grand || 0).toFixed(2)) + '</div>' +
         (ps && ps.paid > 0 ? '<div style="font-size:11px;color:#2d6a30;font-weight:600;margin-top:2px">Paid: $' + ps.paid.toFixed(2) + '</div>' : '') +
         (ps && ps.balance > 0.01 ? '<div><span class="hcard-owe">OWES $' + ps.balance.toFixed(2) + '</span></div>' : '') +
         (q.discount > 0 ? '<div style="font-size:11px;color:#c04040;font-weight:600">-$' + q.discount.toFixed(2) + ' disc.</div>' : '') +
