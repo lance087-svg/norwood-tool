@@ -94,3 +94,10 @@ test('normal history flags both storage sources; overdue rows open the correct e
   c.document.querySelectorAll('.ns-aging-open').forEach(button=>button.click());
   assert.deepEqual(calls.sort(),[['cloud',2,'invoice'],['local',1,'invoice']]);
 });
+test('legacy fractions of a cent match existing invoice balances and the visible subtotal',()=>{
+  const c=setup([inv(1,{grand:1.005}),inv(2,{grand:2.005})]);
+  c.NWInvoiceAging.showOverdue();
+  const balances=Array.from(c.document.querySelectorAll('.hcard-owe'),el=>el.textContent);
+  assert.deepEqual(balances,['OWES $1.00','OWES $2.00']);
+  assert.match(c.document.getElementById('ns-aging-summary').textContent,/Subtotal: \$3.00/);
+});

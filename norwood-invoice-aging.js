@@ -30,7 +30,9 @@
   }
   function state(q, now) {
     if (!q || q.removed || q.type !== 'invoice') return {flagged:false};
-    var balance = root.nsPayState(q).balance;
+    // Match the existing invoice's two-decimal balance before adding subtotals.
+    // Legacy totals can contain fractions of a cent after tax calculations.
+    var balance = Number(root.nsPayState(q).balance.toFixed(2));
     if (!(balance > 0.01)) return {flagged:false, balance:0};
     var due = q.dueDate || (q.ops && q.ops.dueDate), start = day(due), basis = 'due';
     if (start == null) {

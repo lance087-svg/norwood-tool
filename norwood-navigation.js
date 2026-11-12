@@ -52,5 +52,5 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
 /* Invoice aging is isolated from the pricing and payment write paths. */
 (function(){
  var css=document.createElement('link');css.rel='stylesheet';css.href='norwood-invoice-aging.css?v=20261112-over45';document.head.appendChild(css);
- var script=document.createElement('script');script.src='norwood-invoice-aging.js?v=20261112-over45';document.head.appendChild(script);
+ var script=document.createElement('script');script.src='norwood-invoice-aging.js?v=20261112-over45-2';document.head.appendChild(script);
 })();
