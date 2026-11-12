@@ -1,0 +1,9 @@
+.ns-aging-summary { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:15px 18px; margin:0 0 16px; border:1px solid #d5c8a8; border-radius:8px; background:#fffdf8; color:#493b26; }
+.ns-aging-summary.has-overdue { border-color:#db9c94; background:#fff5f3; color:#84281d; }
+.ns-aging-total { margin:5px 0; font-size:16px; }
+.ns-aging-total b { font-size:22px; }
+.ns-aging-summary small { display:block; font-size:12px; line-height:1.6; }
+.ns-aging-summary .btn { padding:10px 14px; background:#9c3023; color:white; border-radius:6px; font-size:13px; }
+.ns-aging-note { margin-top:6px; font-size:12px; font-weight:700; }
+.ns-aging-flag { display:inline-block; padding:3px 7px; border:1px solid #b84738; border-radius:4px; background:#ffe6e0; color:#8c2115; font-size:11px; font-weight:800; line-height:1.4; }
+@media print { #ns-aging-summary { display:none!important; } }
