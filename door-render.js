@@ -44,7 +44,8 @@
     // lite / style
     var lite=(ds.renderLite||'').toLowerCase();
     if(!lite){
-      if(/full[- ]?lite|flush\s*gl|\bfull\b.*(glass|lite)|french|15[- ]lite|1[- ]lite\b/.test(t)) lite='full';
+      if(/\b(?:10|ten)[- ]?(?:lite|light)\b/.test(t)) lite='10-lite';
+      else if(/full[- ]?lite|flush\s*gl|\bfull\b.*(glass|lite)|french|15[- ]lite|1[- ]lite\b/.test(t)) lite='full';
       else if(/3\/4[- ]?lite|three.quarter/.test(t)) lite='3/4';
       else if(/half[- ]?lite|1\/2[- ]?lite|\b9[- ]lite|fan[- ]?lite/.test(t)) lite='half';
       else if(/\b(3|4|6)[- ]lite|craftsman/.test(t)) lite='craftsman';
@@ -72,7 +73,8 @@
     else swing=/out/.test(swing)?'outswing':'inswing';
     spec.swing=swing;
     spec.exterior = !/interior/.test(t) || /exterior/.test(t);
-    spec.finish = /black/.test(t)?'#2b2b2b':/(oak|wood|stain|mahogany|fir|cherry)/.test(t)?'#b57a3f':'#fdfdfb';
+    var finishText=t.replace(/(?:flat\s+)?black\s+(?:(?:3-1\/2(?:-inch)?|radius|corner)\s+)*hinges?/g,'').replace(/primed wood bars/g,'');
+    spec.finish = /black/.test(finishText)?'#2b2b2b':/(oak|wood|stain|mahogany|fir|cherry)/.test(finishText)?'#b57a3f':'#fdfdfb';
     spec.label = l.item||'';
     return spec;
   };
@@ -83,7 +85,7 @@
   function glass(x,y,w,h,kind){
     var o=rr(x,y,w,h,'#cfe4f2','#6b8fa6',2)+rr(x+5,y+5,w-10,h-10,'none','#fff',1.5);
     o+='<line x1="'+(x+w*.12)+'" y1="'+(y+h*.1)+'" x2="'+(x+w*.42)+'" y2="'+(y+h*.5)+'" stroke="#fff" stroke-width="5" opacity=".55"/>';
-    if(kind==='grid'){ var cols=3, rows=Math.max(3,Math.round(h/(w/cols))); for(var i=1;i<cols;i++) o+='<line x1="'+(x+w*i/cols)+'" y1="'+y+'" x2="'+(x+w*i/cols)+'" y2="'+(y+h)+'" stroke="#fff" stroke-width="3"/>'; for(var j=1;j<rows;j++) o+='<line x1="'+x+'" y1="'+(y+h*j/rows)+'" x2="'+(x+w)+'" y2="'+(y+h*j/rows)+'" stroke="#fff" stroke-width="3"/>'; }
+    if(kind==='grid'||kind==='10-lite'){ var cols=kind==='10-lite'?2:3, rows=kind==='10-lite'?5:Math.max(3,Math.round(h/(w/cols))); for(var i=1;i<cols;i++) o+='<line x1="'+(x+w*i/cols)+'" y1="'+y+'" x2="'+(x+w*i/cols)+'" y2="'+(y+h)+'" stroke="#fff" stroke-width="3"/>'; for(var j=1;j<rows;j++) o+='<line x1="'+x+'" y1="'+(y+h*j/rows)+'" x2="'+(x+w)+'" y2="'+(y+h*j/rows)+'" stroke="#fff" stroke-width="3"/>'; }
     return o;
   }
   function panelsFor(style,x,y,w,h,dark){
@@ -98,7 +100,8 @@
     var dark = spec.finish!=='#fdfdfb';
     var o=rr(x,y,w,h,spec.finish,'#444',2.5);
     var lite=spec.lite;
-    if(lite==='full'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.88,'grid'==(spec.grid?'grid':'') ? 'grid':''); }
+    if(lite==='10-lite'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.88,'10-lite'); }
+    else if(lite==='full'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.88,'grid'==(spec.grid?'grid':'') ? 'grid':''); }
     else if(lite==='3/4'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.62,''); o+=panel(x+.14*w,y+.72*h,.30*w,.20*h,dark)+panel(x+.56*w,y+.72*h,.30*w,.20*h,dark); }
     else if(lite==='half'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.44,''); o+=panel(x+.14*w,y+.55*h,.30*w,.37*h,dark)+panel(x+.56*w,y+.55*h,.30*w,.37*h,dark); }
     else if(lite==='craftsman'){ o+=glass(x+w*.13,y+h*.05,w*.74,h*.22,'grid'); o+=panelsFor('craftsman',x,y,w,h,dark); }
@@ -163,6 +166,41 @@
   NS.dataUri = function(svg){ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); };
   NS.thumb = function(l, px){ var s=NS.specFromLine(l); if(!s) return ''; px=px||46; return '<img src="'+NS.dataUri(NS.svg(s,{compact:true}))+'" style="width:'+px+'px;height:'+Math.round(px*1.3)+'px;object-fit:contain;background:#fff;border-radius:4px;border:1px solid #d5c8a8;flex-shrink:0" alt="door">'; };
 
+// Optional labeled note blocks keep customer updates legible in print and PDF.
+function nsInvoiceNotesHTML(notes) {
+  if (!notes) return '';
+  var esc = function(text) { return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var sections = String(notes).split(/\n\s*\n|\s+(?=\[(?:ARRIVAL UPDATE|DOOR EXCHANGE|ORDER DETAILS)\])/);
+  return sections.map(function(section) {
+    var match = section.match(/^\[(ARRIVAL UPDATE|DOOR EXCHANGE|ORDER DETAILS)\]\s*([\s\S]*)$/);
+    if (!match) return '<div class="inv-terms"><strong>Notes:</strong> '+esc(section).replace(/\n/g,'<br>')+'</div>';
+    var exchange = match[1] === 'DOOR EXCHANGE';
+    var color = exchange ? '#24624d' : '#ad4a0b';
+    var bg = exchange ? '#edf7f1' : '#fff4e5';
+    return '<div style="break-inside:avoid;margin-top:12px;padding:12px 16px;border:1px solid '+color+';border-left:5px solid '+color+';border-radius:6px;background:'+bg+';-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:system-ui,sans-serif"><div style="font-size:11px;font-weight:800;letter-spacing:1px;color:'+color+';margin-bottom:5px">'+match[1]+'</div><div style="font-size:12px;line-height:1.6;color:#28352e">'+esc(match[2]).replace(/\n/g,'<br>')+'</div></div>';
+  }).join('');
+}
+
+// Format existing customer-facing notes after invoice generation, preserving saved text.
+  var originalInvoice = window.nsShowInvoiceNow;
+  if (typeof originalInvoice === 'function') window.nsShowInvoiceNow = function() {
+    var result = originalInvoice.apply(this, arguments);
+    document.querySelectorAll('#invoice-content .inv-terms').forEach(function(box) {
+      var text = box.textContent.replace(/^Notes:\s*/, '');
+      if (/^\[(?:ARRIVAL UPDATE|DOOR EXCHANGE|ORDER DETAILS)\]/.test(text)) box.outerHTML = nsInvoiceNotesHTML(text);
+    });
+    document.querySelectorAll('#invoice-content .inv-table td strong').forEach(function(title) {
+      var detail = title.parentElement.querySelector('span[style]');
+      if (detail && detail.textContent.replace(/ · SKU:CUSTOM$/, '').trim() === title.textContent.trim()) {
+        detail.remove();
+      }
+    });
+    document.querySelectorAll('#invoice-content img[alt="door"]').forEach(function(img) {
+      if (decodeURIComponent(img.src).includes('stroke-width="3"')) { img.style.width='96px'; img.style.height='116px'; }
+    });
+    return result;
+  };
+
   /* ---------- PNG / share ---------- */
   NS.toPng = function(svg, scale, cb){
     var img=new Image(); var m=svg.match(/width="(\d+)" height="(\d+)"/); var w=+m[1], h=+m[2]; scale=scale||2;
@@ -203,7 +241,7 @@
       +sel('width',s.config==='double'?'Leaf width':'Door width',widths,String(Math.round(s.width)))
       +sel('height','Height',heights,String(Math.round(s.height)))
       +sel('style','Panel style',[['6-panel','6-panel'],['2-panel','2-panel'],['shaker','Shaker'],['craftsman','Craftsman'],['flush','Flush']],s.style)
-      +sel('lite','Glass',[['none','None'],['half','Half lite'],['3/4','3/4 lite'],['full','Full lite'],['craftsman','Craftsman 3-lite'],['oval','Oval / decorative']],s.lite)
+      +sel('lite','Glass',[['none','None'],['half','Half lite'],['3/4','3/4 lite'],['full','Full lite'],['10-lite','10 divided lights (2 × 5)'],['craftsman','Craftsman 3-lite'],['oval','Oval / decorative']],s.lite)
       +sel('hand','Hand (from outside)',[['RH','Right hand'],['LH','Left hand']],s.hand)
       +sel('swing','Swing',[['inswing','Inswing'],['outswing','Outswing']],s.swing);
     NS.redraw();
