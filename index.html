@@ -3484,7 +3484,6 @@ function populateSpecOtherSelect(prefix, field, knownValues, storedValue) {
 function doorSpecChipHTML(spec) {
   var parts = [];
   if(spec.nominalSize) parts.push('Door ' + spec.nominalSize);
-  if(spec.sizingEstimate) parts.push('Sizing estimate — verify supplier');
   if(spec.hand) parts.push(spec.hand);
   if(spec.swing) parts.push(spec.swing);
   if(spec.roughOpening) parts.push('RO ' + spec.roughOpening);
@@ -3783,7 +3782,6 @@ function orderConfirmationHTML(lineArr, prefix) {
       if(s.hand) parts.push(s.hand);
       if(s.swing) parts.push(s.swing);
       if(s.nominalSize) parts.push('Door ' + s.nominalSize);
-      if(s.sizingEstimate) parts.push('Sizing estimate — verify supplier');
       if(s.roughOpening) parts.push('RO ' + s.roughOpening);
       if(s.netSize) parts.push('Net ' + s.netSize);
       if(s.jambWidth) parts.push(s.jambWidth + (s.jambMaterial ? ' ' + s.jambMaterial : '') + ' jamb');
@@ -4636,7 +4634,6 @@ function addSpecialOrderDoor() {
   if(spec.swing) specBits.push(spec.swing);
   if(spec.nominalSize) specBits.push('Door ' + spec.nominalSize);
   if(spec.netSize) specBits.push('Net unit ' + spec.netSize);
-  if(spec.sizingEstimate) specBits.push('sizing estimate — verify supplier');
   if(specBits.length) desc += ', ' + specBits.join(', ');
 
   var newLine = {
