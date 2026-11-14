@@ -1289,7 +1289,7 @@ tr:hover td{background:#fdf9f3}
 <div id="doorspec-modal" class="modal-bg hidden" onclick="if(event.target===this)closeDoorSpecEdit()">
   <div class="modal">
     <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">🚪 Door Spec</div>
-    <div id="ds-item-label" style="font-size:12px;color:#8B6914;margin-bottom:18px"></div>
+    <div id="ds-item-label" style="font-size:12px;color:#8B6914;margin-bottom:8px"></div><div class="fg" style="margin-bottom:12px"><label class="lbl" for="ds-description">Product description (shown to customer)</label><input type="text" id="ds-description"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="fg"><label class="lbl">Hand</label>
         <select id="ds-hand"><option value="">— Select —</option><option value="LH">Left Hand (LH)</option><option value="RH">Right Hand (RH)</option><option value="N/A">N/A — double/pair</option></select>
@@ -3502,6 +3502,7 @@ function openDoorSpecEdit(lineId) {
   if(!l) return;
   dsEditingLineId = lineId;
   document.getElementById('ds-item-label').textContent = l.item;
+  document.getElementById('ds-description').value = l.item || '';
   var s = l.doorSpec || {};
   document.getElementById('ds-additional-details').value = s.additionalDetails || '';
   document.getElementById('ds-hand').value = s.hand || '';
@@ -3523,6 +3524,9 @@ function closeDoorSpecEdit() {
 function saveDoorSpecEdit() {
   var l = lines.find(function(x){ return x.lineId === dsEditingLineId; });
   if(!l) { closeDoorSpecEdit(); return; }
+  var oldItem = l.item;
+  var editedItem = document.getElementById('ds-description').value.trim();
+  if(editedItem) { l.item = editedItem; if(l.description === oldItem) l.description = editedItem; }
   var spec = {
     additionalDetails: document.getElementById('ds-additional-details').value.trim(),
     hand: document.getElementById('ds-hand').value,
@@ -3800,8 +3804,19 @@ function orderConfirmationHTML(lineArr, prefix) {
   return html;
 }
 function doorDetailsHTML(line) {
-  var details = line.doorSpec && line.doorSpec.additionalDetails;
-  return details ? '<div style="font-size:11px;font-weight:700;overflow-wrap:anywhere">' + nsEsc(details) + '</div>' : '';
+  var s = line.doorSpec || {}, parts = [];
+  if(s.nominalSize) parts.push('Door size: ' + s.nominalSize + ' in');
+  if(s.hand) parts.push('Hand: ' + s.hand);
+  if(s.swing) parts.push('Swing: ' + s.swing);
+  if(s.roughOpening) parts.push('Rough opening: ' + s.roughOpening + ' in');
+  if(s.netSize) parts.push('Net unit size: ' + s.netSize + ' in');
+  if(s.jambWidth) parts.push('Jamb: ' + s.jambWidth + (s.jambMaterial ? ' ' + s.jambMaterial : ''));
+  else if(s.jambMaterial) parts.push('Jamb material: ' + s.jambMaterial);
+  if(s.texture) parts.push('Texture: ' + s.texture);
+  if(s.thresholdFinish) parts.push('Threshold: ' + s.thresholdFinish);
+  if(s.hingeFinish) parts.push('Hinges: ' + s.hingeFinish);
+  if(s.additionalDetails) parts.push(s.additionalDetails);
+  return parts.length ? '<div style="font-size:11px;font-weight:600;line-height:1.45;overflow-wrap:anywhere">' + parts.map(nsEsc).join(' &middot; ') + '</div>' : '';
 }
 function quoteOptionTotalsHTML(options, customer) {
   return '<div style="margin:12px 0;font-weight:700">Choose one option. Each total includes the regular items shown above, if any.</div>' +
