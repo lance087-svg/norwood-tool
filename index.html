@@ -4988,7 +4988,7 @@ function getSavedQuotesRaw() {
   catch(e) { return []; }
 }
 function getSavedQuotes() {
-  return getSavedQuotesRaw().filter(function(q){ return q && !q.removed; });
+  return getSavedQuotesRaw().filter(function(q){ return q && !q.removed && q.type !== 'credit'; });
 }
 function getDeletedQuotes() {
   return getSavedQuotesRaw().filter(function(q){ return q && q.removed; });
@@ -5109,12 +5109,12 @@ function nsSafeSetQuotes(list, recovering) {
 }
 function saveQuotesToStorage(quotes, raw) {
   // Callers work with the visible (non-removed) list; re-attach the deleted
-  // records they never saw so the 30-day bin survives every save. Pass
+  // records and credit memos they never saw so both survive every save. Pass
   // raw=true when the list already includes removed records.
   if (!raw && Array.isArray(quotes)) {
     var seen = {};
     quotes.forEach(function(q){ if (q && q.id !== undefined) seen[String(q.id)] = true; });
-    var removed = getDeletedQuotes().filter(function(q){ return !seen[String(q.id)]; });
+    var removed = getSavedQuotesRaw().filter(function(q){ return q && (q.removed || q.type === 'credit') && !seen[String(q.id)]; });
     if (removed.length) quotes = quotes.concat(removed);
   }
   nsSafeSetQuotes(quotes);
@@ -5360,7 +5360,7 @@ function renderCloudOlderSection(container, search, filter) {
   var local = {};
   getSavedQuotesRaw().forEach(function(q){ if (q) local[String(q.id)] = 1; });
   var hits = window.__nsCloudAll.filter(function(q) {
-    if (!q || q.removed || local[String(q.id)] || !nsHistoryPeriodMatch(q, search)) return false;
+    if (!q || q.removed || q.type === 'credit' || local[String(q.id)] || !nsHistoryPeriodMatch(q, search)) return false;
     if (search && !nsQuoteMatchesSearch(q, search)) return false;
     if (filter === 'quote') return q.type === 'quote';
     if (filter === 'invoice') return q.type === 'invoice';
@@ -10490,6 +10490,7 @@ console.log('[PICKUP] active');
   <script src="norwood-operations.js?v=20261027-whole-counts"></script>
   <script src="norwood-navigation.js?v=20261112-invoice-over45-2"></script>
   <script src="norwood-fulfillment.js?v=20260930-customer-receipt"></script>
+  <script src="norwood-credits.js?v=20261116-credit-memo"></script>
   <script src="ns-version.js?v=20260930-customer-receipt"></script>
 </body>
 </html>
