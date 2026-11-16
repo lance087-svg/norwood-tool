@@ -143,6 +143,7 @@ def main():
     re_std=re.compile(r"^(PT|SYP|SPF) #2 (\d+x\d+) x (\d+)'$")
     re_512=re.compile(r"^PT #2 1x\.256 x (\d+)'$")
     re_single=re.compile(r"^PT #2 (1x2|2x2) x (\d+)'$")
+    re_precut_alt=re.compile(r"^SPF #2 (2x[46]) x (\d+)&5/8$" )
     re_precut=re.compile(r"^SPF #2 (2x[46])(\d+)&5/ x \d+'$")
     re_cdx=re.compile(r'^CDX (\d/\d+)" Plywood$')
     re_ptply=re.compile(r'^PT Plywood (\d/\d+)"$')
@@ -168,8 +169,9 @@ def main():
             L=int(re_512.match(name).group(1)); v=PT.get('5/4x6',{}).get(L)
             if v is not None: newM=v; newcost=round((v/1000)*bf_dim(1.25,6,L),2)
             else: skipped.append(name); continue
-        elif re_precut.match(name):
-            dim,pre=re_precut.match(name).group(1),re_precut.match(name).group(2)
+        elif re_precut.match(name) or re_precut_alt.match(name):
+            match=re_precut.match(name) or re_precut_alt.match(name)
+            dim,pre=match.group(1),match.group(2)
             inch={'92':92.625,'104':104.625,'116':116.625}.get(pre)
             v=SPF_PRECUT.get((dim,inch))
             if v is not None: t,w=nomtw(dim); newM=v; newcost=round((v/1000)*bf_pre(t,w,inch),2)
@@ -184,7 +186,7 @@ def main():
             else: skipped.append(name); continue
         else:
             skipped.append(name); continue
-        it['cost']=newcost; it['pricePerM']=str(int(newM) if float(newM).is_integer() else newM)
+        it['wholesaleCostRevision']=datetime.datetime.strptime(sheet_date, '%m.%d.%Y').strftime('%Y-%m-%d-wbp'); it['cost']=newcost; it['pricePerM']=str(int(newM) if float(newM).is_integer() else newM)
         if it.get('group') == 'Plywood':
             it['fixedRetail'] = round(newcost * 1.30, 2)
         updated+=1
