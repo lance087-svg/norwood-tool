@@ -20,6 +20,11 @@ for(const [d,expect] of [['2026-10-01','Current'],['2026-09-30','Current'],['202
 const html='<div class="header"><nav class="nav"><button id="tab-quote" class="tab">Quote Builder</button><button class="tab">Saved Quotes</button></nav></div><div class="main"><div class="page active" id="page-quote"></div><div class="page" id="page-polog"><div id="mock-po-log"></div></div></div><div id="mock-status"></div>';
 const dom=new JSDOM(html,{url:'https://isolated.test/',runScripts:'outside-only'}),w=dom.window;
 w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
+const hostSource=fs.readFileSync(__dirname+'/../index.html','utf8');
+for(const name of ['nsIsTLC','nsPOItemText','nsPOForCorrespondence']){
+ const start=hostSource.indexOf('function '+name+'(');
+ w.eval(hostSource.slice(start,hostSource.indexOf('\n}',start)+2));
+}
 w.eval(fs.readFileSync(__dirname+'/mock-host.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../norwood-operations.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
 const doc=w.document,tick=()=>new Promise(r=>setTimeout(r,5));
 function fill(name,val){doc.querySelector('[name="'+name+'"]').value=val}
@@ -27,6 +32,21 @@ async function save(){doc.querySelector('#ops-form').dispatchEvent(new w.Event('
 function action(a,id){const b=[...doc.querySelectorAll('[data-action="'+a+'"]')].find(b=>id==null||b.dataset.id===String(id));assert.ok(b,'Missing '+a+' '+id);b.click()}
 (async()=>{
  assert.equal(w.NWTestDB.writes.length,0,'Opening must be read only');w.NWOperations.show('purchasing');assert.equal(w.NWTestDB.writes.length,0);
+ const originalPOs=w.getPOLog;
+ w.getPOLog=()=>[{...po,vendorName:'TLC Millwork',customerName:'Sample customer',ack:{ref:'TLC-test'},receiving:{items:{0:{qtyReceived:280}}}}];
+ w.NWOperations.show('purchasing');
+ const results=doc.querySelector('#attention-results');
+ assert.match(results.textContent,/Outstanding 20/);
+ assert.match(results.textContent,/Needs ETA/);
+ const draft=new URL(results.querySelector('a').href);
+ assert.equal(draft.searchParams.get('to'),'jjackson@tlcmillwork.com');
+ assert.match(draft.searchParams.get('body'),/20 outstanding/);
+ const search=doc.querySelector('#attention-search');
+ search.value='another job';search.dispatchEvent(new w.Event('input',{bubbles:true}));
+ assert.match(results.textContent,/No matching/);
+ search.value='sample';search.dispatchEvent(new w.Event('input',{bubbles:true}));
+ assert.match(results.textContent,/TLC-test/);
+ w.getPOLog=originalPOs;w.NWOperations.show('purchasing');
  action('receive',15112);assert.equal(doc.querySelector('[name="received-0"]').step,'1');assert.equal(doc.querySelector('[name="damaged-0"]').step,'1');fill('received-0','280.5');assert.equal(doc.querySelector('[name="received-0"]').checkValidity(),false);fill('received-0','280');fill('damaged-0','5');doc.querySelector('[name="received-0"]').dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(doc.querySelector('[data-outstanding="0"]').textContent,'20');await save();assert.equal(doc.querySelector('#ops-dialog'),null);assert.equal(w.getPOLog()[0].receiving.items[0].qtyOutstanding,20);
  w.NWOperations.show('inventory');assert.equal(doc.querySelectorAll('[data-action="ack"]').length,1);action('ack');await tick();assert.ok(w.getPOLog()[0].receiving.history[0].acknowledgedAt);
  await w.NWOperations.postStock(15112,'Lance');assert.equal(w.NWTestDB.docs['norwood/sample-lumber'].qoh,375);await assert.rejects(()=>w.NWOperations.postStock(15112,'Lance'),/No new accepted/);assert.equal(w.NWTestDB.docs['norwood/sample-lumber'].qoh,375);
