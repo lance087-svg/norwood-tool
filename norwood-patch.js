@@ -1382,12 +1382,11 @@ window.copyToNewQuote = function(id) {
   var originalSetMargin = window.setManualGM;
   window.setManualGM = function (gm, index) {
     lines.forEach(function (line) {
-      // Older records use isCustom both for entered items and for locked prices.
-      if (!line.isCustom || line.pricePending || !(line.cost > 0) ||
-          !(line.gm > 0 && line.gm < 1) || !['CUSTOM', 'SO-DOOR'].includes(line.sku) ||
-          line.retail !== Math.round(line.cost / (1 - line.gm))) return;
+      // An explicit quote-wide override includes saved, imported and manually priced lines.
+      // Ordinary quantity edits still retain the current price of these lines.
+      if (!line.isCustom || line.pricePending || !(Number(line.cost) > 0)) return;
       line.gm = gm;
-      line.retail = Math.round(line.cost / (1 - gm));
+      line.retail = calcRetail(Number(line.cost), gm, null, line);
     });
     originalSetMargin(gm, index);
   };
