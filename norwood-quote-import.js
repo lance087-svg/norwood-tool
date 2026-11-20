@@ -245,7 +245,9 @@
   function esc(s){return String(s).replace(/"/g,'&quot;');}
   function marginDec(){ var m=num(document.getElementById('nqi-margin').value); m=Math.min(90,Math.max(0,m)); return m/100; }
   function retailOf(cost){ var g=marginDec(); return g<0.999? Math.round(cost/(1-g)) : cost; }
+  var resultVendor;
   function render(res){
+    resultVendor = res.vendor;
     ROWS=res.items.map(function(it){return {qty:it.qty||1,uom:it.uom||'EA',code:it.code||'',desc:it.desc||'',cost:it.unit||0};});
     var badge=document.getElementById('nqi-badge');
     if(!ROWS.length){ badge.className='nqi-badge warn'; badge.textContent='Couldn\u2019t find line items — edit the paste or add manually'; }
@@ -299,9 +301,12 @@
       }
     }
     var g=marginDec();
+    var vendorQuoteSource = ['dyke', 'tlc'].includes(resultVendor)
+      ? {vendor: resultVendor, recordedAt: new Date().toISOString()}
+      : undefined;
     ROWS.forEach(function(r){
       var unit = g<0.999 ? Math.round(r.cost/(1-g)) : r.cost;
-      lines.push({id:uid(),sku:(r.code||'CUSTOM'),item:titleFrom(r),category:'Special Order',group:'Custom',size:'',description:r.desc,cost:r.cost,onHand:null,uom:(r.uom||'EA'),isCustom:true,imageUrl:'',qty:r.qty,retail:unit,gm:g,lineId:uid()});
+      lines.push({id:uid(),sku:(r.code||'CUSTOM'),item:titleFrom(r),category:'Special Order',group:'Custom',size:'',description:r.desc,cost:r.cost,vendorQuoteSource:vendorQuoteSource ? {...vendorQuoteSource, unitCost:r.cost} : undefined,onHand:null,uom:(r.uom||'EA'),isCustom:true,imageUrl:'',qty:r.qty,retail:unit,gm:g,lineId:uid()});
     });
     if(typeof renderLines==='function') renderLines();
     if(typeof renderSummary==='function') renderSummary();

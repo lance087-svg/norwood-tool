@@ -1365,6 +1365,20 @@ tr:hover td{background:#fdf9f3}
      wrong-hand/wrong-size mistakes have come from. -->
 <div id="sodoor-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSpecialOrderDoor()">
   <div class="modal">
+    <details id="sod-lookup" style="margin-bottom:16px;padding:12px;border:1px solid #e8dcc0;border-radius:8px">
+      <summary style="cursor:pointer;font-weight:700">Look up recent vendor costs</summary>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+        <div class="fg" style="flex:1;min-width:180px">
+          <label class="lbl" for="sod-lookup-search">Door style, size or vendor code</label>
+          <input type="search" id="sod-lookup-search" placeholder="Monroe hollow core prehung">
+        </div>
+        <div class="fg">
+          <label class="lbl" for="sod-lookup-qty">Qty</label>
+          <input type="number" id="sod-lookup-qty" min="1" step="1" value="1" style="width:76px">
+        </div>
+      </div>
+      <div id="sod-lookup-results" style="max-height:340px;overflow:auto"></div>
+    </details>
     <div style="font-size:17px;font-weight:700;color:#1a1008;margin-bottom:4px">🚪 Special Order Door</div>
     <div style="font-size:12px;color:#8B6914;margin-bottom:16px">For doors not in the catalog — structured the same way, so nothing gets lost in a sentence</div>
 
@@ -1458,13 +1472,14 @@ tr:hover td{background:#fdf9f3}
       <div class="fg"><label class="lbl">Your Cost ($) *</label><input type="number" id="sod-cost" min="0" step="0.01" oninput="updateSODPreview()"></div>
       <div class="fg"><label class="lbl">Qty</label><input type="number" id="sod-qty" min="1" value="1" oninput="updateSODPreview()" style="text-align:center;font-weight:600"></div>
       <div class="fg">
-        <label class="lbl">Margin %</label>
+        <label class="lbl" for="sod-gm">Pricing</label>
         <select id="sod-gm" onchange="updateSODPreview()">
-          <option value="0.40">40% — Single</option>
-          <option value="0.35">35% — 2-5</option>
-          <option value="0.30" selected="">30% — 6+</option>
-          <option value="0.22">22% — Volume</option>
-          <option value="custom">Custom %</option>
+          <option value="auto" selected>Automatic markup</option>
+          <option value="0.40">40% gross margin</option>
+          <option value="0.35">35% gross margin</option>
+          <option value="0.30">30% gross margin</option>
+          <option value="0.22">22% gross margin</option>
+          <option value="custom">Custom gross margin</option>
         </select>
       </div>
     </div>
@@ -1479,7 +1494,7 @@ tr:hover td{background:#fdf9f3}
       <div style="display:flex;gap:20px;align-items:center">
         <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">Unit Price</div><div id="sod-unit-price" style="font-size:22px;font-weight:700;font-family:Georgia,serif;color:#1a1008">$0.00</div></div>
         <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">Extended</div><div id="sod-ext-price" style="font-size:22px;font-weight:700;font-family:Georgia,serif;color:#c8952a">$0.00</div></div>
-        <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px">GM</div><div id="sod-gm-pct" style="font-size:16px;font-weight:700;color:#2d6a30">30%</div></div>
+        <div style="text-align:center"><div style="font-size:10px;font-weight:600;color:#8B6914;text-transform:uppercase;margin-bottom:2px"><span id="sod-rate-label">Markup</span></div><div id="sod-gm-pct" style="font-size:16px;font-weight:700;color:#2d6a30">30%</div></div>
       </div>
     </div>
 
@@ -4591,16 +4606,29 @@ function getSODGM() {
   if(sel==='custom'){ var v=parseFloat(document.getElementById('sod-custom-gm').value); return isNaN(v)?null:v/100; }
   return parseFloat(sel);
 }
+function nsSpecialOrderMarkup(cost, qty) {
+  const markup = qty >= 2 ? 30 : cost < 100 ? 50 : 40;
+  const unit = Math.round(Math.round(cost * 100) * (100 + markup) / 100) / 100;
+  return {unit, gm: (unit - cost) / unit, markup};
+}
+function getSpecialOrderDoorPricing(cost, qty) {
+  if(document.getElementById('sod-gm').value === 'auto') return nsSpecialOrderMarkup(cost, qty);
+  const gm = getSODGM();
+  if(!(gm > 0 && gm < 1)) return null;
+  return {unit: Math.round(cost / (1 - gm)), gm};
+}
 function updateSODPreview() {
   if(document.getElementById('sod-price-pending').checked){ document.getElementById('sod-preview').classList.add('hidden'); return; }
   var cost=parseFloat(document.getElementById('sod-cost').value);
   var qty=parseInt(document.getElementById('sod-qty').value)||1;
-  var gm=getSODGM();
-  if(!cost||cost<=0||!gm){ document.getElementById('sod-preview').classList.add('hidden'); return; }
-  var unit=Math.round(cost/(1-gm));
+  const pricing = cost > 0 ? getSpecialOrderDoorPricing(cost, qty) : null;
+  document.getElementById('sod-custom-gm-row').classList.toggle('hidden', document.getElementById('sod-gm').value !== 'custom');
+  if(!pricing){ document.getElementById('sod-preview').classList.add('hidden'); return; }
+  const {unit, gm, markup} = pricing;
   document.getElementById('sod-unit-price').textContent='$'+unit.toFixed(2);
   document.getElementById('sod-ext-price').textContent='$'+(unit*qty).toFixed(2);
-  document.getElementById('sod-gm-pct').textContent=Math.round(gm*100)+'%';
+  document.getElementById('sod-rate-label').textContent = markup === undefined ? 'Gross Margin' : 'Markup';
+  document.getElementById('sod-gm-pct').textContent = (markup ?? Math.round(gm * 100)) + '%';
   document.getElementById('sod-preview').classList.remove('hidden');
 }
 function handleSODPhotoUpload(input) {
@@ -4633,11 +4661,7 @@ function showSpecialOrderDoor() {
   document.getElementById('sod-cost').value='';
   document.getElementById('sod-qty').value=1;
   document.getElementById('sod-qty-pending').value=1;
-  var total=lines.reduce(function(s,l){return s+l.qty;},0);
-  var gm=manualGM!==null?manualGM:getGM(total);
-  var gmSel=document.getElementById('sod-gm');
-  var opts=['0.40','0.35','0.30','0.22'];
-  gmSel.value=opts.includes(String(gm))?String(gm):'0.30';
+  document.getElementById('sod-gm').value='auto';
   toggleSODPricePending();
   document.getElementById('sodoor-modal').classList.remove('hidden');
 }
@@ -4666,10 +4690,10 @@ function addSpecialOrderDoor() {
   } else {
     qty=parseInt(document.getElementById('sod-qty').value)||1;
     cost=parseFloat(document.getElementById('sod-cost').value);
-    gm=getSODGM();
     if(!cost||cost<=0){ document.getElementById('sod-cost').style.borderColor='#c04040'; document.getElementById('sod-cost').focus(); return; }
-    if(!gm){ return; }
-    unit=Math.round(cost/(1-gm));
+    const pricing = getSpecialOrderDoorPricing(cost, qty);
+    if(!pricing) return;
+    ({unit, gm} = pricing);
   }
 
   var spec = {
@@ -9730,7 +9754,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
     </div></div>
 <script src="norwood-patch.js?v=20261102-invoice-copy-button"></script>
 <script src="norwood-delivery-patch.js?v=20261104-delivery-completed"></script>
-<script src="norwood-quote-import.js?v=20260927-0843"></script>
+<script src="norwood-quote-import.js?v=20261120-special-order-lookup"></script>
+<script src="norwood-special-order-lookup.js?v=20261120-special-order-lookup"></script>
 <script>
 /* ── ONE-TIME LOCALSTORAGE CLEANUP (added 2026-08-30) ─────────────────────
    ns_salvage is a dead ~3.9MB key: nothing in this file reads or writes it
