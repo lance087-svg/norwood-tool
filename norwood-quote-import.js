@@ -509,6 +509,29 @@ function nsRenderInvoiceInternal(reset) {
 }
 
 
+function nsCustomerInvoiceText(value) {
+  // Older records can have vendor pricing embedded in otherwise customer-facing text.
+  return value
+    .replace(/\s*·\s*(?:Stock units|Job lot)\s*·\s*\$[\d,.]+\s*\/\s*(?:LF|each)\b/gi, '')
+    .replace(/(?:^|[·|;\n]\s*|\s+-\s+|\(\s*|\s+)(?:(?:our|vendor|internal|wholesale|unit)\s+)?cost\s*[:=]?\s*(?:\$\s*[\d,.]+|\d[\d,]*\.\d{2})(?:\s*(?:\/|per\s+)\s*(?:lf|ea|each|slab|unit|pair|piece)\b)?[ \t]*\)?/gi, '')
+    .replace(/(TLC PH Program - [^\n·]*?)\s+\$[\d,.]+\s+per\s+(?:slab|single|double)\b/gi, '$1')
+    .replace(/^\s*[·|;]\s*/, '')
+    .trim();
+}
+
+function nsRemoveCostsFromInvoice(content) {
+  // Sanitize the shared customer document before printing or capturing it as a PDF.
+  // Saved line items and the separate internal cost editor keep their original data.
+  content.querySelectorAll('.inv-table tbody td:nth-child(3), .inv-terms-content li, .inv-terms').forEach(function(section) {
+    const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const cleaned = nsCustomerInvoiceText(node.data);
+      if (cleaned !== node.data.trim()) node.data = cleaned;
+    }
+  });
+}
+
 (function wireInvoiceInternal() {
   const printContent = document.getElementById('invoice-content');
   if (!printContent) return;
@@ -586,6 +609,7 @@ function nsRenderInvoiceInternal(reset) {
   const showInvoice = window.nsShowInvoiceNow;
   window.nsShowInvoiceNow = function() {
     const result = showInvoice.apply(this, arguments);
+    nsRemoveCostsFromInvoice(printContent);
     nsRenderInvoiceInternal(true);
     return result;
   };
