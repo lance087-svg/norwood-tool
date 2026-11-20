@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const vendorNames = {dyke: 'Dyke Industries', tlc: 'TLC Millwork'};
+  const vendorNames = {dyke: 'Dyke Industries', tlc: 'TLC Millwork', unknown: 'Vendor not recorded'};
   const normalize = value => String(value || '').toLowerCase().trim().replace(/\s+/g, ' ');
   const searchText = value => normalize(value).replace(/[^a-z0-9]+/g, ' ')
     .replace(/\bpre hung\b/g, 'prehung');
@@ -21,10 +21,12 @@
         .filter(Boolean).join(' · ');
       const specs = Object.entries(line.doorSpec || {}).filter(([, value]) => value)
         .sort(([a], [b]) => a.localeCompare(b));
-      const searchable = searchText([description, line.sku, ...specs.map(([, value]) => value)].join(' '));
+      const searchable = searchText([description, line.sku, line.doorStyle, ...specs.map(([, value]) => value)].join(' '));
+      const isDoor = line.sku === 'SO-DOOR' || /\bdoors?\b/i.test(line.category || '') ||
+        /\b(doors?|prehung|slabs?|monroe|bifold|hollow core|solid core|shaker|craftsman)\b/.test(searchable);
       if (!vendorNames[vendor] || !Number.isFinite(cost) || cost <= 0 ||
           !(timestamp >= oldest && timestamp <= now) ||
-          !/\b(doors?|pre ?hung|slabs?|monroe|bifold)\b/.test(searchable)) return;
+          !isDoor) return;
 
       // Only compare identical descriptions, dimensions, and configuration fields.
       const key = JSON.stringify([normalize(line.description || line.item), normalize(line.size), specs.map(([name, value]) => [name, normalize(value)])]);
@@ -37,7 +39,13 @@
     for (const quote of quotes) {
       for (const line of quote.lines || []) {
         const source = line.vendorQuoteSource;
-        if (source) add(line, source.vendor, Number(source.unitCost ?? line.cost), source.recordedAt, '', 'Quote imported');
+        if (source && vendorNames[source.vendor]) {
+          add(line, source.vendor, Number(source.unitCost ?? line.cost), source.recordedAt, '', 'Quote imported');
+        } else if (!line.pricePending && !line.vendorCostReference && (line.isCustom || line.sku === 'SO-DOOR')) {
+          const date = quote.date || (quote.createdAt ? new Date(quote.createdAt).toJSON() : '');
+          const kind = quote.type === 'invoice' ? 'Saved invoice cost' : 'Saved quote cost';
+          add(line, 'unknown', Number(line.cost), date, quote.quoteNum, kind);
+        }
       }
     }
     for (const order of orders) {
@@ -53,7 +61,7 @@
         }
       });
     }
-    return Array.from(recent.values(), offers => Array.from(offers.values()).sort((a, b) => a.cost - b.cost))
+    return Array.from(recent.values(), offers => Array.from(offers.values()).sort((a, b) => Number(a.vendor === 'unknown') - Number(b.vendor === 'unknown') || a.cost - b.cost))
       .sort((a, b) => b[0].timestamp - a[0].timestamp);
   }
 
@@ -72,11 +80,12 @@
     const matches = recentVendorDoorCosts(getSavedQuotes(), getPOLog())
       .filter(offers => terms.every(term => offers.some(offer => offer.searchable.includes(term))));
     if (!matches.length) {
-      results.textContent = 'No matching Dyke or TLC door costs recorded in the last nine months.';
+      results.textContent = 'No matching special-order door costs recorded in the last nine months.';
       return;
     }
 
-    for (const offers of matches.slice(0, 30)) {
+    results.append(matches.length + (matches.length === 1 ? ' configuration' : ' configurations'));
+    for (const offers of matches) {
       const cheapest = offers[0];
       const row = document.createElement('div');
       row.style.cssText = 'border-top:1px solid #e8dcc0;padding:8px 0';
@@ -100,7 +109,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn btn-gh';
-        button.textContent = offers.length > 1 && offer === cheapest ? 'Add lowest cost' : 'Add to quote';
+        button.textContent = offers.filter(item => item.vendor !== 'unknown').length > 1 && offer === cheapest ? 'Add lowest cost' : 'Add to quote';
         button.onclick = () => {
           const original = offer.line;
           const id = Date.now();
@@ -121,7 +130,6 @@
       }
       results.append(row);
     }
-    if (matches.length > 30) results.append('Showing 30 results. Narrow the search to see more.');
   }
 
   lookup.addEventListener('toggle', () => { if (lookup.open) render(); });
@@ -132,6 +140,7 @@
   lookupButton.type = 'button';
   lookupButton.className = 'btn btn-gh';
   lookupButton.textContent = 'Vendor Cost Lookup';
+  lookupButton.style.cssText = 'background:#ffdb57;color:#2f2005;border-color:#b8860b;font-weight:700';
   lookupButton.onclick = () => {
     window.showSpecialOrderDoor();
     lookup.open = true;
