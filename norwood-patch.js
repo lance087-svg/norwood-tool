@@ -1350,3 +1350,97 @@ window.copyToNewQuote = function(id) {
   var blank=toolbar.querySelector('button[onclick="newQuote()"]');
   toolbar.insertBefore(button,blank?blank.nextSibling:null);
 })();
+
+// Quote margin overrides and the initial margin for custom item forms.
+(function () {
+  var lastTier = document.getElementById('tier-3');
+  if (!lastTier || typeof setManualGM !== 'function') return;
+  var presets = [0.40, 0.35, 0.30, 0.22];
+  lastTier.insertAdjacentHTML('afterend',
+    '<form style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
+      '<label class="lbl" for="quote-custom-margin">Custom margin %</label>' +
+      '<input id="quote-custom-margin" type="number" min="1" max="99" step="any" required style="width:72px">' +
+      '<button id="quote-apply-margin" class="btn btn-gh" type="submit">Apply</button>' +
+    '</form>');
+  var customMargin = document.getElementById('quote-custom-margin');
+  var tierLabel = document.getElementById('tier-label');
+
+  function reflectMargin() {
+    var presetIndex = presets.indexOf(manualGM);
+    customMargin.value = manualGM !== null && presetIndex < 0
+      ? +(manualGM * 100).toFixed(10) : '';
+    if (manualGM === null) return;
+    presets.forEach(function (_, index) {
+      var tier = document.getElementById('tier-' + index);
+      tier.classList.toggle('on', index === presetIndex);
+      tier.classList.toggle('off', index !== presetIndex);
+      document.getElementById('t' + index + 'lbl').textContent = index === presetIndex ? 'LOCKED' : '';
+    });
+    tierLabel.textContent = +(manualGM * 100).toFixed(10) + '% margin override';
+  }
+
+  var originalSetMargin = window.setManualGM;
+  window.setManualGM = function (gm, index) {
+    lines.forEach(function (line) {
+      // Older records use isCustom both for entered items and for locked prices.
+      if (!line.isCustom || line.pricePending || !(line.cost > 0) ||
+          !(line.gm > 0 && line.gm < 1) || !['CUSTOM', 'SO-DOOR'].includes(line.sku) ||
+          line.retail !== Math.round(line.cost / (1 - line.gm))) return;
+      line.gm = gm;
+      line.retail = Math.round(line.cost / (1 - gm));
+    });
+    originalSetMargin(gm, index);
+  };
+
+  customMargin.form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (customMargin.reportValidity()) setManualGM(customMargin.valueAsNumber / 100, -1);
+  });
+
+  var originalUpdateTiers = window.updateTiers;
+  window.updateTiers = function (qty) {
+    originalUpdateTiers(qty);
+    reflectMargin();
+  };
+  var originalNewQuote = window.doNewQuote;
+  window.doNewQuote = function () {
+    var result = originalNewQuote.apply(this, arguments);
+    reflectMargin();
+    return result;
+  };
+
+  function wireItemMargin(prefix, openName, previewName) {
+    var select = document.getElementById(prefix + '-gm');
+    var input = document.getElementById(prefix + '-custom-gm');
+    var row = document.getElementById(prefix + '-custom-gm-row');
+    var pending = document.getElementById(prefix + '-price-pending');
+    input.step = 'any';
+
+    var originalPreview = window[previewName];
+    window[previewName] = function () {
+      row.classList.toggle('hidden', pending.checked || select.value !== 'custom');
+      return originalPreview.apply(this, arguments);
+    };
+    var getMarginName = prefix === 'ci' ? 'getCIGM' : 'getSODGM';
+    var originalGetMargin = window[getMarginName];
+    window[getMarginName] = function () {
+      var gm = originalGetMargin();
+      return gm >= 0.01 && gm <= 0.99 ? gm : null;
+    };
+
+    var originalOpen = window[openName];
+    window[openName] = function () {
+      var result = originalOpen.apply(this, arguments);
+      var gm = manualGM ?? 0.40;
+      var option = Array.from(select.options).find(function (entry) {
+        return Number(entry.value) === gm;
+      });
+      select.value = option ? option.value : 'custom';
+      input.value = option ? '' : +(gm * 100).toFixed(10);
+      window[previewName]();
+      return result;
+    };
+  }
+  wireItemMargin('ci', 'showCustomItem', 'updateCustomPreview');
+  wireItemMargin('sod', 'showSpecialOrderDoor', 'updateSODPreview');
+})();
