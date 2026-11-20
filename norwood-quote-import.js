@@ -144,7 +144,7 @@
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
-  var ROWS=[], MODE='quote';
+  var ROWS=[], MODE='quote', sourcePDF=null, importSession=0;
   function css(){
     if(document.getElementById('nqi-style'))return;
     var st=document.createElement('style'); st.id='nqi-style';
@@ -212,6 +212,9 @@
   }
   function openImport(mode){
     MODE=mode||'quote'; buildOverlay();
+    importSession++;
+    sourcePDF=null;
+    document.getElementById('nqi-add').disabled=false;
     document.getElementById('nqi-src').value='';
     document.getElementById('nqi-result').style.display='none';
     ROWS=[];
@@ -223,12 +226,18 @@
     document.getElementById('nqi-ov').classList.add('on');
     document.getElementById('nqi-src').focus();
   }
-  function closeImport(){ var o=document.getElementById('nqi-ov'); if(o)o.classList.remove('on'); }
+  function closeImport(){ importSession++; var o=document.getElementById('nqi-ov'); if(o)o.classList.remove('on'); }
   function readText(){ var t=(document.getElementById('nqi-src').value||'').trim(); if(!t){ alert('Paste a quote first.'); return; } render(parseQuote(t)); }
   function readPDF(ev){
     var f=ev.target.files[0]; if(!f)return;
+    ev.target.value='';
+    var session=++importSession;
+    sourcePDF=null;
+    document.getElementById('nqi-result').style.display='none';
     pdfToText(f, function(err, text){
+      if(session!==importSession)return;
       if(err){ alert('Could not read that PDF — try copy/paste instead.'); return; }
+      sourcePDF=f;
       document.getElementById('nqi-src').value=text;
       render(parseQuote(text));
     });
@@ -270,9 +279,25 @@
   function titleFrom(r){ return r.code ? r.code : (String(r.desc).split(/[,;]/)[0].slice(0,60) || 'Vendor Item'); }
   function uid(){ return Date.now()+Math.floor(Math.random()*100000); }
 
-  function addToQuote(){
+  async function addToQuote(){
     if(typeof lines==='undefined'){ alert('Open the Quote Builder first.'); return; }
     if(!ROWS.length){ alert('Nothing to add.'); return; }
+    var builderFiles=nsBuilderVendorQuotes;
+    if(sourcePDF){
+      var session=importSession;
+      var button=document.getElementById('nqi-add');
+      button.disabled=true;
+      try {
+        var attachment=await nsStoreVendorQuote(sourcePDF);
+        if(session!==importSession || builderFiles!==nsBuilderVendorQuotes)return;
+        builderFiles.push(attachment);
+      } catch(error) {
+        if(session===importSession) alert('Could not save the original PDF. Please try again. You can also reopen the importer and paste the quote text.');
+        return;
+      } finally {
+        if(session===importSession)button.disabled=false;
+      }
+    }
     var g=marginDec();
     ROWS.forEach(function(r){
       var unit = g<0.999 ? Math.round(r.cost/(1-g)) : r.cost;
@@ -331,4 +356,232 @@
   if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
   // keep re-checking for a bit in case the quote view renders late or re-renders
   var _nqiTicks=0, _nqiTimer=setInterval(function(){ injectAll(); if(++_nqiTicks>20) clearInterval(_nqiTimer); }, 800);
+})();
+
+var nsBuilderVendorQuotes = [];
+
+function nsMergeVendorQuotes(existing, incoming) {
+  return Array.from(new Map([...(existing || []), ...(incoming || [])]
+    .map(file => [file.path, file])).values());
+}
+
+function nsAccessVendorQuote(mode, operation) {
+  return new Promise(function(resolve, reject) {
+    const open = indexedDB.open('ns_vendor_quote_files', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('pdfs');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = function() {
+      const db = open.result;
+      const tx = db.transaction('pdfs', mode);
+      const request = operation(tx.objectStore('pdfs'));
+      tx.oncomplete = function() { db.close(); resolve(request.result); };
+      tx.onabort = function() { db.close(); reject(tx.error); };
+    };
+  });
+}
+
+async function nsStoreVendorQuote(file) {
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+    throw new Error('Choose a PDF file.');
+  }
+  const path = crypto.randomUUID();
+  const pdf = new Blob([file], {type: 'application/pdf'});
+  await nsAccessVendorQuote('readwrite', store => store.put({name: file.name, pdf}, path));
+  return {path};
+}
+
+function nsUpdateInvoiceInternal(id, update) {
+  const records = getSavedQuotesRaw();
+  const invoice = records.find(q => q.id === id && q.type === 'invoice' && !q.removed);
+  if (!invoice) throw new Error('This invoice is no longer available.');
+  if (!update(invoice)) return invoice;
+  invoice.timestamp = Math.max(Date.now(), (Number(invoice.timestamp) || 0) + 1);
+  saveQuotesToStorage(records, true);
+  if (nsLastQuoteWriteFailed) throw new Error('Save failed. Please try again.');
+  return invoice;
+}
+
+function nsRenderInvoiceInternal(reset) {
+  const id = currentInvoiceRecordId;
+  const invoice = getSavedQuotes().find(q => q.id === id && q.type === 'invoice');
+  const costPanel = document.getElementById('inv-internal-costs');
+  const filePanel = document.getElementById('inv-vendor-quotes');
+  costPanel.hidden = filePanel.hidden = !invoice;
+  if (!invoice) return;
+  if (reset) costPanel.open = filePanel.open = false;
+  const form = document.getElementById('inv-cost-form');
+  const items = invoice.lines || [];
+  form.innerHTML = items.length ? items.map((line, i) =>
+    '<label style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+    '<span>' + nsEsc(line.item) + (line.size ? ' (' + nsEsc(line.size) + ')' : '') +
+    ' · Qty ' + nsEsc(line.qty) + ' · Unit cost</span>' +
+    '<input aria-label="Unit cost for line ' + (i + 1) + '" type="number" required min="0" step="0.01" inputmode="decimal" style="width:110px" value="' +
+    Number(line.cost || 0).toFixed(2) + '"></label>'
+  ).join('') + '<button class="btn btn-g" type="submit">Save Internal Costs</button>' : 'No line items.';
+  form.onsubmit = function(event) {
+    event.preventDefault();
+    const costs = Array.from(form.querySelectorAll('input'), input => input.valueAsNumber);
+    try {
+      const updated = nsUpdateInvoiceInternal(id, function(record) {
+        if (JSON.stringify(record.lines) !== JSON.stringify(items)) {
+          throw new Error('The invoice lines changed. Review the latest costs and try again.');
+        }
+        let changed = false;
+        record.lines.forEach(function(line, i) {
+          if (costs[i] === Number(Number(line.cost || 0).toFixed(2))) return;
+          line.cost = costs[i];
+          line.gm = line.retail > 0 ? (line.retail - line.cost) / line.retail : 0;
+          line.invoiceCostEdited = true;
+          changed = true;
+        });
+        if (!changed) return false;
+        record.cost = record.lines.reduce((total, line) => total + (Number(line.cost) || 0) * line.qty, 0);
+        record.profit = record.grand - record.cost;
+        return true;
+      });
+      lines = updated.lines.map(line => ({...line}));
+      renderLines();
+      renderSummary();
+      nsRenderInvoiceInternal(false);
+      showToast('Internal costs saved', '#2d6a30');
+    } catch (error) {
+      nsRenderInvoiceInternal(false);
+      showToast(error.message, '#a5251a');
+    }
+  };
+
+  const files = document.getElementById('inv-vendor-files');
+  files.replaceChildren();
+  const vendorQuotes = invoice.vendorQuotes || [];
+  if (!vendorQuotes.length) files.textContent = 'No vendor quote attached.';
+  vendorQuotes.forEach(function(file) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-gh';
+    button.style.margin = '0 8px 8px 0';
+    button.textContent = 'Open Vendor Quote';
+    button.disabled = true;
+    const localFile = nsAccessVendorQuote('readonly', store => store.get(file.path));
+    localFile.then(function(document) {
+      if (!document) {
+        button.textContent = 'Vendor quote saved on another browser';
+        return;
+      }
+      button.textContent = 'Open ' + document.name;
+      button.disabled = false;
+      button.onclick = function() {
+        const url = URL.createObjectURL(document.pdf);
+        window.open(url, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      };
+    }).catch(function() { button.textContent = 'Could not read this vendor quote'; });
+    files.appendChild(button);
+  });
+
+  const upload = document.getElementById('inv-vendor-file');
+  upload.onchange = async function() {
+    const file = upload.files[0];
+    upload.value = '';
+    if (!file) return;
+    upload.disabled = true;
+    try {
+      const attachment = await nsStoreVendorQuote(file);
+      const updated = nsUpdateInvoiceInternal(id, function(record) {
+        record.vendorQuotes = nsMergeVendorQuotes(record.vendorQuotes, [attachment]);
+        return true;
+      });
+      if (id === currentInvoiceRecordId) {
+        nsBuilderVendorQuotes = updated.vendorQuotes.slice();
+        nsRenderInvoiceInternal(false);
+      }
+      showToast('Vendor quote attached to ' + updated.quoteNum, '#2d6a30');
+    } catch (error) {
+      showToast('Could not attach the vendor quote. ' + error.message, '#a5251a');
+    } finally {
+      upload.disabled = false;
+    }
+  };
+}
+
+
+(function wireInvoiceInternal() {
+  const printContent = document.getElementById('invoice-content');
+  if (!printContent) return;
+  printContent.insertAdjacentHTML('beforebegin', `<div class="no-print" style="margin-bottom:14px">
+      <details id="inv-internal-costs" style="padding:10px 16px;margin-bottom:8px;border:1px solid #e0d5c0;border-radius:7px">
+        <summary style="cursor:pointer;font-weight:700">Internal Costs</summary>
+        <form id="inv-cost-form" style="margin-top:10px"></form>
+      </details>
+      <details id="inv-vendor-quotes" style="padding:10px 16px;border:1px solid #e0d5c0;border-radius:7px">
+        <summary style="cursor:pointer;font-weight:700">Vendor Quotes</summary>
+        <div id="inv-vendor-files" style="margin:10px 0"></div>
+        <label>Attach vendor quote PDF <input id="inv-vendor-file" type="file" accept="application/pdf,.pdf"></label>
+      </details>
+    </div>`);
+
+  const resetBuilder = window.doNewQuote;
+  window.doNewQuote = function() {
+    nsBuilderVendorQuotes = [];
+    return resetBuilder.apply(this, arguments);
+  };
+
+  const loadBuilder = window.loadIntoBuilder;
+  window.loadIntoBuilder = function(id) {
+    const record = getSavedQuotes().find(q => q.id === id);
+    const result = loadBuilder.apply(this, arguments);
+    if (record) nsBuilderVendorQuotes = (record.vendorQuotes || []).slice();
+    return result;
+  };
+
+  const saveBuilder = window.saveCurrentQuote;
+  window.saveCurrentQuote = function(type) {
+    const number = type === 'invoice' ? currentInvNum : quoteNum;
+    const saveRecords = window.saveQuotesToStorage;
+    const previous = getSavedQuotes().find(q => q.quoteNum === number);
+    // Enrich the record before the app's ordinary local save and cloud sync.
+    window.saveQuotesToStorage = function(records) {
+      const record = records.find(q => q.type === type && q.quoteNum === number);
+      if (record) {
+        const files = nsMergeVendorQuotes(previous && previous.vendorQuotes, nsBuilderVendorQuotes);
+        if (files.length) record.vendorQuotes = files;
+        if (type === 'invoice' && previous) {
+          ['invoicedBy', 'invoicedAt', 'fromQuoteNum', 'history', 'returnsHistory'].forEach(function(key) {
+            if (previous[key] !== undefined) record[key] = previous[key];
+          });
+          if (record.returnsHistory) recomputePayment(record);
+        }
+      }
+      return saveRecords.apply(this, arguments);
+    };
+    try {
+      return saveBuilder.apply(this, arguments);
+    } finally {
+      window.saveQuotesToStorage = saveRecords;
+    }
+  };
+
+  const updateLines = window.recalcLines;
+  const setMargin = window.setManualGM;
+  let explicitReprice = false;
+  window.recalcLines = function() {
+    const preserved = currentInvNum && !explicitReprice
+      ? lines.filter(line => line.invoiceCostEdited).map(line => [line, line.retail, line.gm]) : [];
+    updateLines.apply(this, arguments);
+    preserved.forEach(function([line, retail, gm]) {
+      line.retail = retail;
+      line.gm = gm;
+    });
+  };
+  window.setManualGM = function() {
+    explicitReprice = true;
+    try { return setMargin.apply(this, arguments); }
+    finally { explicitReprice = false; }
+  };
+
+  const showInvoice = window.nsShowInvoiceNow;
+  window.nsShowInvoiceNow = function() {
+    const result = showInvoice.apply(this, arguments);
+    nsRenderInvoiceInternal(true);
+    return result;
+  };
 })();
