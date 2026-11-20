@@ -9,7 +9,12 @@
 
   function recentVendorDoorCosts(quotes, orders, now = Date.now()) {
     const recent = new Map();
-    const oldest = now - 90 * 86400000;
+    const oldest = new Date(now);
+    const day = oldest.getUTCDate();
+    oldest.setUTCDate(1);
+    oldest.setUTCMonth(oldest.getUTCMonth() - 9);
+    const daysInMonth = new Date(Date.UTC(oldest.getUTCFullYear(), oldest.getUTCMonth() + 1, 0)).getUTCDate();
+    oldest.setUTCDate(Math.min(day, daysInMonth));
     function add(line, vendor, cost, date, reference, kind) {
       const timestamp = Date.parse(date);
       const description = [line.item, line.size, normalize(line.description) !== normalize(line.item) && line.description]
@@ -67,7 +72,7 @@
     const matches = recentVendorDoorCosts(getSavedQuotes(), getPOLog())
       .filter(offers => terms.every(term => offers.some(offer => offer.searchable.includes(term))));
     if (!matches.length) {
-      results.textContent = 'No matching Dyke or TLC door costs recorded in the last 90 days.';
+      results.textContent = 'No matching Dyke or TLC door costs recorded in the last nine months.';
       return;
     }
 
@@ -123,6 +128,17 @@
   search.addEventListener('input', render);
   quantity.addEventListener('input', render);
   const openDoor = window.showSpecialOrderDoor;
+  const lookupButton = document.createElement('button');
+  lookupButton.type = 'button';
+  lookupButton.className = 'btn btn-gh';
+  lookupButton.textContent = 'Vendor Cost Lookup';
+  lookupButton.onclick = () => {
+    window.showSpecialOrderDoor();
+    lookup.open = true;
+    search.focus();
+  };
+  const doorButton = document.querySelector('button[onclick="showSpecialOrderDoor()"]');
+  doorButton?.after(lookupButton);
   window.showSpecialOrderDoor = function () {
     const result = openDoor.apply(this, arguments);
     search.value = '';
