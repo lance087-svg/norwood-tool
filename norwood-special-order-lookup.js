@@ -99,7 +99,7 @@
         row.append(details);
       }
       for (const offer of offers) {
-        const price = nsSpecialOrderMarkup(offer.cost, qty);
+        const price = nsSpecialOrderMarkup(offer.cost);
         const detail = document.createElement('div');
         detail.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0';
         detail.append([

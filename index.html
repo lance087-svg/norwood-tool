@@ -4606,13 +4606,14 @@ function getSODGM() {
   if(sel==='custom'){ var v=parseFloat(document.getElementById('sod-custom-gm').value); return isNaN(v)?null:v/100; }
   return parseFloat(sel);
 }
-function nsSpecialOrderMarkup(cost, qty) {
-  const markup = qty >= 2 ? 30 : cost < 100 ? 50 : 40;
-  const unit = Math.round(Math.round(cost * 100) * (100 + markup) / 100) / 100;
+function nsSpecialOrderMarkup(cost) {
+  const markup = cost < 100 ? 50 : cost <= 200 ? 40 : 30;
+  const costCents = Math.round(cost * 100);
+  const unit = Math.ceil(costCents * (100 + markup) / 100) / 100;
   return {unit, gm: (unit - cost) / unit, markup};
 }
-function getSpecialOrderDoorPricing(cost, qty) {
-  if(document.getElementById('sod-gm').value === 'auto') return nsSpecialOrderMarkup(cost, qty);
+function getSpecialOrderDoorPricing(cost) {
+  if(document.getElementById('sod-gm').value === 'auto') return nsSpecialOrderMarkup(cost);
   const gm = getSODGM();
   if(!(gm > 0 && gm < 1)) return null;
   return {unit: Math.round(cost / (1 - gm)), gm};
@@ -4621,7 +4622,7 @@ function updateSODPreview() {
   if(document.getElementById('sod-price-pending').checked){ document.getElementById('sod-preview').classList.add('hidden'); return; }
   var cost=parseFloat(document.getElementById('sod-cost').value);
   var qty=parseInt(document.getElementById('sod-qty').value)||1;
-  const pricing = cost > 0 ? getSpecialOrderDoorPricing(cost, qty) : null;
+  const pricing = cost > 0 ? getSpecialOrderDoorPricing(cost) : null;
   document.getElementById('sod-custom-gm-row').classList.toggle('hidden', document.getElementById('sod-gm').value !== 'custom');
   if(!pricing){ document.getElementById('sod-preview').classList.add('hidden'); return; }
   const {unit, gm, markup} = pricing;
@@ -4691,7 +4692,7 @@ function addSpecialOrderDoor() {
     qty=parseInt(document.getElementById('sod-qty').value)||1;
     cost=parseFloat(document.getElementById('sod-cost').value);
     if(!cost||cost<=0){ document.getElementById('sod-cost').style.borderColor='#c04040'; document.getElementById('sod-cost').focus(); return; }
-    const pricing = getSpecialOrderDoorPricing(cost, qty);
+    const pricing = getSpecialOrderDoorPricing(cost);
     if(!pricing) return;
     ({unit, gm} = pricing);
   }
@@ -9755,7 +9756,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightb
 <script src="norwood-patch.js?v=20261102-invoice-copy-button"></script>
 <script src="norwood-delivery-patch.js?v=20261104-delivery-completed"></script>
 <script src="norwood-quote-import.js?v=20261120-special-order-lookup"></script>
-<script src="norwood-special-order-lookup.js?v=20261120-saved-costs"></script>
+<script src="norwood-special-order-lookup.js?v=20261120-unit-markup"></script>
 <script>
 /* ── ONE-TIME LOCALSTORAGE CLEANUP (added 2026-08-30) ─────────────────────
    ns_salvage is a dead ~3.9MB key: nothing in this file reads or writes it
