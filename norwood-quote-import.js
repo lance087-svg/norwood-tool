@@ -245,10 +245,16 @@
   function esc(s){return String(s).replace(/"/g,'&quot;');}
   function marginDec(){ var m=num(document.getElementById('nqi-margin').value); m=Math.min(90,Math.max(0,m)); return m/100; }
   function retailOf(cost){ var g=marginDec(); return g<0.999? Math.round(cost/(1-g)) : cost; }
-  var resultVendor;
+  var resultVendor, historyId, historyDate;
+  function archiveRows() {
+    if (historyId) window.nsArchiveVendorQuote(historyId, resultVendor, ROWS, sourcePDF?.name || '', historyDate);
+  }
   function render(res){
+    historyId = crypto.randomUUID();
+    historyDate = new Date().toISOString();
     resultVendor = res.vendor;
     ROWS=res.items.map(function(it){return {qty:it.qty||1,uom:it.uom||'EA',code:it.code||'',desc:it.desc||'',cost:it.unit||0};});
+    if (ROWS.length) archiveRows();
     var badge=document.getElementById('nqi-badge');
     if(!ROWS.length){ badge.className='nqi-badge warn'; badge.textContent='Couldn\u2019t find line items — edit the paste or add manually'; }
     else { badge.className='nqi-badge'; badge.textContent='Detected: '+res.label+'  ·  '+ROWS.length+' line'+(ROWS.length>1?'s':''); }
@@ -271,8 +277,8 @@
     }).join('');
     tot();
   }
-  function upd(i,k,v){ if(k==='qty'||k==='cost')ROWS[i][k]=num(v); else ROWS[i][k]=v; tot(); }
-  function del(i){ ROWS.splice(i,1); drawRows(); }
+  function upd(i,k,v){ if(k==='qty'||k==='cost')ROWS[i][k]=num(v); else ROWS[i][k]=v; archiveRows(); tot(); }
+  function del(i){ ROWS.splice(i,1); archiveRows(); drawRows(); }
   function tot(){
     var tc=0;
     ROWS.forEach(function(r,i){ tc+=r.cost*r.qty; if(MODE==='quote'){ var el=document.getElementById('nqi-rt'+i); if(el)el.textContent='$'+retailOf(r.cost).toFixed(2); } });
@@ -301,12 +307,11 @@
       }
     }
     var g=marginDec();
-    var vendorQuoteSource = ['dyke', 'tlc'].includes(resultVendor)
-      ? {vendor: resultVendor, recordedAt: new Date().toISOString()}
-      : undefined;
+    var vendorQuoteSource = resultVendor === 'generic' ? 'unknown' : resultVendor;
+    var recordedAt = historyDate;
     ROWS.forEach(function(r){
       var unit = g<0.999 ? Math.round(r.cost/(1-g)) : r.cost;
-      lines.push({id:uid(),sku:(r.code||'CUSTOM'),item:titleFrom(r),category:'Special Order',group:'Custom',size:'',description:r.desc,cost:r.cost,vendorQuoteSource:vendorQuoteSource ? {...vendorQuoteSource, unitCost:r.cost} : undefined,onHand:null,uom:(r.uom||'EA'),isCustom:true,imageUrl:'',qty:r.qty,retail:unit,gm:g,lineId:uid()});
+      lines.push({id:uid(),sku:(r.code||'CUSTOM'),item:titleFrom(r),category:'Special Order',group:'Custom',size:'',description:r.desc,cost:r.cost,vendorQuoteSource:{vendor:vendorQuoteSource, recordedAt:recordedAt, unitCost:r.cost},onHand:null,uom:(r.uom||'EA'),isCustom:true,imageUrl:'',qty:r.qty,retail:unit,gm:g,lineId:uid()});
     });
     if(typeof renderLines==='function') renderLines();
     if(typeof renderSummary==='function') renderSummary();
