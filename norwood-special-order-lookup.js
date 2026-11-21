@@ -39,6 +39,32 @@
     archive.set(id, record);
     syncRecord(id, json);
   };
+  const processing = new Set();
+  async function recoverAttachments() {
+    let unavailable = 0;
+    for (const quote of getSavedQuotes()) {
+      const date = new Date(quote.date || quote.createdAt);
+      if (!Number.isFinite(+date) || +date < cutoff() || +date > Date.now()) continue;
+      for (const file of quote.vendorQuotes || []) {
+        const id = 'pdf-' + file.path;
+        if (!file.path || archive.has(id) || processing.has(id)) continue;
+        processing.add(id);
+        try {
+          const stored = await nsAccessVendorQuote('readonly', store => store.get(file.path));
+          if (!stored?.pdf) { unavailable++; continue; }
+          const parsed = await NQI.readHistoricalPDF(stored.pdf);
+          const rows = parsed.items.filter(row => row.unit > 0).map(row => ({
+            code:row.code || '', desc:row.desc || '', cost:row.unit, uom:row.uom || 'EA'
+          }));
+          if (!rows.length) { unavailable++; continue; }
+          nsArchiveVendorQuote(id, parsed.vendor, rows, [quote.quoteNum, stored.name].filter(Boolean).join(' · '), date.toISOString());
+        } catch (error) { unavailable++; }
+        finally { processing.delete(id); }
+      }
+    }
+    render();
+    if (unavailable) results.append(' ' + unavailable + ' attached PDF(s) could not be read on this device.');
+  }
   async function loadArchive() {
     const threshold = cutoff();
     const db = collection();
@@ -82,8 +108,8 @@
       const key = JSON.stringify([normalize(line.description || line.item), normalize(line.size), specs.map(([name, value]) => [name, normalize(value)])]);
       if (!recent.has(key)) recent.set(key, new Map());
       const offers = recent.get(key);
-      if ((offers.get(vendor)?.timestamp ?? -Infinity) >= timestamp) return;
-      offers.set(vendor, {line, vendor, cost, timestamp, reference, kind, description, searchable});
+      const offerKey = JSON.stringify([vendor, timestamp, cost, reference]);
+      offers.set(offerKey, {line, vendor, cost, timestamp, reference, kind, description, searchable});
     }
 
     for (const record of archive.values()) {
@@ -93,7 +119,9 @@
       for (const line of quote.lines || []) {
         const source = line.vendorQuoteSource;
         if (source && vendorNames[source.vendor]) {
-          add(line, source.vendor, Number(source.unitCost ?? line.cost), source.recordedAt, quote.quoteNum, 'Quote imported');
+          add(line, source.vendor, Number(source.unitCost ?? line.cost), source.recordedAt || quote.date, quote.quoteNum, 'Quote imported');
+        } else if (!source && !line.pricePending && !line.vendorCostReference && (line.isCustom || line.sku === 'SO-DOOR')) {
+          add(line, 'unknown', Number(line.cost), quote.date || new Date(quote.createdAt).toJSON(), quote.quoteNum, 'Saved special-order cost · vendor source unconfirmed');
 
         }
       }
@@ -106,8 +134,8 @@
         if (acknowledged && Number(acknowledged.qty) > 0 && Number(acknowledged.cost) > 0) {
           add(line, vendor, Number(acknowledged.cost), order.ack.date || order.ack.savedAt,
             order.ack.ref || order.poNum, 'Acknowledgment');
-        } else if (line.isImported) {
-          add(line, vendor, Number(line.unitCost), order.date || order.savedAt, order.poNum, 'Imported PO cost');
+        } else if (line.isImported || ['Sent','Acknowledged','Partial','Received'].includes(order.status)) {
+          add(line, vendor, Number(line.unitCost), order.date || order.savedAt, order.poNum, line.isImported ? 'Imported PO cost' : 'Purchase order cost');
         }
       });
     }
@@ -183,7 +211,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn btn-gh';
-        button.textContent = offers.filter(item => item.vendor !== 'unknown').length > 1 && offer === cheapest ? 'Add lowest cost' : 'Add to quote';
+        button.textContent = new Set(offers.map(item => item.vendor)).size > 1 && offer === cheapest ? 'Add lowest cost' : 'Add to quote';
         button.onclick = () => {
           const original = offer.line;
           const id = Date.now();
@@ -218,7 +246,7 @@
     search.value = '';
     quantity.value = '1';
     lookup.classList.remove('hidden');
-    loadArchive();
+    loadArchive().finally(recoverAttachments);
     search.focus();
   };
   const doorButton = document.querySelector('button[onclick="showSpecialOrderDoor()"]');

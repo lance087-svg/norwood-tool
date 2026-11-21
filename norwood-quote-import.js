@@ -135,11 +135,11 @@
               if(cur.length)rows.push(cur);
               pages.push(rows.map(function(r){return r.sort(function(a,b){return a.x-b.x;}).map(function(i){return i.s;}).join(' ').replace(/\s+/g,' ').trim();}).filter(Boolean).join('\n'));
               n++; nextPage();
-            });});
+            }).catch(cb);}).catch(cb);
           }
           nextPage();
         }).catch(function(){ cb(new Error('read')); });
-      });
+      }).catch(cb);
     });
   }
 
@@ -330,7 +330,9 @@
   }
   function add(){ if(MODE==='quote') addToQuote(); else addToPO(); }
 
-  window.NQI={ open:openImport, close:closeImport, read:readText, pdf:readPDF, upd:upd, del:del, add:add, tot:tot };
+  window.NQI={ readHistoricalPDF: file => new Promise((resolve, reject) => {
+    pdfToText(file, (error, text) => error ? reject(error) : resolve(parseQuote(text)));
+  }), open:openImport, close:closeImport, read:readText, pdf:readPDF, upd:upd, del:del, add:add, tot:tot };
 
   // ── Inject buttons (mirrors norwood-patch.js's proven .add-row approach) ────
   function injectQuoteBtn(tries){
