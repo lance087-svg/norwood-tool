@@ -17,12 +17,12 @@ function app(products=inventory.map(p=>({...p,item:p.name}))){
 }
 test('November vendor prices convert correctly and preserve configured margins',()=>{
  const {ctx}=app();
- const expected={'5000':[745,3.97,5.67],'5003':[645,6.02,8.60],'5004':[735,7.84,11.20],'5010':[640,3.29,4.70],'5012':[580,3.76,5.37],'5014':[795,6.93,9.90],'9500':[751,24.03,32.04],'9509':[861,27.55,36.73]};
+ const expected={'5000':[650,3.47,4.96],'5003':[625,5.83,8.33],'5004':[735,7.84,11.20],'5010':[630,3.24,4.63],'5012':[580,3.76,5.37],'5014':[795,6.93,9.90],'9500':[751,24.03,32.04],'9509':[861,27.55,36.73]};
  for(const [sku,[perM,cost,sell]] of Object.entries(expected)){
   const p=inventory.find(p=>p.sku===sku);assert.equal(Number(p.pricePerM),perM);assert.equal(p.cost,cost);
   assert.equal(ctx.calcRetail(cost,ctx.getCategoryGM(p),p.fixedRetail,p),sell);
  }
- assert.equal(inventory.filter(p=>p.wholesaleCostRevision==='2026-11-16-wbp').length,128);
+ assert.equal(inventory.filter(p=>p.wholesaleCostRevision==='2026-11-23-wbp').length,125);
 });
 test('refresh replaces stale covered costs once and preserves history, stock, unsupported prices',()=>{
  const {ctx,values}=app();
