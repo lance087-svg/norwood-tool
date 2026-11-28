@@ -60,32 +60,36 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
 (function(root){
  'use strict';
  var D=root.document;
- function reorder(){
+ var order=[
+  'tab-quote','tab-deliveries','tab-receiving','New Quote','df-tab-btn',
+  'tab-invoices','tab-credits','tab-door-pictures','Activity','tab-stocklist',
+  'tab-history','tab-orders','tab-pickup','tab-price-list','tab-polog',
+  'tab-inquiries','tab-beams','tab-lumber','tab-admin','tab-catalog',
+  'tab-inventory','tab-operations','tab-reports'
+ ];
+ function arrange(){
   var nav=D.querySelector('.nav');
   if(!nav)return;
-  var btns=Array.prototype.slice.call(nav.querySelectorAll(':scope > .tab'));
-  function byId(id){return D.getElementById(id);}
+  var tabs=Array.prototype.slice.call(nav.querySelectorAll(':scope > .tab'));
   function byText(label){
-   return btns.find(function(b){
+   return tabs.find(function(b){
     return b.textContent.trim().toLowerCase().endsWith(label.toLowerCase());
    })||null;
   }
-  var quoteBuilder=byId('tab-quote');
-  if(quoteBuilder){
-   quoteBuilder.setAttribute('aria-hidden','true');
-   quoteBuilder.style.setProperty('display','none','important');
+  var resolved=order.map(function(key){
+   return key==='New Quote'||key==='Activity' ? byText(key) : D.getElementById(key);
+  }).filter(Boolean);
+  var finalOrder=resolved.concat(tabs.filter(function(tab){return resolved.indexOf(tab)===-1;}));
+  for(var i=0;i<finalOrder.length;i++){
+   var current=nav.querySelectorAll(':scope > .tab');
+   if(current[i]!==finalOrder[i])nav.insertBefore(finalOrder[i],current[i]||null);
   }
-  var front=[byId('tab-invoices'),byText('New Quote'),byId('tab-history')].filter(Boolean);
-  front.slice().reverse().forEach(function(el){nav.insertBefore(el,nav.firstChild);});
-  var activity=byText('Activity');
-  var end=[byId('tab-operations'),activity,byId('tab-stocklist'),byId('tab-credits'),byId('tab-orders'),byId('tab-pickup'),byId('tab-catalog'),byId('tab-lumber'),byId('tab-beams')].filter(Boolean);
-  end.forEach(function(el){nav.appendChild(el);});
  }
  function mount(){
   var nav=D.querySelector('.nav');
   if(!nav)return;
-  reorder();
-  new MutationObserver(reorder).observe(nav,{childList:true});
+  arrange();
+  new MutationObserver(arrange).observe(nav,{childList:true});
  }
  if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mount();
 })(window);
