@@ -67,7 +67,7 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
   function byId(id){return D.getElementById(id);}
   function byText(label){
    return btns.find(function(b){
-    return b.textContent.replace(/^\\s*🔄\\s*/,'').trim().toLowerCase()===label.toLowerCase();
+    return b.textContent.trim().toLowerCase().endsWith(label.toLowerCase());
    })||null;
   }
   var quoteBuilder=byId('tab-quote');
@@ -77,8 +77,9 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
   }
   var front=[byId('tab-invoices'),byText('New Quote'),byId('tab-history')].filter(Boolean);
   front.slice().reverse().forEach(function(el){nav.insertBefore(el,nav.firstChild);});
-  var endIds=['tab-operations','tab-activity','tab-stocklist','tab-credits','tab-orders','tab-pickup','tab-catalog','tab-lumber','tab-beams'];
-  endIds.map(byId).filter(Boolean).forEach(function(el){nav.appendChild(el);});
+  var activity=byText('Activity');
+  var end=[byId('tab-operations'),activity,byId('tab-stocklist'),byId('tab-credits'),byId('tab-orders'),byId('tab-pickup'),byId('tab-catalog'),byId('tab-lumber'),byId('tab-beams')].filter(Boolean);
+  end.forEach(function(el){nav.appendChild(el);});
  }
  function mount(){
   var nav=D.querySelector('.nav');
