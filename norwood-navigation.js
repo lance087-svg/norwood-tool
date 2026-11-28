@@ -54,3 +54,37 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mo
  var css=document.createElement('link');css.rel='stylesheet';css.href='norwood-invoice-aging.css?v=20261112-over45';document.head.appendChild(css);
  var script=document.createElement('script');script.src='norwood-invoice-aging.js?v=20261112-over45-2';document.head.appendChild(script);
 })();
+
+
+/* Keep the main navigation in Lance's requested order. */
+(function(root){
+ 'use strict';
+ var D=root.document;
+ function reorder(){
+  var nav=D.querySelector('.nav');
+  if(!nav)return;
+  var btns=Array.prototype.slice.call(nav.querySelectorAll(':scope > .tab'));
+  function byId(id){return D.getElementById(id);}
+  function byText(label){
+   return btns.find(function(b){
+    return b.textContent.replace(/^\\s*🔄\\s*/,'').trim().toLowerCase()===label.toLowerCase();
+   })||null;
+  }
+  var quoteBuilder=byId('tab-quote');
+  if(quoteBuilder){
+   quoteBuilder.setAttribute('aria-hidden','true');
+   quoteBuilder.style.setProperty('display','none','important');
+  }
+  var front=[byId('tab-invoices'),byText('New Quote'),byId('tab-history')].filter(Boolean);
+  front.slice().reverse().forEach(function(el){nav.insertBefore(el,nav.firstChild);});
+  var endIds=['tab-operations','tab-activity','tab-stocklist','tab-credits','tab-orders','tab-pickup','tab-catalog','tab-lumber','tab-beams'];
+  endIds.map(byId).filter(Boolean).forEach(function(el){nav.appendChild(el);});
+ }
+ function mount(){
+  var nav=D.querySelector('.nav');
+  if(!nav)return;
+  reorder();
+  new MutationObserver(reorder).observe(nav,{childList:true});
+ }
+ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',mount);else mount();
+})(window);
